@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import type { GpuOffering, GpuSource, Model, BenchmarkScore, SotaScore } from "@/types";
 
-export const BASE_PATH = "/coding-model-seeks-gpu";
-
 const DEFAULT_GPU_SOURCE: GpuSource = {
   service_name: "gpuhunt",
   service_url: "https://github.com/dstackai/gpuhunt",
@@ -46,12 +44,12 @@ export function useData(): { data: AppData | null; loading: boolean } {
       try {
         // Load GPUs, models, source metadata, and snapshot index in parallel
         const [gpus, models, gpuSource, index] = await Promise.all([
-          fetch(`${BASE_PATH}/data/gpus.json`).then((r) => r.json()),
-          fetch(`${BASE_PATH}/data/models.json`).then((r) => r.json()),
-          fetch(`${BASE_PATH}/data/gpu_source.json`)
+          fetch("/data/gpus.json").then((r) => r.json()),
+          fetch("/data/models.json").then((r) => r.json()),
+          fetch("/data/gpu_source.json")
             .then((r) => r.json() as Promise<GpuSource>)
             .catch(() => DEFAULT_GPU_SOURCE),
-          fetch(`${BASE_PATH}/data/snapshots/index.json`)
+          fetch("/data/snapshots/index.json")
             .then((r) => r.json() as Promise<SnapshotIndex>)
             .catch(() => null),
         ]);
@@ -61,7 +59,7 @@ export function useData(): { data: AppData | null; loading: boolean } {
 
         if (index?.latest) {
           // Load from latest snapshot
-          const base = `${BASE_PATH}/data/snapshots/${index.latest}`;
+          const base = `/data/snapshots/${index.latest}`;
           [benchmarks, sotaScores] = await Promise.all([
             fetch(`${base}/benchmarks.json`).then((r) => r.json()),
             fetch(`${base}/sota_scores.json`)
