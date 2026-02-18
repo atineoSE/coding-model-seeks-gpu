@@ -1,0 +1,3 @@
+[submodule "external/openhands-index-results"]
+	path = external/openhands-index-results
+	url = https://github.com/OpenHands/openhands-index-results
