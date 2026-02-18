@@ -10,6 +10,7 @@ import type {
 import { findGpuSetups, findScaledGpuSetups } from "./matrix-calculator";
 import { getModelMemory, resolveModelPrecision } from "./calculations";
 import { GPU_PRESETS } from "./gpu-presets";
+import { BASE_PATH } from "./data";
 
 // ---------------------------------------------------------------------------
 // Model alias map — ported from pipeline/pipeline/snapshots/alias_map.py
@@ -98,13 +99,13 @@ export function useSnapshotData(): {
 
     async function load() {
       try {
-        const index: SnapshotIndex = await fetch("/data/snapshots/index.json").then(
+        const index: SnapshotIndex = await fetch(`${BASE_PATH}/data/snapshots/index.json`).then(
           (r) => r.json(),
         );
 
         const results = await Promise.all(
           index.snapshots.map(async (date) => {
-            const base = `/data/snapshots/${date}`;
+            const base = `${BASE_PATH}/data/snapshots/${date}`;
             const [benchmarks, sotaScores] = await Promise.all([
               fetch(`${base}/benchmarks.json`).then((r) => r.json()),
               fetch(`${base}/sota_scores.json`)
