@@ -111,6 +111,11 @@ export default function Home() {
               </h1>
               <p className="text-muted-foreground mt-1">
                 Open source coding LLMs ranked by real-world performance, sized to real hardware.
+                {data?.updatedAt && (
+                  <span className="ml-2 text-xs text-muted-foreground/60">
+                    Updated {new Date(data.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -217,9 +222,6 @@ export default function Home() {
                 {data.gpuSource.service_name}
               </a>
               . {data.gpuSource.description}
-              {data.gpuSource.updated_at && (
-                <> Last updated: {new Date(data.gpuSource.updated_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}.</>
-              )}
             </p>
           )}
           <p>

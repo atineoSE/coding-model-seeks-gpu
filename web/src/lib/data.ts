@@ -7,7 +7,6 @@ const DEFAULT_GPU_SOURCE: GpuSource = {
   description: "All regions considered. Throughput values may be underestimated, because interconnect data is missing.",
   currency: "USD",
   currency_symbol: "$",
-  updated_at: "",
 };
 
 export interface AppData {
@@ -16,6 +15,7 @@ export interface AppData {
   benchmarks: BenchmarkScore[];
   sotaScores: SotaScore[];
   gpuSource: GpuSource;
+  updatedAt: string | null;
 }
 
 export interface BenchmarkType {
@@ -42,13 +42,16 @@ export function useData(): { data: AppData | null; loading: boolean } {
   useEffect(() => {
     async function load() {
       try {
-        // Load GPUs, models, source metadata, and snapshot index in parallel
-        const [gpus, models, gpuSource, index] = await Promise.all([
+        // Load GPUs, models, source metadata, pipeline metadata, and snapshot index in parallel
+        const [gpus, models, gpuSource, metadata, index] = await Promise.all([
           fetch("/data/gpus.json").then((r) => r.json()),
           fetch("/data/models.json").then((r) => r.json()),
           fetch("/data/gpu_source.json")
             .then((r) => r.json() as Promise<GpuSource>)
             .catch(() => DEFAULT_GPU_SOURCE),
+          fetch("/data/metadata.json")
+            .then((r) => r.json() as Promise<{ updated_at: string }>)
+            .catch(() => null),
           fetch("/data/snapshots/index.json")
             .then((r) => r.json() as Promise<SnapshotIndex>)
             .catch(() => null),
@@ -68,9 +71,9 @@ export function useData(): { data: AppData | null; loading: boolean } {
           ]);
         }
 
-        setData({ gpus, models, benchmarks, sotaScores, gpuSource });
+        setData({ gpus, models, benchmarks, sotaScores, gpuSource, updatedAt: metadata?.updated_at ?? null });
       } catch {
-        setData({ gpus: [], models: [], benchmarks: [], sotaScores: [], gpuSource: DEFAULT_GPU_SOURCE });
+        setData({ gpus: [], models: [], benchmarks: [], sotaScores: [], gpuSource: DEFAULT_GPU_SOURCE, updatedAt: null });
       } finally {
         setLoading(false);
       }

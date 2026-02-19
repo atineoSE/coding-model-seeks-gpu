@@ -3,6 +3,5 @@
   "service_url": "https://github.com/dstackai/gpuhunt",
   "description": "All regions considered. Throughput values may be underestimated, because interconnect data is missing.",
   "currency": "USD",
-  "currency_symbol": "$",
-  "updated_at": "2026-02-18T15:42:27.202899+00:00"
+  "currency_symbol": "$"
 }

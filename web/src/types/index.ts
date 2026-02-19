@@ -4,7 +4,6 @@ export interface GpuSource {
   description: string;
   currency: string;
   currency_symbol: string;
-  updated_at: string;
 }
 
 export interface GpuOffering {

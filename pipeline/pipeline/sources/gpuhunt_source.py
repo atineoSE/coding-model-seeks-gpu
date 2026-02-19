@@ -1,7 +1,6 @@
 """Fetch GPU prices from gpuhunt and return offerings + source metadata."""
 
 import logging
-from datetime import UTC, datetime
 
 from gpuhunt import Catalog
 
@@ -95,7 +94,6 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
         "description": "All regions considered. Throughput values may be underestimated, because interconnect data is missing.",
         "currency": "USD",
         "currency_symbol": "$",
-        "updated_at": datetime.now(UTC).isoformat(),
     }
 
     return offerings, source_metadata

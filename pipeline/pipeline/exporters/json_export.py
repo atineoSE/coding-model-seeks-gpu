@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pipeline.config import EXPORT_DIR
@@ -70,6 +71,19 @@ def export_models(
     return path
 
 
+def export_metadata(output_dir: Path | None = None) -> Path:
+    """Export pipeline run metadata to metadata.json."""
+    if output_dir is None:
+        output_dir = EXPORT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    metadata = {"updated_at": datetime.now(UTC).isoformat()}
+    path = output_dir / "metadata.json"
+    path.write_text(json.dumps(metadata, indent=2) + "\n")
+    logger.info("Exported pipeline metadata to %s", path)
+    return path
+
+
 def export_all(
     offerings: list[dict],
     specs: list[ModelSpec],
@@ -83,6 +97,7 @@ def export_all(
     result: dict[str, Path] = {
         "gpus": export_gpus(offerings, output_dir),
         "models": export_models(specs, output_dir),
+        "metadata": export_metadata(output_dir),
     }
     if source_metadata is not None:
         result["gpu_source"] = export_gpu_source(source_metadata, output_dir)
