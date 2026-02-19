@@ -245,6 +245,9 @@ function CellContent({ cell, persona, currencySymbol = "$" }: { cell: MatrixCell
                   {formatCurrency(setup.monthlyCost, currencySymbol)}/mo
                   {" · "}
                   {formatCurrency(setup.costPerStreamPerMonth, currencySymbol)}/stream
+                  {setup.decodeThroughputTokS !== null && (
+                    <> · {Math.round(setup.decodeThroughputTokS)} tok/s</>
+                  )}
                 </div>
               </div>
             ))}
