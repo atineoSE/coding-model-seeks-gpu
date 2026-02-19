@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from pipeline.notify import (
     SUBJECT_PREFIX,
     is_enabled,
+    notify_breaking_format_change,
     notify_data_updated,
     notify_failure,
     notify_missing_mapping,
@@ -119,6 +120,27 @@ class TestNotifyFailure:
         body = sent_msg.get_payload()
         assert "boom" in body
         assert "Traceback" in body
+
+
+class TestNotifyBreakingFormatChange:
+    def test_subject_and_body(self, monkeypatch):
+        monkeypatch.setattr("pipeline.notify.SMTP_USER", "user@gmail.com")
+        monkeypatch.setattr("pipeline.notify.SMTP_PASSWORD", "secret")
+        monkeypatch.setattr("pipeline.notify.NOTIFY_TO", "dest@example.com")
+
+        mock_smtp_instance = MagicMock()
+        mock_smtp_cls = MagicMock(return_value=mock_smtp_instance)
+        mock_smtp_instance.__enter__ = MagicMock(return_value=mock_smtp_instance)
+        mock_smtp_instance.__exit__ = MagicMock(return_value=False)
+
+        with patch("pipeline.notify.smtplib.SMTP", mock_smtp_cls):
+            notify_breaking_format_change("gpuhunt", "Missing attributes: ['gpu_name']")
+
+        sent_msg = mock_smtp_instance.send_message.call_args[0][0]
+        assert sent_msg["Subject"] == f"{SUBJECT_PREFIX} Data format breaking change"
+        body = sent_msg.get_payload()
+        assert "gpuhunt" in body
+        assert "Missing attributes" in body
 
 
 class TestNotifyDataUpdated:

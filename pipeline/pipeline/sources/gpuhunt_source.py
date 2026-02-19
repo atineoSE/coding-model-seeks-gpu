@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 
 from gpuhunt import Catalog
 
+from pipeline.errors import FormatBreakingChange
+
 logger = logging.getLogger(__name__)
 
 # GPUs not suitable for LLM serving (too little VRAM, old arch, consumer cards)
@@ -39,6 +41,22 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
         spot=False,
         min_gpu_count=1,
     )
+
+    # Validate gpuhunt result format — detect breaking API changes early
+    _EXPECTED_ATTRS = ("gpu_name", "gpu_memory", "gpu_count", "price", "provider",
+                       "instance_name", "location")
+    if items:
+        first = items[0]
+        missing = [a for a in _EXPECTED_ATTRS if not hasattr(first, a)]
+        if missing:
+            raise FormatBreakingChange(
+                source="gpuhunt",
+                details=(
+                    f"Query results are missing expected attributes: {missing}. "
+                    f"The gpuhunt Catalog API may have changed. "
+                    f"Available attributes: {sorted(vars(first).keys())}"
+                ),
+            )
 
     # Group by (gpu_name, gpu_memory, gpu_count), keep cheapest
     best: dict[tuple[str, float, int], object] = {}

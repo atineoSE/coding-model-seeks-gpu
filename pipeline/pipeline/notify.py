@@ -71,6 +71,19 @@ def notify_failure(error: Exception, traceback_str: str) -> None:
     )
 
 
+def notify_breaking_format_change(source: str, details: str) -> None:
+    """Alert that an upstream data source has a breaking format change."""
+    send_email(
+        subject="Data format breaking change",
+        body=(
+            f"A breaking change was detected in the data format from '{source}'.\n\n"
+            f"Details:\n{details}\n\n"
+            f"The pipeline cannot process data from this source until the code is "
+            f"updated to handle the new format."
+        ),
+    )
+
+
 def notify_data_updated(updates: list[str]) -> None:
     """Summarize what changed in a successful pipeline run."""
     body = "The pipeline completed successfully. Updates:\n\n"

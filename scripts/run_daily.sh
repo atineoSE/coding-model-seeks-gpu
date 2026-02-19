@@ -15,19 +15,22 @@ git config user.email "pipeline-bot@users.noreply.github.com"
 git -C external/openhands-index-results fetch origin main
 git -C external/openhands-index-results checkout origin/main
 
-# 3. Install pipeline (deps already in image, fast)
+# 3. Try to update gpuhunt to latest (best-effort; continues if already up-to-date)
+pip install --no-cache-dir --upgrade gpuhunt || true
+
+# 4. Install pipeline (deps already in image, fast)
 pip install --no-cache-dir -e pipeline/
 
-# 4. Run the pipeline
+# 5. Run the pipeline (always queries gpuhunt regardless of dependency update)
 python -m pipeline.main --step all
 
-# 5. Check for changes in data files OR submodule pointer
+# 6. Check for changes in data files OR submodule pointer
 if git diff --quiet external/openhands-index-results web/public/data/; then
     echo "No data changes detected. Exiting."
     exit 0
 fi
 
-# 6. Commit and push
+# 7. Commit and push
 git add external/openhands-index-results web/public/data/
 git commit -m "chore: update pipeline data (automated)"
 git pull --rebase origin main

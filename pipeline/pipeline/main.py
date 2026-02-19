@@ -8,8 +8,15 @@ import time
 import traceback
 
 from pipeline.config import SNAPSHOTS_DIR, SUBMODULE_PATH
+from pipeline.errors import FormatBreakingChange
 from pipeline.exporters.json_export import export_all
-from pipeline.notify import is_enabled, notify_data_updated, notify_failure, notify_missing_mapping
+from pipeline.notify import (
+    is_enabled,
+    notify_breaking_format_change,
+    notify_data_updated,
+    notify_failure,
+    notify_missing_mapping,
+)
 from pipeline.snapshots.exporter import load_index, run_snapshot_export
 from pipeline.sources.gpuhunt_source import fetch_gpu_prices
 from pipeline.sources.huggingface import MODEL_NAME_TO_HF_ID, fetch_all_models
@@ -163,6 +170,13 @@ def main():
 
             logger.info("Pipeline complete!")
             return  # Success, exit retry loop
+
+        except FormatBreakingChange as e:
+            # Format breaks won't fix themselves — skip retries, alert immediately
+            logger.exception("Breaking format change detected: %s", e)
+            if is_enabled():
+                notify_breaking_format_change(e.source, e.details)
+            sys.exit(1)
 
         except Exception as e:
             last_error = e

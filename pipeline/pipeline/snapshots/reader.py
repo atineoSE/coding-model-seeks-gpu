@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from pipeline.errors import FormatBreakingChange
 from pipeline.snapshots.git_repo import list_model_dirs, read_file_at_commit
 
 logger = logging.getLogger(__name__)
@@ -88,11 +89,27 @@ def read_all_models(
     repo_path: Path,
     commit: str,
 ) -> list[ModelData]:
-    """Read all model data at a given commit."""
+    """Read all model data at a given commit.
+
+    Raises FormatBreakingChange if model directories exist but none can be
+    parsed — a strong signal the upstream schema has changed.
+    """
     dirs = list_model_dirs(repo_path, commit)
     models = []
     for d in dirs:
         data = read_model_data(repo_path, commit, d)
         if data is not None:
             models.append(data)
+
+    if dirs and not models:
+        raise FormatBreakingChange(
+            source="openhands-index",
+            details=(
+                f"Found {len(dirs)} model directories at commit {commit[:8]} "
+                f"but could not parse any of them. "
+                f"The metadata.json or scores.json schema may have changed. "
+                f"Sample directories: {dirs[:5]}"
+            ),
+        )
+
     return models
