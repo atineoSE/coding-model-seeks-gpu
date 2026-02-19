@@ -9,7 +9,7 @@ import type {
   TeamCapacityResult,
 } from "@/types";
 import { getOfferings } from "./data";
-import { getGpuThroughputSpec, supportsFp8KvCache, gpuHasNvLink } from "./gpu-specs";
+import { getGpuThroughputSpec, supportsFp8KvCache } from "./gpu-specs";
 import { getRegimeParams } from "./regime-params";
 
 const HOURS_PER_MONTH = 720;
@@ -439,7 +439,7 @@ export function calcTeamCapacity(
     precision,
     gpuOffering.gpu_name,
     gpuOffering.gpu_count,
-    gpuHasNvLink(gpuOffering.gpu_name) ? "nvlink" : null,
+    gpuOffering.interconnect,
   );
 
   // If we don't have throughput data, we can't calculate team capacity

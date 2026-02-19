@@ -4,7 +4,7 @@ import type { GpuOffering, GpuSource, Model, BenchmarkScore, SotaScore } from "@
 const DEFAULT_GPU_SOURCE: GpuSource = {
   service_name: "gpuhunt",
   service_url: "https://github.com/dstackai/gpuhunt",
-  description: "All regions considered.",
+  description: "All regions considered. Throughput values may be underestimated, because interconnect data is missing.",
   currency: "USD",
   currency_symbol: "$",
   updated_at: "",

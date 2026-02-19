@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { PresetGpuConfig } from "@/types";
 import { GPU_PRESETS } from "@/lib/gpu-presets";
-import { GPU_THROUGHPUT_SPECS, gpuHasNvLink } from "@/lib/gpu-specs";
+import { GPU_THROUGHPUT_SPECS, getGpuThroughputSpec } from "@/lib/gpu-specs";
+import { isNvLink } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 // Known VRAM per GPU type (GB)
 const GPU_VRAM: Record<string, number> = {
@@ -58,24 +60,23 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
   const [customOpen, setCustomOpen] = useState(false);
   const [customGpu, setCustomGpu] = useState("H100");
   const [customCount, setCustomCount] = useState("4");
-  const [customInterconnect, setCustomInterconnect] = useState<string>("pcie");
+  const [customInterconnect, setCustomInterconnect] = useState<string>("nvlink");
+
+  function handleGpuChange(gpu: string) {
+    setCustomGpu(gpu);
+    const spec = getGpuThroughputSpec(gpu);
+    setCustomInterconnect(spec?.nvlink_bandwidth_gb_s ? "nvlink" : "pcie");
+  }
 
   const parsedCount = parseInt(customCount) || 1;
-  const showInterconnect = parsedCount > 8;
+  const showInterconnect = parsedCount > 1;
 
   function handleCustomSave() {
     const gpuName = customGpu;
     const count = parsedCount;
     const vram = GPU_VRAM[gpuName] ?? 80;
 
-    // For ≤8 GPUs (single node), interconnect is determined by hardware
-    // For >8 GPUs (multi-node), user selects the cross-node interconnect
-    let interconnect: string | null;
-    if (count <= 8) {
-      interconnect = count > 1 && gpuHasNvLink(gpuName) ? "nvlink" : null;
-    } else {
-      interconnect = customInterconnect === "nvlink" ? "nvlink" : null;
-    }
+    const interconnect = count > 1 && customInterconnect === "nvlink" ? "nvlink" : null;
 
     onChange({
       label: `${count}× ${gpuName} ${vram}GB (Custom)`,
@@ -109,6 +110,9 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
             )}
           >
             {preset.label}
+            {isNvLink(preset.interconnect) && (
+              <Badge variant="secondary" className="text-[10px] ml-1.5">NVLink</Badge>
+            )}
           </button>
         ))}
         <Dialog open={customOpen} onOpenChange={setCustomOpen}>
@@ -135,7 +139,7 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
             <div className="grid gap-4 py-2">
               <div className="grid grid-cols-2 items-center gap-4">
                 <Label>GPU Type</Label>
-                <Select value={customGpu} onValueChange={setCustomGpu}>
+                <Select value={customGpu} onValueChange={handleGpuChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -161,7 +165,7 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
               </div>
               {showInterconnect && (
                 <div className="grid grid-cols-2 items-center gap-4">
-                  <Label>Cross-node Interconnect</Label>
+                  <Label>GPU Interconnect</Label>
                   <Select value={customInterconnect} onValueChange={setCustomInterconnect}>
                     <SelectTrigger>
                       <SelectValue />
@@ -187,6 +191,9 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
         <p className="text-sm text-muted-foreground">
           Selected: <span className="font-medium text-foreground">{value.label}</span>
           {" "}({value.totalVramGb}GB total VRAM)
+          {isNvLink(value.interconnect) && (
+            <Badge variant="secondary" className="text-[10px] ml-1.5">NVLink</Badge>
+          )}
         </p>
       )}
     </div>

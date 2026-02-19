@@ -17,6 +17,7 @@ export interface GpuOffering {
   provider: string;
   instance_name: string;
   location: string;
+  interconnect: string | null;
 }
 
 export interface Model {

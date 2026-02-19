@@ -222,11 +222,3 @@ export function supportsFp8KvCache(gpuName: string): boolean {
   return FP8_KV_CACHE_ARCHITECTURES.has(spec.architecture);
 }
 
-/**
- * Check if a GPU type supports NVLink interconnect.
- * Derived from GPU throughput specs (nvlink_bandwidth_gb_s).
- */
-export function gpuHasNvLink(gpuName: string): boolean {
-  const spec = getGpuThroughputSpec(gpuName);
-  return spec?.nvlink_bandwidth_gb_s !== null && spec?.nvlink_bandwidth_gb_s !== undefined;
-}

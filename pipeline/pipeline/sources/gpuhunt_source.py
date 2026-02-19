@@ -83,6 +83,7 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
                 "provider": item.provider,
                 "instance_name": item.instance_name,
                 "location": item.location,
+                "interconnect": None,
             }
         )
 
@@ -91,7 +92,7 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
     source_metadata = {
         "service_name": "gpuhunt",
         "service_url": "https://github.com/dstackai/gpuhunt",
-        "description": "All regions considered.",
+        "description": "All regions considered. Throughput values may be underestimated, because interconnect data is missing.",
         "currency": "USD",
         "currency_symbol": "$",
         "updated_at": datetime.now(UTC).isoformat(),

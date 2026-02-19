@@ -87,6 +87,7 @@ const H100_OFFERING: GpuOffering = {
   provider: "test",
   instance_name: "test-instance",
   location: "test-region",
+  interconnect: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -237,6 +238,7 @@ describe("performance persona never shows exceedsCapacity", () => {
     provider: "test",
     instance_name: "test-instance",
     location: "test-region",
+    interconnect: null,
   };
 
   const allGpus = [SMALL_H100];

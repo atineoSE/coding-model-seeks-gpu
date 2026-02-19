@@ -205,7 +205,7 @@ export default function Home() {
 
         {/* Disclaimer */}
         <footer className="mt-12 text-xs text-muted-foreground/60 text-center max-w-2xl mx-auto space-y-2">
-          {data && (
+          {data && persona !== "budget" && (
             <p>
               GPU pricing from{" "}
               <a

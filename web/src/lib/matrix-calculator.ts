@@ -19,7 +19,7 @@ import {
   resolveKvPrecisionBytes,
   WEIGHT_OVERHEAD_FACTOR,
 } from "./calculations";
-import { gpuHasNvLink } from "./gpu-specs";
+
 
 const HOURS_PER_MONTH = 720;
 
@@ -54,10 +54,10 @@ function calcGpuSetupStats(
   gpuName: string,
   gpuCount: number,
   totalVramGb: number,
+  interconnect: string | null,
   settings: AdvancedSettings,
 ): GpuSetupStats {
   const precision = resolveModelPrecision(model);
-  const interconnect = gpuCount > 1 && gpuHasNvLink(gpuName) ? "nvlink" : null;
 
   // Decode throughput via shared function (raw single-stream)
   const decodeThroughput = calcDecodeThroughput(
@@ -124,11 +124,13 @@ export function findGpuSetups(
     const needed = gpusNeeded(modelMemoryGb * WEIGHT_OVERHEAD_FACTOR, offering.vram_gb);
     if (needed > offering.gpu_count) continue;
 
+    const interconnect = offering.interconnect;
     const stats = calcGpuSetupStats(
       model,
       offering.gpu_name,
       offering.gpu_count,
       offering.total_vram_gb,
+      interconnect,
       settings,
     );
 
@@ -139,8 +141,6 @@ export function findGpuSetups(
     if (stats.decodeThroughputTokS !== null) {
       if (stats.decodeThroughputTokS < settings.minTokPerStream) continue;
     }
-
-    const interconnect = offering.gpu_count > 1 && gpuHasNvLink(offering.gpu_name) ? "nvlink" : null;
     const offeringMonthlyCost = offering.price_per_hour * HOURS_PER_MONTH;
     const costPerStream = concurrency > 0 ? offeringMonthlyCost / concurrency : Infinity;
 
@@ -179,8 +179,8 @@ export function findScaledGpuSetups(
   const modelMemoryGb = getModelMemory(model, precision);
   if (modelMemoryGb === null) return [];
 
-  // Find cheapest per-GPU rate and vram for each GPU type
-  const gpuTypeMap = new Map<string, { perGpuPrice: number; vramGb: number }>();
+  // Find cheapest per-GPU rate, vram, and interconnect for each GPU type
+  const gpuTypeMap = new Map<string, { perGpuPrice: number; vramGb: number; interconnect: string | null }>();
   for (const g of allGpus) {
     const perGpu = g.price_per_hour / g.gpu_count;
     const existing = gpuTypeMap.get(g.gpu_name);
@@ -188,6 +188,7 @@ export function findScaledGpuSetups(
       gpuTypeMap.set(g.gpu_name, {
         perGpuPrice: perGpu,
         vramGb: g.vram_gb,
+        interconnect: g.interconnect,
       });
     }
   }
@@ -199,8 +200,9 @@ export function findScaledGpuSetups(
 
     for (let count = minGpus; count <= 64; count++) {
       const totalVram = count * info.vramGb;
+      const interconnect = info.interconnect;
       const stats = calcGpuSetupStats(
-        model, gpuName, count, totalVram, settings,
+        model, gpuName, count, totalVram, interconnect, settings,
       );
 
       if (stats.maxConcurrentStreams < concurrency) continue;
@@ -208,8 +210,6 @@ export function findScaledGpuSetups(
       if (stats.decodeThroughputTokS !== null) {
         if (stats.decodeThroughputTokS < settings.minTokPerStream) continue;
       }
-
-      const interconnect = count > 1 && gpuHasNvLink(gpuName) ? "nvlink" : null;
       const scaledMonthlyCost = info.perGpuPrice * count * HOURS_PER_MONTH;
       const costPerStream = concurrency > 0 ? scaledMonthlyCost / concurrency : Infinity;
       options.push({
@@ -363,6 +363,7 @@ export function calculateBudgetMatrix(
       gpuConfig.gpuName,
       gpuConfig.gpuCount,
       gpuConfig.totalVramGb,
+      gpuConfig.interconnect,
       settings,
     );
 

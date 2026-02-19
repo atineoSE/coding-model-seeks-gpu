@@ -551,6 +551,7 @@ describe("calcTeamCapacity", () => {
     provider: "test",
     instance_name: "test-instance",
     location: "test-region",
+    interconnect: null,
   };
 
   it("returns positive team size for GLM-4.7 on 12×H100", () => {
