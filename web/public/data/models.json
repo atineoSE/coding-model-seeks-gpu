@@ -18,7 +18,7 @@
   },
   {
     "model_name": "GLM-4.7",
-    "published_param_count_b": null,
+    "published_param_count_b": 358.3,
     "learnable_params_b": 352.8,
     "active_params_b": 33.7,
     "architecture": "MoE",
@@ -35,7 +35,7 @@
   },
   {
     "model_name": "Kimi-K2-Thinking",
-    "published_param_count_b": null,
+    "published_param_count_b": 170.3,
     "learnable_params_b": 1026.4,
     "active_params_b": 32.9,
     "architecture": "MoE",
@@ -103,7 +103,7 @@
   },
   {
     "model_name": "Qwen3-Coder-480B",
-    "published_param_count_b": null,
+    "published_param_count_b": 480.2,
     "learnable_params_b": 480.2,
     "active_params_b": 35.5,
     "architecture": "MoE",
