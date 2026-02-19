@@ -28,6 +28,7 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "MiniMax-M2.5": "MiniMaxAI/MiniMax-M2.5",
     "MiniMax-M2.1": "MiniMaxAI/MiniMax-M2.1",
     "Qwen3-Coder-480B": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+    "Nemotron-3-Nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
 }
 
 
