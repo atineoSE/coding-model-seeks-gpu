@@ -1,6 +1,10 @@
 # Coding Model Seeks GPU
 
+![Coding Model Seeks GPU](img/coding-model-seeks-gpu-screenshot.png)
+
 Open source coding LLMs ranked by real-world performance, sized to real hardware.
+
+**[See it in action &rarr;](https://coding-model-seeks-gpu.adriantineo.com/)**
 
 Pick a model and find the GPU setup you need, or pick a GPU and find the best model that fits. Data is refreshed daily with live cloud pricing from [gpuhunt](https://github.com/dstackai/gpuhunt) and benchmark scores from the [OpenHands Index](https://index.openhands.dev).
 

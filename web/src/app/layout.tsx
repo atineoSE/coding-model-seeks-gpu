@@ -14,7 +14,27 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Coding Model Seeks GPU",
-  description: "Find the best coding LLM for your team — compare performance, GPU requirements, and costs",
+  description:
+    "Open source coding LLMs ranked by real-world performance, sized to real hardware.",
+  openGraph: {
+    title: "Coding Model Seeks GPU",
+    description:
+      "Open source coding LLMs ranked by real-world performance, sized to real hardware.",
+    type: "website",
+    url: "https://coding-model-seeks-gpu.adriantineo.com",
+    images: [
+      {
+        url: "https://coding-model-seeks-gpu.adriantineo.com/og-image.png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Coding Model Seeks GPU",
+    description:
+      "Open source coding LLMs ranked by real-world performance, sized to real hardware.",
+    images: ["https://coding-model-seeks-gpu.adriantineo.com/og-image.png"],
+  },
 };
 
 export default function RootLayout({
