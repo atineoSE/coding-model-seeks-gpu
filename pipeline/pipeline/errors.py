@@ -12,3 +12,19 @@ class FormatBreakingChange(Exception):
         self.source = source
         self.details = details
         super().__init__(f"Breaking format change in {source}: {details}")
+
+
+class UnsupportedArchitecture(Exception):
+    """Raised when a model's architecture is not yet supported.
+
+    This is non-fatal: the pipeline should skip the model, alert, and continue.
+    """
+
+    def __init__(self, model_name: str, model_type: str, hf_id: str) -> None:
+        self.model_name = model_name
+        self.model_type = model_type
+        self.hf_id = hf_id
+        super().__init__(
+            f"Unsupported architecture model_type='{model_type}' "
+            f"for {model_name} ({hf_id})"
+        )

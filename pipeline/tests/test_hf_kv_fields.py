@@ -184,6 +184,8 @@ class TestKvFieldErrors:
             _mock_fetch("GLM", "glm/id", config)
 
     def test_unknown_model_type_raises(self):
+        from pipeline.errors import UnsupportedArchitecture
+
         config = {"model_type": "llama", "hidden_size": 4096, "num_hidden_layers": 32}
-        with pytest.raises(ValueError, match="Unknown model_type='llama'"):
+        with pytest.raises(UnsupportedArchitecture, match="model_type='llama'"):
             _mock_fetch("Llama", "meta/llama", config)

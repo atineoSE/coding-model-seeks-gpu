@@ -6,6 +6,7 @@ import time
 import httpx
 
 from pipeline.enrichment import ModelSpec
+from pipeline.errors import UnsupportedArchitecture
 from pipeline.sources.param_counter import (
     KNOWN_ARCHITECTURES,
     AttentionType,
@@ -91,6 +92,12 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
     if not config:
         raise RuntimeError(f"No config.json available for {hf_id}")
 
+    # 1b. Check architecture support early — fail fast before expensive API calls
+    effective_config = resolve_text_config(config)
+    model_type = effective_config.get("model_type", "")
+    if model_type not in KNOWN_ARCHITECTURES:
+        raise UnsupportedArchitecture(model_name, model_type, hf_id)
+
     # 2. Fetch safetensors element count (shown on HF model page)
     published_param_count_b = fetch_hf_param_count(hf_id)
 
@@ -125,18 +132,10 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
     is_moe = config_result.num_moe_layers > 0 if config_result else False
 
     # 7. Resolve max_position_embeddings from effective config
-    #    (fixes Kimi-K2.5 where text_config wrapper hides the field)
-    effective_config = resolve_text_config(config)
+    #    (effective_config and model_type already resolved in step 1b)
     context_length = effective_config.get("max_position_embeddings")
 
-    # 8. Extract KV cache architecture fields (required for all known architectures)
-    model_type = effective_config.get("model_type", "")
-    if model_type not in KNOWN_ARCHITECTURES:
-        raise ValueError(
-            f"Unknown model_type='{model_type}' for {hf_id} — "
-            f"cannot determine KV cache architecture"
-        )
-
+    # 8. Extract KV cache architecture fields (architecture already validated in step 1b)
     attn_type, _ = KNOWN_ARCHITECTURES[model_type]
     attention_type_str = attn_type.value.upper()  # "MLA" or "GQA"
 
@@ -227,6 +226,7 @@ def fetch_all_models(
         model_map = MODEL_NAME_TO_HF_ID
 
     results = []
+    skipped: list[UnsupportedArchitecture] = []
     failed = []
     total = len(model_map)
 
@@ -245,6 +245,9 @@ def fetch_all_models(
                 spec.architecture,
                 spec.precision or "unknown",
             )
+        except UnsupportedArchitecture as e:
+            skipped.append(e)
+            logger.warning("  -> Skipped %s: %s", name, e)
         except Exception as e:
             failed.append(name)
             logger.warning("  -> Failed to enrich %s: %s", name, e)
@@ -253,11 +256,17 @@ def fetch_all_models(
             time.sleep(delay)
 
     logger.info("Successfully fetched %d/%d models", len(results), total)
+    if skipped:
+        logger.warning(
+            "Skipped %d model(s) with unsupported architecture: %s",
+            len(skipped),
+            ", ".join(e.model_name for e in skipped),
+        )
 
     if failed:
         raise RuntimeError(f"Failed to enrich {len(failed)}/{total} models: {', '.join(failed)}")
 
-    return results
+    return results, skipped
 
 
 if __name__ == "__main__":

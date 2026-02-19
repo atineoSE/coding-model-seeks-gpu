@@ -47,6 +47,19 @@ def send_email(subject: str, body: str) -> None:
         logger.warning("Failed to send email: %s", full_subject, exc_info=True)
 
 
+def notify_unsupported_architecture(model_name: str, model_type: str, hf_id: str) -> None:
+    """Alert that a model's HF architecture is not yet supported."""
+    send_email(
+        subject=f"Unsupported architecture for {model_name}",
+        body=(
+            f"The model '{model_name}' ({hf_id}) has model_type='{model_type}' "
+            f"which is not in KNOWN_ARCHITECTURES.\n\n"
+            f"The model was skipped during enrichment. Please add support for "
+            f"this architecture in param_counter.py so the pipeline can include it."
+        ),
+    )
+
+
 def notify_missing_mapping(model_name: str) -> None:
     """Alert that a benchmark model has no HuggingFace repo mapping."""
     send_email(

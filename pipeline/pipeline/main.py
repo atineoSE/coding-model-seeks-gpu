@@ -16,6 +16,7 @@ from pipeline.notify import (
     notify_data_updated,
     notify_failure,
     notify_missing_mapping,
+    notify_unsupported_architecture,
 )
 from pipeline.snapshots.exporter import load_index, run_snapshot_export
 from pipeline.sources.gpuhunt_source import fetch_gpu_prices
@@ -46,13 +47,17 @@ def run_snapshot_pipeline(*, force: bool = False) -> int:
 
 
 def run_model_pipeline():
-    """Fetch HuggingFace model configs and return specs."""
+    """Fetch HuggingFace model configs and return (specs, skipped).
+
+    Models with unsupported architectures are returned in *skipped* rather
+    than causing a pipeline failure.
+    """
     logger.info("=== Model Pipeline ===")
-    specs = fetch_all_models()
+    specs, skipped = fetch_all_models()
     for spec in specs:
         logger.info("  Model '%s'", spec.model_name)
     logger.info("Model pipeline complete: %d models", len(specs))
-    return specs
+    return specs, skipped
 
 
 def run_export(offerings, specs, source_metadata=None):
@@ -157,9 +162,14 @@ def main():
 
             specs = []
             if args.step in ("models", "all"):
-                specs = run_model_pipeline()
+                specs, skipped = run_model_pipeline()
                 if specs:
                     updates.append(f"Models enriched: {len(specs)}")
+                if skipped and is_enabled():
+                    for err in skipped:
+                        notify_unsupported_architecture(
+                            err.model_name, err.model_type, err.hf_id
+                        )
 
             if args.step in ("export", "all"):
                 run_export(offerings, specs, source_metadata=source_metadata)
