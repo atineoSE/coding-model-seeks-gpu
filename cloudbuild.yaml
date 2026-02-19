@@ -1,0 +1,34 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/pipeline:latest'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/pipeline:latest'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'update'
+      - 'pipeline-daily'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/pipeline:latest'
+      - '--region'
+      - '${_REGION}'
+
+substitutions:
+  _REGION: europe-southwest1
+  _REPO: coding-model-seeks-gpu
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/pipeline:latest'
