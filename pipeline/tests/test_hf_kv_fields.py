@@ -18,6 +18,7 @@ from tests.test_param_counter import (
     KIMI_K2_THINKING_CONFIG,
     KIMI_K25_CONFIG,
     MINIMAX_M25_CONFIG,
+    NEMOTRON_H_30B_CONFIG,
     QWEN3_CODER_CONFIG,
 )
 
@@ -189,3 +190,49 @@ class TestKvFieldErrors:
         config = {"model_type": "llama", "hidden_size": 4096, "num_hidden_layers": 32}
         with pytest.raises(UnsupportedArchitecture, match="model_type='llama'"):
             _mock_fetch("Llama", "meta/llama", config)
+
+
+# ===================================================================
+# Hybrid (nemotron_h) — KV cache fields
+# ===================================================================
+
+
+class TestHybridKvFields:
+    """Hybrid models should have num_kv_layers set to the attention layer count."""
+
+    def test_nemotron_h_attention_type(self):
+        spec = _mock_fetch("Nem", "nvidia/nem", NEMOTRON_H_30B_CONFIG)
+        assert spec.attention_type == "GQA"
+
+    def test_nemotron_h_num_hidden_layers(self):
+        spec = _mock_fetch("Nem", "nvidia/nem", NEMOTRON_H_30B_CONFIG)
+        assert spec.num_hidden_layers == 52
+
+    def test_nemotron_h_num_kv_layers(self):
+        spec = _mock_fetch("Nem", "nvidia/nem", NEMOTRON_H_30B_CONFIG)
+        assert spec.num_kv_layers == 6
+
+    def test_nemotron_h_num_kv_heads(self):
+        spec = _mock_fetch("Nem", "nvidia/nem", NEMOTRON_H_30B_CONFIG)
+        assert spec.num_kv_heads == 2
+
+    def test_nemotron_h_head_dim(self):
+        spec = _mock_fetch("Nem", "nvidia/nem", NEMOTRON_H_30B_CONFIG)
+        assert spec.head_dim == 128
+
+    def test_nemotron_h_kv_bytes_per_token(self):
+        """KV bytes = 2 (K+V) × 6 layers × 2 heads × 128 dim × 2 bytes = 6,144."""
+        spec = _mock_fetch("Nem", "nvidia/nem", NEMOTRON_H_30B_CONFIG)
+        kv_bytes = 2 * spec.num_kv_layers * spec.num_kv_heads * spec.head_dim * 2
+        assert kv_bytes == 6_144
+
+    def test_existing_models_num_kv_layers_none(self):
+        """Existing (non-hybrid) models should have num_kv_layers=None."""
+        for name, hf_id, config in [
+            ("DS", "deepseek-ai/DS", DEEPSEEK_V32_CONFIG),
+            ("GLM", "zai-org/GLM", GLM_47_CONFIG),
+            ("Q3", "Qwen/Q3", QWEN3_CODER_CONFIG),
+            ("MM", "MiniMaxAI/MM", MINIMAX_M25_CONFIG),
+        ]:
+            spec = _mock_fetch(name, hf_id, config)
+            assert spec.num_kv_layers is None, f"{name} should have num_kv_layers=None"

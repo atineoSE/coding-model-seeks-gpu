@@ -21,6 +21,7 @@ class ModelSpec(BaseModel):
     )
     attention_type: str | None = Field(None, description="'MLA' or 'GQA'")
     num_hidden_layers: int | None = Field(None, description="Number of transformer layers")
+    num_kv_layers: int | None = Field(None, description="Layers with KV cache (None = all layers)")
     num_kv_heads: int | None = Field(None, description="Number of KV heads (GQA only)")
     head_dim: int | None = Field(None, description="Head dimension (GQA only)")
     routed_expert_params_b: float | None = Field(

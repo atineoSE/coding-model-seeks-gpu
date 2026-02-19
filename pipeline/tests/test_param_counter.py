@@ -160,6 +160,30 @@ MINIMAX_M25_CONFIG = {
 # M2.1 has identical architecture to M2.5
 MINIMAX_M21_CONFIG = MINIMAX_M25_CONFIG.copy()
 
+NEMOTRON_H_30B_CONFIG = {
+    "model_type": "nemotron_h",
+    "hidden_size": 2688,
+    "intermediate_size": 1856,
+    "num_hidden_layers": 52,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 2,
+    "head_dim": 128,
+    "vocab_size": 131072,
+    "hybrid_override_pattern": "MEMEM*EMEMEM*EMEMEM*EMEMEM*EMEMEM*EMEMEMEM*EMEMEMEME",
+    "mamba_num_heads": 64,
+    "mamba_head_dim": 64,
+    "ssm_state_size": 128,
+    "n_group": 1,
+    "conv_kernel": 4,
+    "n_routed_experts": 128,
+    "num_experts_per_tok": 6,
+    "moe_intermediate_size": 1856,
+    "moe_shared_expert_intermediate_size": 3712,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "max_position_embeddings": 262144,
+}
+
 QWEN3_CODER_CONFIG = {
     "model_type": "qwen3_moe",
     "hidden_size": 6144,
@@ -227,12 +251,12 @@ class TestAllModels:
         total_b = result.total_params / 1e9
         active_b = result.active_params / 1e9
         # Within 5% of expected (rough sanity check)
-        assert (
-            abs(total_b - expected_total_b) / expected_total_b < 0.05
-        ), f"{name}: total={total_b:.1f}B, expected ~{expected_total_b}B"
-        assert (
-            abs(active_b - expected_active_b) / expected_active_b < 0.10
-        ), f"{name}: active={active_b:.1f}B, expected ~{expected_active_b}B"
+        assert abs(total_b - expected_total_b) / expected_total_b < 0.05, (
+            f"{name}: total={total_b:.1f}B, expected ~{expected_total_b}B"
+        )
+        assert abs(active_b - expected_active_b) / expected_active_b < 0.10, (
+            f"{name}: active={active_b:.1f}B, expected ~{expected_active_b}B"
+        )
 
     def test_all_are_moe(self):
         for config in [
@@ -263,7 +287,7 @@ class TestAllModels:
             result = count_params_from_config(config)
             fraction = result.routed_expert_params / result.total_params
             assert fraction > 0.9, (
-                f"{result.model_type}: routed experts are only " f"{fraction:.1%} of total params"
+                f"{result.model_type}: routed experts are only {fraction:.1%} of total params"
             )
 
 
@@ -352,3 +376,60 @@ class TestPrecision:
         info = detect_precision(MINIMAX_M25_CONFIG)
         assert info.dtype_str == "FP8"
         assert info.bytes_per_param == 1.0
+
+
+# ===================================================================
+# Nemotron-H hybrid architecture tests
+# ===================================================================
+
+
+class TestNemotronH:
+    """Validate hybrid Mamba2 + GQA Attention + MoE architecture."""
+
+    def test_pattern_layer_counts(self):
+        """Verify layer type counts from hybrid_override_pattern."""
+        result = count_params_from_config(NEMOTRON_H_30B_CONFIG)
+        assert result.num_mamba_layers == 23
+        assert result.num_attention_layers == 6
+        assert result.num_moe_layers == 23
+        assert result.num_dense_layers == 0
+        assert result.num_layers == 52
+
+    def test_total_params(self):
+        """~31.6B total params within 5%."""
+        result = count_params_from_config(NEMOTRON_H_30B_CONFIG)
+        total_b = result.total_params / 1e9
+        assert abs(total_b - 31.6) / 31.6 < 0.05, f"total={total_b:.1f}B, expected ~31.6B"
+
+    def test_active_params(self):
+        """~3.6B active params within 10%."""
+        result = count_params_from_config(NEMOTRON_H_30B_CONFIG)
+        active_b = result.active_params / 1e9
+        assert abs(active_b - 3.6) / 3.6 < 0.10, f"active={active_b:.1f}B, expected ~3.6B"
+
+    def test_routed_expert_params(self):
+        """Routed expert params should be >25B (the bulk of the model)."""
+        result = count_params_from_config(NEMOTRON_H_30B_CONFIG)
+        routed_b = result.routed_expert_params / 1e9
+        assert routed_b > 25, f"routed={routed_b:.1f}B, expected >25B"
+
+    def test_pattern_length_mismatch(self):
+        """Pattern length != num_hidden_layers should raise ValueError."""
+        config = {**NEMOTRON_H_30B_CONFIG, "hybrid_override_pattern": "ME*"}
+        with pytest.raises(ValueError, match="hybrid_override_pattern length"):
+            count_params_from_config(config)
+
+    def test_moe_detection(self):
+        """Model should be detected as MoE with 23 MoE layers."""
+        result = count_params_from_config(NEMOTRON_H_30B_CONFIG)
+        assert result.num_moe_layers == 23
+
+    def test_model_type(self):
+        result = count_params_from_config(NEMOTRON_H_30B_CONFIG)
+        assert result.model_type == "nemotron_h"
+
+    def test_existing_architectures_backward_compat(self):
+        """Existing architectures should have num_mamba_layers=0, num_attention_layers=0."""
+        result = count_params_from_config(DEEPSEEK_V32_CONFIG)
+        assert result.num_mamba_layers == 0
+        assert result.num_attention_layers == 0

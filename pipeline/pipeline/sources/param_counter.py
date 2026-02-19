@@ -30,6 +30,7 @@ class MoEFieldMapping:
     expert_intermediate_key: str
     dense_layers_key: str | None
     mtp_key: str | None
+    num_mlp_projections: int = 3  # 3 = gated SwiGLU (gate+up+down), 2 = ungated (up+down)
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,8 @@ class ParamCountResult:
     num_layers: int
     num_moe_layers: int
     num_dense_layers: int
+    num_mamba_layers: int = 0
+    num_attention_layers: int = 0  # 0 = all layers have attention (non-hybrid)
 
 
 @dataclass(frozen=True)
@@ -131,6 +134,18 @@ KNOWN_ARCHITECTURES: dict[str, tuple[AttentionType, MoEFieldMapping]] = {
             mtp_key="num_mtp_modules",
         ),
     ),
+    "nemotron_h": (
+        AttentionType.GQA,
+        MoEFieldMapping(
+            expert_count_key="n_routed_experts",
+            shared_expert_key="moe_shared_expert_intermediate_size",
+            shared_expert_is_count=False,
+            expert_intermediate_key="moe_intermediate_size",
+            dense_layers_key=None,
+            mtp_key=None,
+            num_mlp_projections=2,
+        ),
+    ),
 }
 
 
@@ -193,9 +208,9 @@ def _gqa_attention_params(config: dict) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _dense_mlp_params(hidden: int, intermediate: int) -> int:
-    """Dense MLP (gate + up + down) params."""
-    return 3 * hidden * intermediate
+def _dense_mlp_params(hidden: int, intermediate: int, *, num_projections: int = 3) -> int:
+    """Dense MLP params.  Default 3 = gated SwiGLU (gate+up+down); 2 = ungated (up+down)."""
+    return num_projections * hidden * intermediate
 
 
 def _moe_layer_params(
@@ -212,9 +227,11 @@ def _moe_layer_params(
     n_experts = _require(config, mapping.expert_count_key)
     expert_intermediate = _require(config, mapping.expert_intermediate_key)
 
+    n_proj = mapping.num_mlp_projections
+
     # Routed experts
     active = num_active_experts if num_active_experts is not None else n_experts
-    routed = active * _dense_mlp_params(hidden, expert_intermediate)
+    routed = active * _dense_mlp_params(hidden, expert_intermediate, num_projections=n_proj)
 
     # Router gate
     router = hidden * n_experts
@@ -223,12 +240,130 @@ def _moe_layer_params(
     shared_val = _require(config, mapping.shared_expert_key)
     if mapping.shared_expert_is_count:
         # Value is count of shared experts, each using expert_intermediate
-        shared = shared_val * _dense_mlp_params(hidden, expert_intermediate)
+        shared = shared_val * _dense_mlp_params(hidden, expert_intermediate, num_projections=n_proj)
     else:
         # Value is intermediate size directly (0 = none)
-        shared = _dense_mlp_params(hidden, shared_val) if shared_val > 0 else 0
+        shared = (
+            _dense_mlp_params(hidden, shared_val, num_projections=n_proj) if shared_val > 0 else 0
+        )
 
     return routed + router + shared
+
+
+# ---------------------------------------------------------------------------
+# Mamba2 / hybrid architecture helpers
+# ---------------------------------------------------------------------------
+
+
+def _mamba2_layer_params(config: dict) -> int:
+    """Mamba2 SSM params per layer."""
+    hidden = _require(config, "hidden_size")
+    num_heads = _require(config, "mamba_num_heads")
+    head_dim = _require(config, "mamba_head_dim")
+    ssm_state = _require(config, "ssm_state_size")
+    n_group = config.get("n_group", 1)
+    conv_kernel = _require(config, "conv_kernel")
+
+    d_inner = num_heads * head_dim
+
+    # in_proj: hidden → (2*d_inner + 2*n_group*ssm_state + num_heads)
+    in_proj = hidden * (2 * d_inner + 2 * n_group * ssm_state + num_heads)
+    # conv1d (depthwise): d_inner * conv_kernel + bias
+    conv1d = d_inner * conv_kernel + d_inner
+    # per-head biases / parameters
+    dt_bias = num_heads
+    a_log = num_heads
+    d_param = num_heads
+    # inner norm (RMSNorm over d_inner)
+    inner_norm = d_inner
+    # out_proj: d_inner → hidden
+    out_proj = d_inner * hidden
+
+    return in_proj + conv1d + dt_bias + a_log + d_param + inner_norm + out_proj
+
+
+def _count_hybrid_params(
+    config: dict, attn_type: AttentionType, mapping: MoEFieldMapping
+) -> ParamCountResult:
+    """Count params for hybrid architectures (Mamba2 + Attention + MoE)."""
+    hidden = _require(config, "hidden_size")
+    vocab = _require(config, "vocab_size")
+    n_layers = _require(config, "num_hidden_layers")
+    n_active_experts = _require(config, "num_experts_per_tok")
+    n_proj = mapping.num_mlp_projections
+
+    pattern = config.get("hybrid_override_pattern", "")
+    if len(pattern) != n_layers:
+        raise ValueError(
+            f"hybrid_override_pattern length ({len(pattern)}) != num_hidden_layers ({n_layers})"
+        )
+
+    # Count layer types
+    num_mamba = 0
+    num_attn = 0
+    num_moe = 0
+    num_dense_mlp = 0
+
+    attn_fn = _mla_attention_params if attn_type == AttentionType.MLA else _gqa_attention_params
+
+    total_layer_params = 0
+    active_layer_params = 0
+    routed_expert_params = 0
+
+    for char in pattern:
+        # Each block: 1 RMSNorm + mixer
+        norm_params = hidden
+
+        if char == "M":
+            mixer_params = _mamba2_layer_params(config)
+            total_layer_params += norm_params + mixer_params
+            active_layer_params += norm_params + mixer_params
+            num_mamba += 1
+        elif char == "*":
+            mixer_params = attn_fn(config)
+            total_layer_params += norm_params + mixer_params
+            active_layer_params += norm_params + mixer_params
+            num_attn += 1
+        elif char == "-":
+            intermediate = _require(config, "intermediate_size")
+            mixer_params = _dense_mlp_params(hidden, intermediate, num_projections=n_proj)
+            total_layer_params += norm_params + mixer_params
+            active_layer_params += norm_params + mixer_params
+            num_dense_mlp += 1
+        else:
+            # E or any other char → MoE layer
+            total_moe = _moe_layer_params(config, mapping)
+            active_moe = _moe_layer_params(config, mapping, num_active_experts=n_active_experts)
+            total_layer_params += norm_params + total_moe
+            active_layer_params += norm_params + active_moe
+
+            # Track routed expert params
+            n_experts = _require(config, mapping.expert_count_key)
+            expert_intermediate = _require(config, mapping.expert_intermediate_key)
+            routed_expert_params += n_experts * _dense_mlp_params(
+                hidden, expert_intermediate, num_projections=n_proj
+            )
+            num_moe += 1
+
+    # Embedding, lm_head, final norm
+    embed = vocab * hidden
+    lm_head = 0 if config.get("tie_word_embeddings", False) else vocab * hidden
+    final_norm = hidden
+
+    total = embed + lm_head + total_layer_params + final_norm
+    active = embed + lm_head + active_layer_params + final_norm
+
+    return ParamCountResult(
+        total_params=total,
+        active_params=active,
+        routed_expert_params=routed_expert_params,
+        model_type=config.get("model_type", ""),
+        num_layers=n_layers,
+        num_moe_layers=num_moe,
+        num_dense_layers=num_dense_mlp,
+        num_mamba_layers=num_mamba,
+        num_attention_layers=num_attn,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +384,10 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
         raise ValueError(f"Unknown model_type='{model_type}'")
 
     attn_type, mapping = KNOWN_ARCHITECTURES[model_type]
+
+    # Hybrid architectures (Mamba2 + Attention + MoE) have a per-layer pattern
+    if "hybrid_override_pattern" in config:
+        return _count_hybrid_params(config, attn_type, mapping)
 
     # Core dimensions
     hidden = _require(config, "hidden_size")

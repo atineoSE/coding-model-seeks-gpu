@@ -148,6 +148,10 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
     head_dim_val: int | None = None
     kv_lora_rank: int | None = None
     qk_rope_head_dim: int | None = None
+    num_kv_layers: int | None = None
+
+    if config_result and config_result.num_attention_layers > 0:
+        num_kv_layers = config_result.num_attention_layers
 
     if attn_type == AttentionType.GQA:
         num_kv_heads = effective_config.get("num_key_value_heads")
@@ -201,6 +205,7 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
         routed_expert_params_b=routed_expert_params_b,
         attention_type=attention_type_str,
         num_hidden_layers=num_hidden_layers,
+        num_kv_layers=num_kv_layers,
         num_kv_heads=num_kv_heads,
         head_dim=head_dim_val,
         kv_lora_rank=kv_lora_rank,
