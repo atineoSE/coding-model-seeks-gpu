@@ -37,7 +37,7 @@ export function CategorySelector({ categories, value, onChange }: CategorySelect
         Benchmark Category
       </label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-[280px]">
+        <SelectTrigger className="w-full sm:w-[280px]">
           <SelectValue placeholder="Select Category" />
         </SelectTrigger>
         <SelectContent>

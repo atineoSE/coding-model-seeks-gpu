@@ -21,7 +21,7 @@ export function RegionFilter({ locations, value, onChange }: RegionFilterProps) 
         Location
       </label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-[200px]">
+        <SelectTrigger className="w-full sm:w-[200px]">
           <SelectValue placeholder="Select Location" />
         </SelectTrigger>
         <SelectContent>

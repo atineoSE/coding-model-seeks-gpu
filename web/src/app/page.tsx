@@ -127,37 +127,36 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Description + Filters row */}
-          <div className="flex items-start justify-between gap-8 mb-4">
-            <p className="text-sm text-muted-foreground">
-              Models are ranked using the{" "}
-              <a
-                href="https://index.openhands.dev"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-foreground transition-colors"
-              >
-                OpenHands Index
-              </a>
-              , a benchmark that evaluates open source coding LLMs on real-world software engineering tasks. For each model, we calculate the VRAM requirements and NVIDIA GPU configurations needed to run it at different throughput levels. Use it to find the right hardware for your model or the best model that fits your hardware.
-            </p>
-            <div className="flex items-start gap-4 shrink-0">
-              {ENABLE_LOCATION_FILTER && (
-                <RegionFilter
-                  locations={locations}
-                  value={location}
-                  onChange={setLocation}
-                />
-              )}
-              <CategorySelector
-                categories={categories}
-                value={benchmarkCategory}
-                onChange={setBenchmarkCategory}
+          {/* Filters row — stack on mobile */}
+          <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
+            {ENABLE_LOCATION_FILTER && (
+              <RegionFilter
+                locations={locations}
+                value={location}
+                onChange={setLocation}
               />
-            </div>
+            )}
+            <CategorySelector
+              categories={categories}
+              value={benchmarkCategory}
+              onChange={setBenchmarkCategory}
+            />
           </div>
-
         </div>
+
+        {/* Description — scrolls away, not sticky */}
+        <p className="text-sm text-muted-foreground mb-4">
+          Models are ranked using the{" "}
+          <a
+            href="https://index.openhands.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-foreground transition-colors"
+          >
+            OpenHands Index
+          </a>
+          , a benchmark that evaluates open source coding LLMs on real-world software engineering tasks. For each model, we calculate the VRAM requirements and NVIDIA GPU configurations needed to run it at different throughput levels. Use it to find the right hardware for your model or the best model that fits your hardware.
+        </p>
 
         {/* Persona selector */}
         <div className="mb-8">

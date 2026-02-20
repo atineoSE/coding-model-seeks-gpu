@@ -117,7 +117,7 @@ export function ScalingChart({ data, referenceCosts, modelName, categoryDisplayN
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className="aspect-auto h-[250px] sm:h-[300px] w-full">
           <LineChart data={data} accessibilityLayer>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis

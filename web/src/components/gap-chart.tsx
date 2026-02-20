@@ -159,7 +159,7 @@ export function GapChart({ data }: GapChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[380px] w-full">
+        <ChartContainer config={chartConfig} className="aspect-auto h-[300px] sm:h-[380px] w-full">
           <LineChart
             data={chartData}
             margin={{ top: 5, right: 60, bottom: 5, left: 5 }}

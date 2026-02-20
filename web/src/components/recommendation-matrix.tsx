@@ -20,6 +20,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useIsDesktop } from "@/hooks/use-media-query";
 import { ExternalLink } from "lucide-react";
 
 interface RecommendationMatrixProps {
@@ -311,7 +313,71 @@ function getCellHeatmapClass(
   return HEATMAP_STEPS[idx];
 }
 
+function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax, useThroughput }: {
+  rows: MatrixCell[][];
+  persona: Persona;
+  currencySymbol: string;
+  colMin: number[];
+  colMax: number[];
+  useThroughput: boolean;
+}) {
+  const sotaScore = rows[0]?.[0]?.sotaScore ?? null;
+
+  return (
+    <Tabs defaultValue="multi_agent">
+      {sotaScore && (
+        <div className="text-xs text-muted-foreground mb-2">
+          <span className="font-semibold text-foreground">
+            SOTA: {formatSotaModelName(sotaScore.sota_model_name)}
+          </span>{" "}
+          <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>
+        </div>
+      )}
+      <TabsList className="grid w-full grid-cols-4 group-data-[orientation=horizontal]/tabs:h-auto">
+        {CONCURRENCY_TIERS.map((tier) => (
+          <TabsTrigger key={tier.key} value={tier.key} className="text-xs px-1 py-1.5 h-auto whitespace-normal leading-tight">
+            {tier.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      {CONCURRENCY_TIERS.map((tier, colIdx) => (
+        <TabsContent key={tier.key} value={tier.key} className="space-y-3 mt-3">
+          <div className="text-xs text-muted-foreground text-center">
+            {tier.midpoint} streams &mdash; {tier.description}
+          </div>
+          {rows.map((row, rowIdx) => {
+            const cell0 = row[0];
+            const cell = row[colIdx];
+            if (!cell0 || !cell) return null;
+
+            const heatmapVal = useThroughput ? cell.decodeThroughputTokS : cell.costPerStreamPerMonth;
+            const heatmap = getCellHeatmapClass(
+              heatmapVal, colMin[colIdx], colMax[colIdx], cell.exceedsCapacity, useThroughput,
+            );
+
+            return (
+              <div
+                key={rowIdx}
+                className={`rounded-lg border p-3 ${cell.exceedsCapacity ? "bg-muted/20" : heatmap}`}
+              >
+                <ModelInfo cell={cell0} rowIdx={rowIdx} />
+                <hr className="my-2 border-border" />
+                <div className="tabular-nums">
+                  <CellContent cell={cell} persona={persona} currencySymbol={currencySymbol} />
+                </div>
+              </div>
+            );
+          })}
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
+}
+
 export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: RecommendationMatrixProps) {
+  const isDesktop = useIsDesktop();
+
   if (rows.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -339,6 +405,21 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: Re
         colMax[c] = Math.max(colMax[c], val);
       }
     }
+  }
+
+  if (!isDesktop) {
+    return (
+      <TooltipProvider>
+        <MobileMatrixView
+          rows={rows}
+          persona={persona}
+          currencySymbol={currencySymbol}
+          colMin={colMin}
+          colMax={colMax}
+          useThroughput={useThroughput}
+        />
+      </TooltipProvider>
+    );
   }
 
   return (
