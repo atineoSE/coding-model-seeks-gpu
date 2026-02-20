@@ -14,7 +14,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { deduplicateGapTrend, type GapTrendPoint } from "@/lib/trend-data";
+import type { GapTrendPoint } from "@/lib/trend-data";
 
 const chartConfig = {
   closedSourceScore: {
@@ -121,13 +121,12 @@ function OpenSourceLabel(props: Record<string, unknown>) {
 
 export function GapChart({ data }: GapChartProps) {
   const chartData = useMemo(() => {
-    const deduped = deduplicateGapTrend(data);
-    return deduped.map((p, i): ChartPoint => ({
+    return data.map((p, i): ChartPoint => ({
       ...p,
       closedLabel: p.closedSourceModel,
       openLabel: p.openSourceModel,
       isFirst: i === 0,
-      isLast: i === deduped.length - 1,
+      isLast: i === data.length - 1,
     }));
   }, [data]);
 

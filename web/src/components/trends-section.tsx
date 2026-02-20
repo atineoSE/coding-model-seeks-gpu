@@ -48,20 +48,13 @@ export function TrendsSection({
     [snapshots, openSourceNames, benchmarkCategory],
   );
 
-  // Chart 2: Cost Trend
+  // Chart 2: Cost Trend (derived from gap trend points)
   const costData = useMemo(
     () =>
-      snapshots.length > 0
-        ? computeCostTrend(
-            snapshots,
-            openSourceNames,
-            models,
-            gpus,
-            benchmarkCategory,
-            settings,
-          )
+      gapData.length > 0
+        ? computeCostTrend(gapData, models, gpus, settings)
         : [],
-    [snapshots, openSourceNames, models, gpus, benchmarkCategory, settings],
+    [gapData, models, gpus, settings],
   );
 
   // GPU reference costs (shared by Charts 2 & 3)

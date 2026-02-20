@@ -34,6 +34,7 @@ const MODEL_ALIASES: Record<string, string> = {
   "kimi-k2.5": "Kimi-K2.5",
   "minimax-m2": "MiniMax-M2.1",
   "minimax-m2.1": "MiniMax-M2.1",
+  "nemotron": "Nemotron-3-Nano",
   "nemotron-3-nano": "Nemotron-3-Nano",
   "nemotron-3-nano-30b": "Nemotron-3-Nano",
   "deepseek-v3.2-reasoner": "DeepSeek-V3.2-Reasoner",
@@ -150,76 +151,128 @@ export interface GapTrendPoint {
   openSourceModel: string;
 }
 
+/**
+ * Build a lookup of latest scores per model from the most recent snapshot.
+ * This is the single source of truth for all score evaluations.
+ */
+function buildLatestScores(
+  snapshots: SnapshotData[],
+  category: string,
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  if (snapshots.length === 0) return scores;
+
+  const latest = snapshots[snapshots.length - 1];
+  for (const b of latest.benchmarks) {
+    if (b.benchmark_name !== category || b.score === null) continue;
+    const resolved = resolveModelName(b.model_name);
+    const existing = scores.get(resolved);
+    if (existing === undefined || b.score! > existing) {
+      scores.set(resolved, b.score!);
+    }
+  }
+  return scores;
+}
+
+/**
+ * Build first-appearance dates per model by scanning snapshots chronologically.
+ */
+function buildFirstSeen(
+  snapshots: SnapshotData[],
+  category: string,
+): Map<string, string> {
+  const firstSeen = new Map<string, string>();
+  for (const snap of snapshots) {
+    for (const b of snap.benchmarks) {
+      if (b.benchmark_name !== category || b.score === null) continue;
+      const resolved = resolveModelName(b.model_name);
+      if (!firstSeen.has(resolved)) {
+        firstSeen.set(resolved, snap.date);
+      }
+    }
+  }
+  return firstSeen;
+}
+
+/**
+ * Roster-based gap trend: emit a point only when a new model appears and
+ * displaces a leader. Uses latest scores for all evaluations.
+ */
 export function computeGapTrend(
   snapshots: SnapshotData[],
   openSourceNames: Set<string>,
   category: string,
 ): GapTrendPoint[] {
+  if (snapshots.length === 0) return [];
+
+  const latestScores = buildLatestScores(snapshots, category);
+  const firstSeen = buildFirstSeen(snapshots, category);
   const points: GapTrendPoint[] = [];
 
-  for (const snap of snapshots) {
-    const categoryBenchmarks = snap.benchmarks.filter(
-      (b) => b.benchmark_name === category && b.score !== null,
-    );
-    if (categoryBenchmarks.length === 0) continue;
+  const roster = new Set<string>();
+  let prevClosedModel: string | null = null;
+  let prevOpenModel: string | null = null;
 
+  for (const snap of snapshots) {
+    // Expand roster with models appearing in this snapshot
+    const newModels: string[] = [];
+    for (const b of snap.benchmarks) {
+      if (b.benchmark_name !== category || b.score === null) continue;
+      const resolved = resolveModelName(b.model_name);
+      if (!roster.has(resolved)) {
+        roster.add(resolved);
+        newModels.push(resolved);
+      }
+    }
+
+    // Skip snapshots with no new models (except the first snapshot)
+    if (newModels.length === 0 && points.length > 0) continue;
+
+    // Evaluate leaders from the current roster using latest scores
     let bestClosed: { score: number; model: string } | null = null;
     let bestOpen: { score: number; model: string } | null = null;
 
-    for (const b of categoryBenchmarks) {
-      const resolved = resolveModelName(b.model_name);
-      const isOpen = openSourceNames.has(resolved);
+    for (const model of roster) {
+      const score = latestScores.get(model);
+      if (score === undefined) continue;
 
-      if (isOpen) {
-        if (!bestOpen || b.score! > bestOpen.score) {
-          bestOpen = { score: b.score!, model: resolved };
+      if (openSourceNames.has(model)) {
+        if (!bestOpen || score > bestOpen.score) {
+          bestOpen = { score, model };
         }
       } else {
-        if (!bestClosed || b.score! > bestClosed.score) {
-          bestClosed = { score: b.score!, model: resolved };
+        if (!bestClosed || score > bestClosed.score) {
+          bestClosed = { score, model };
         }
       }
     }
 
-    if (bestClosed && bestOpen) {
+    if (!bestClosed || !bestOpen) continue;
+
+    // Emit only if a leader changed (or this is the first point)
+    if (
+      bestClosed.model !== prevClosedModel ||
+      bestOpen.model !== prevOpenModel
+    ) {
+      // Date = first-appearance of the newer model of the pair
+      const closedFirst = firstSeen.get(bestClosed.model) ?? snap.date;
+      const openFirst = firstSeen.get(bestOpen.model) ?? snap.date;
+      const pointDate = closedFirst > openFirst ? closedFirst : openFirst;
+
       points.push({
-        date: snap.date,
+        date: pointDate,
         closedSourceScore: bestClosed.score,
         closedSourceModel: bestClosed.model,
         openSourceScore: bestOpen.score,
         openSourceModel: bestOpen.model,
       });
+
+      prevClosedModel = bestClosed.model;
+      prevOpenModel = bestOpen.model;
     }
   }
 
   return points;
-}
-
-/**
- * Keep only change-points: the first point plus any point where the score
- * or model name differs from its predecessor.
- */
-export function deduplicateGapTrend(
-  points: GapTrendPoint[],
-): GapTrendPoint[] {
-  if (points.length <= 1) return points;
-
-  const result: GapTrendPoint[] = [points[0]];
-
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    if (
-      curr.closedSourceScore !== prev.closedSourceScore ||
-      curr.closedSourceModel !== prev.closedSourceModel ||
-      curr.openSourceScore !== prev.openSourceScore ||
-      curr.openSourceModel !== prev.openSourceModel
-    ) {
-      result.push(curr);
-    }
-  }
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,38 +288,23 @@ export interface CostTrendPoint {
   modelMemoryGb: number;
 }
 
+/**
+ * Compute cost trend from canonical gap trend points.
+ * For each gap trend point, look up the open-source model's GPU cost.
+ */
 export function computeCostTrend(
-  snapshots: SnapshotData[],
-  openSourceNames: Set<string>,
+  gapPoints: GapTrendPoint[],
   models: Model[],
   gpus: GpuOffering[],
-  category: string,
   settings: AdvancedSettings,
 ): CostTrendPoint[] {
   const points: CostTrendPoint[] = [];
   const concurrency = 5; // multi_agent midpoint
 
-  for (const snap of snapshots) {
-    const categoryBenchmarks = snap.benchmarks.filter(
-      (b) => b.benchmark_name === category && b.score !== null,
-    );
-
-    // Find best open-source model in this snapshot
-    let bestOpen: { name: string; score: number } | null = null;
-    for (const b of categoryBenchmarks) {
-      const resolved = resolveModelName(b.model_name);
-      if (!openSourceNames.has(resolved)) continue;
-      if (!bestOpen || b.score! > bestOpen.score) {
-        bestOpen = { name: resolved, score: b.score! };
-      }
-    }
-    if (!bestOpen) continue;
-
-    // Look up the Model object
-    const model = models.find((m) => m.model_name === bestOpen!.name);
+  for (const gp of gapPoints) {
+    const model = models.find((m) => m.model_name === gp.openSourceModel);
     if (!model) continue;
 
-    // Find cheapest GPU setup at concurrency=5
     let setups = findGpuSetups(model, gpus, concurrency, settings);
     if (setups.length === 0) {
       setups = findScaledGpuSetups(model, gpus, concurrency, settings);
@@ -276,36 +314,16 @@ export function computeCostTrend(
     const cheapest = setups[0];
     const memGb = getModelMemory(model, resolveModelPrecision(model));
     points.push({
-      date: snap.date,
+      date: gp.date,
       monthlyCost: cheapest.monthlyCost,
-      modelName: bestOpen.name,
+      modelName: gp.openSourceModel,
       gpuSetup: `${cheapest.gpuCount}× ${cheapest.gpuName}`,
-      score: bestOpen.score,
+      score: gp.openSourceScore,
       modelMemoryGb: memGb ?? 0,
     });
   }
 
   return points;
-}
-
-/**
- * Keep only points where the best open-source model changes.
- * First point always kept.
- */
-export function deduplicateCostTrend(
-  points: CostTrendPoint[],
-): CostTrendPoint[] {
-  if (points.length <= 1) return points;
-
-  const result: CostTrendPoint[] = [points[0]];
-
-  for (let i = 1; i < points.length; i++) {
-    if (points[i].modelName !== points[i - 1].modelName) {
-      result.push(points[i]);
-    }
-  }
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------

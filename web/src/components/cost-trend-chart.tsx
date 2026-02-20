@@ -23,7 +23,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import {
-  deduplicateCostTrend,
   type CostTrendPoint,
   type GpuReferenceCost,
 } from "@/lib/trend-data";
@@ -112,12 +111,11 @@ export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: C
   }
 
   const chartData = useMemo(() => {
-    const deduped = deduplicateCostTrend(data);
-    return deduped.map((p, i): ChartPoint => ({
+    return data.map((p, i): ChartPoint => ({
       ...p,
       displayLabel: `${p.modelName} (${p.score.toFixed(1)}, ${p.modelMemoryGb.toFixed(0)} gb)`,
       isFirst: i === 0,
-      isLast: i === deduped.length - 1,
+      isLast: i === data.length - 1,
     }));
   }, [data]);
 

@@ -1,4 +1,4 @@
-.PHONY: pipeline pipeline-gpu build dev clean all test test-pipeline
+.PHONY: pipeline pipeline-gpu build dev clean all test test-pipeline test-web
 
 # Run the full data pipeline (fetch, enrich, export to JSON)
 pipeline:
@@ -35,11 +35,15 @@ build:
 	cd web && npm run build
 
 # Run tests
-test: test-pipeline
+test: test-pipeline test-web
 
 # Run Python pipeline tests
 test-pipeline:
 	cd pipeline && python -m pytest tests/ -v
+
+# Run frontend tests
+test-web:
+	cd web && npx vitest run
 
 # Run Python linter
 lint:
