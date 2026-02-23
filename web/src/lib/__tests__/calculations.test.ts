@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Model, GpuOffering, Precision } from "@/types";
 import {
   getModelMemory,
+  getActiveModelMemory,
   gpusNeeded,
   calcKvCachePerToken,
   calcKvCachePerRequest,
@@ -151,6 +152,58 @@ describe("getModelMemory", () => {
   it("returns null when learnable_params_b is null", () => {
     const m = { ...GLM_47, learnable_params_b: null };
     expect(getModelMemory(m, "fp16")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getActiveModelMemory — bytes read per decode step (MoE-aware)
+// ---------------------------------------------------------------------------
+
+describe("getActiveModelMemory", () => {
+  it("MoE with uniform precision uses active_params_b", () => {
+    // GLM-4.7: MoE, active_params_b=33.7, no routed split at BF16
+    // active memory = 33.7 × 2 = 67.4 GB
+    expect(getActiveModelMemory(GLM_47, "bf16")).toBeCloseTo(33.7 * 2, 1);
+  });
+
+  it("MoE at FP8 uses active_params_b", () => {
+    // DeepSeek-V3.2: MoE, active_params_b=37.7, FP8
+    // active memory = 37.7 × 1 = 37.7 GB
+    expect(getActiveModelMemory(DEEPSEEK_V32, "fp8")).toBeCloseTo(37.7 * 1, 1);
+  });
+
+  it("MoE with INT4 mixed-precision splits active routed vs non-routed", () => {
+    // Kimi-K2: active_params_b=32.9, routed=1014.7, learnable=1026.4
+    // non_routed = 1026.4 - 1014.7 = 11.7B at BF16 (2 bytes)
+    // active_routed = 32.9 - 11.7 = 21.2B at INT4 (0.5625 bytes)
+    // active memory = 21.2 × 0.5625 + 11.7 × 2.0 = 11.925 + 23.4 = 35.325 GB
+    const mem = getActiveModelMemory(KIMI_K2, "int4");
+    expect(mem).toBeCloseTo(21.2 * 0.5625 + 11.7 * 2.0, 1);
+  });
+
+  it("dense model falls back to getModelMemory (all params active)", () => {
+    const dense: Model = {
+      ...INCOMPLETE_MODEL,
+      learnable_params_b: 70,
+      active_params_b: 70,
+      architecture: "Dense",
+    };
+    // 70 × 2 = 140 GB at fp16
+    expect(getActiveModelMemory(dense, "fp16")).toBeCloseTo(70 * 2, 1);
+    expect(getActiveModelMemory(dense, "fp16")).toBe(getModelMemory(dense, "fp16"));
+  });
+
+  it("null active_params_b falls back to getModelMemory", () => {
+    expect(getActiveModelMemory(INCOMPLETE_MODEL, "fp16")).toBe(
+      getModelMemory(INCOMPLETE_MODEL, "fp16"),
+    );
+  });
+
+  it("active memory is much smaller than total for MoE models", () => {
+    // Kimi-K2: total = 594 GB, active = 35 GB → ~17x smaller
+    const total = getModelMemory(KIMI_K2, "int4")!;
+    const active = getActiveModelMemory(KIMI_K2, "int4")!;
+    expect(total / active).toBeGreaterThan(10);
   });
 });
 
@@ -500,13 +553,14 @@ describe("calcPpBubbleEfficiency", () => {
 // ---------------------------------------------------------------------------
 
 describe("calcDecodeThroughput", () => {
-  it("returns bandwidth / model_size for a known GPU", () => {
-    // GLM-4.7 at fp16 = 705.6 GB = 705.6 × 1024³ bytes
-    // H100 bandwidth = 3.35 TB/s = 3.35 × 1024⁴ bytes/s
-    // 1 GPU: throughput = 3.35 × 1024⁴ / (705.6 × 1024³) = 3.35 × 1024 / 705.6 ≈ 4.864 tok/s
+  it("uses active model memory (not total) for MoE throughput", () => {
+    // GLM-4.7: MoE, active_params_b=33.7 at fp16 → active_model = 67.4 GB
+    // H100 bandwidth = 3.35 TB/s
+    // 1 GPU: throughput = 3.35 × 1024 / 67.4 ≈ 50.9 tok/s
+    // (Old formula used total 705.6 GB → 4.86 tok/s, ~10x too low)
     const result = calcDecodeThroughput(GLM_47, "fp16", "H100", 1, null);
     expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(3.35 * 1024 / 705.6, 1);
+    expect(result!).toBeCloseTo(3.35 * 1024 / (33.7 * 2), 1);
   });
 
   it("scales with TP efficiency, not linearly with GPU count", () => {

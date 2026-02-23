@@ -66,6 +66,9 @@ export function resolveModelPrecision(model: Model): Precision {
  * For mixed-precision models (with routed_expert_params_b), when precision
  * resolves to int4: routed experts use INT4 (0.5 bytes/param), remaining
  * params (attention, shared experts, lm_head) use BF16 (2 bytes/param).
+ *
+ * This is the TOTAL model size — use for VRAM capacity (does the model fit?).
+ * For decode throughput, use getActiveModelMemory instead.
  */
 export function getModelMemory(model: Model, precision: Precision): number | null {
   const params = model.learnable_params_b;
@@ -78,6 +81,35 @@ export function getModelMemory(model: Model, precision: Precision): number | nul
   }
 
   return params * BYTES_PER_PARAM[precision];
+}
+
+/**
+ * Get active model memory in GB — the bytes read from HBM per decode step.
+ *
+ * For MoE models, each decode step only reads the active expert weights,
+ * not all experts. This is the key advantage of MoE for inference speed:
+ * total params determine VRAM capacity, active params determine bandwidth.
+ *
+ * Falls back to getModelMemory when active_params_b is unavailable or
+ * the model is dense (all params are active).
+ */
+export function getActiveModelMemory(model: Model, precision: Precision): number | null {
+  if (model.active_params_b === null || model.architecture !== "MoE") {
+    return getModelMemory(model, precision);
+  }
+
+  const params = model.learnable_params_b;
+  if (params === null) return null;
+
+  // MoE with INT4 mixed precision: routed experts at INT4, rest at BF16
+  if (model.routed_expert_params_b !== null && precision === "int4") {
+    const nonRoutedParams = params - model.routed_expert_params_b;
+    const activeRoutedParams = model.active_params_b - nonRoutedParams;
+    return activeRoutedParams * BYTES_PER_PARAM["int4"] + nonRoutedParams * BYTES_PER_PARAM["bf16"];
+  }
+
+  // MoE with uniform precision
+  return model.active_params_b * BYTES_PER_PARAM[precision];
 }
 
 /** Get available precisions for a model. */
@@ -309,7 +341,10 @@ export function calcKvCachePerRequest(
 /**
  * Calculate decode throughput in tokens/sec.
  *
- * Decode is memory-bandwidth limited: throughput ≈ bandwidth / model_size_bytes
+ * Decode is memory-bandwidth limited: throughput ≈ bandwidth / active_model_bytes
+ *
+ * For MoE models, only active expert weights are read per decode step,
+ * so throughput scales with active params, not total params.
  *
  * For multi-GPU setups:
  * - TP GPUs (max 8 per node) contribute memory bandwidth, with communication overhead
@@ -327,11 +362,12 @@ export function calcDecodeThroughput(
   const gpuSpec = getGpuThroughputSpec(gpuType);
   if (!gpuSpec) return null;
 
-  const modelMemoryGb = getModelMemory(model, precision);
-  if (modelMemoryGb === null) return null;
+  // Use active model memory (MoE reads only active experts per step)
+  const activeMemoryGb = getActiveModelMemory(model, precision);
+  if (activeMemoryGb === null) return null;
 
-  // Model size in bytes
-  const modelSizeBytes = modelMemoryGb * 1024 * 1024 * 1024;
+  // Active model size in bytes
+  const modelSizeBytes = activeMemoryGb * 1024 * 1024 * 1024;
 
   // Only TP GPUs contribute bandwidth (PP stages hold different layers)
   const { tp } = calcParallelismTopology(gpuCount);
