@@ -486,9 +486,9 @@
     "total_vram_gb": 48.0,
     "price_per_hour": 0.49,
     "currency": "USD",
-    "provider": "verda",
-    "instance_name": "1A6000.10V",
-    "location": "FIN-01",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A6000",
+    "location": "EU-RO-1",
     "interconnect": null
   },
   {
@@ -498,9 +498,9 @@
     "total_vram_gb": 96.0,
     "price_per_hour": 0.98,
     "currency": "USD",
-    "provider": "verda",
-    "instance_name": "2A6000.20V",
-    "location": "FIN-01",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A6000",
+    "location": "EU-SE-1",
     "interconnect": null
   },
   {
@@ -522,9 +522,9 @@
     "total_vram_gb": 192.0,
     "price_per_hour": 1.96,
     "currency": "USD",
-    "provider": "verda",
-    "instance_name": "4A6000.40V",
-    "location": "FIN-01",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A6000",
+    "location": "EU-SE-1",
     "interconnect": null
   },
   {
