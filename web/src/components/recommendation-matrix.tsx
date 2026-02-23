@@ -166,6 +166,7 @@ function GpuSetupBlock({ setup, currencySymbol = "$" }: { setup: GpuSetupOption;
     <div>
       <div className="text-sm font-medium">
         {setup.gpuCount}× {setup.gpuName}
+        {setup.isProjected && " (*)"}
         {setup.gpuCount > 1 && isNvLink(setup.interconnect) && (
           <span className="text-muted-foreground font-normal ml-1.5">NVLink</span>
         )}
@@ -239,6 +240,7 @@ function CellContent({ cell, persona, currencySymbol = "$" }: { cell: MatrixCell
               >
                 <div className="text-sm">
                   {setup.gpuCount}× {setup.gpuName}
+                  {setup.isProjected && " (*)"}
                   {setup.gpuCount > 1 && isNvLink(setup.interconnect) && (
                     <span className="font-normal ml-1.5 text-muted-foreground">NVLink</span>
                   )}
@@ -407,6 +409,11 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: Re
     }
   }
 
+  // Check if any GPU setup across the matrix is projected
+  const hasProjected = rows.some((row) =>
+    row.some((cell) => cell.gpuSetups.some((s) => s.isProjected)),
+  );
+
   if (!isDesktop) {
     return (
       <TooltipProvider>
@@ -418,6 +425,11 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: Re
           colMax={colMax}
           useThroughput={useThroughput}
         />
+        {hasProjected && (
+          <p className="text-xs text-muted-foreground mt-3">
+            (*) Projected setup, not actually found in GPUs available.
+          </p>
+        )}
       </TooltipProvider>
     );
   }
@@ -500,6 +512,11 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: Re
             })}
           </tbody>
         </table>
+        {hasProjected && (
+          <p className="text-xs text-muted-foreground mt-3">
+            (*) Projected setup, not actually found in GPUs available.
+          </p>
+        )}
       </div>
     </TooltipProvider>
   );

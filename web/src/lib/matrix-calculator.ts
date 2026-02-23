@@ -162,11 +162,17 @@ export function findGpuSetups(
 }
 
 /**
+ * Hard cap for projected GPU scaling — we won't extrapolate beyond this.
+ */
+const MAX_PROJECTED_GPUS = 8;
+
+/**
  * Fallback for the performance persona: scale GPU count beyond real offerings
  * to find a configuration that can serve the requested concurrency level.
  *
- * For each GPU type in the region, finds the cheapest per-GPU rate, then
- * iterates gpuCount upward until capacity >= concurrency (up to 64 GPUs).
+ * Only considers GPU types that have a x1 (single-GPU) offering in the data.
+ * Uses the x1 offering's price as the per-GPU rate and caps scaling at 8 GPUs.
+ * All returned setups are marked with `isProjected: true`.
  */
 export function findScaledGpuSetups(
   model: Model,
@@ -179,23 +185,18 @@ export function findScaledGpuSetups(
   const modelMemoryGb = getModelMemory(model, precision);
   if (modelMemoryGb === null) return [];
 
-  // Find cheapest per-GPU rate, vram, interconnect, and max gpu_count for each GPU type.
-  // The max gpu_count caps scaling to what actually exists as a single-node offering
-  // (you can't combine separate instances for TP).
-  const gpuTypeMap = new Map<string, { perGpuPrice: number; vramGb: number; interconnect: string | null; maxGpuCount: number }>();
+  // Only consider GPU types that have a x1 (single-GPU) offering.
+  // Use the cheapest x1 offering's price as the per-GPU rate.
+  const gpuTypeMap = new Map<string, { perGpuPrice: number; vramGb: number; interconnect: string | null }>();
   for (const g of allGpus) {
-    const perGpu = g.price_per_hour / g.gpu_count;
+    if (g.gpu_count !== 1) continue;
     const existing = gpuTypeMap.get(g.gpu_name);
-    if (!existing) {
+    if (!existing || g.price_per_hour < existing.perGpuPrice) {
       gpuTypeMap.set(g.gpu_name, {
-        perGpuPrice: perGpu,
+        perGpuPrice: g.price_per_hour,
         vramGb: g.vram_gb,
         interconnect: g.interconnect,
-        maxGpuCount: g.gpu_count,
       });
-    } else {
-      if (perGpu < existing.perGpuPrice) existing.perGpuPrice = perGpu;
-      if (g.gpu_count > existing.maxGpuCount) existing.maxGpuCount = g.gpu_count;
     }
   }
 
@@ -204,7 +205,7 @@ export function findScaledGpuSetups(
   for (const [gpuName, info] of gpuTypeMap) {
     const minGpus = gpusNeeded(modelMemoryGb * WEIGHT_OVERHEAD_FACTOR, info.vramGb);
 
-    for (let count = minGpus; count <= info.maxGpuCount; count++) {
+    for (let count = minGpus; count <= MAX_PROJECTED_GPUS; count++) {
       const totalVram = count * info.vramGb;
       const interconnect = info.interconnect;
       const stats = calcGpuSetupStats(
@@ -227,6 +228,7 @@ export function findScaledGpuSetups(
         costPerStreamPerMonth: costPerStream,
         decodeThroughputTokS: stats.decodeThroughputTokS,
         maxConcurrentStreams: stats.maxConcurrentStreams,
+        isProjected: true,
       });
       break;
     }

@@ -81,6 +81,7 @@ export interface GpuSetupOption {
   costPerStreamPerMonth: number;
   decodeThroughputTokS: number | null;
   maxConcurrentStreams: number;
+  isProjected?: boolean;
 }
 
 export interface MatrixCell {

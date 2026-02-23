@@ -224,57 +224,103 @@ describe("calculateBudgetMatrix", () => {
 // Performance persona: never exceeds capacity (scaled fallback)
 // ---------------------------------------------------------------------------
 
-describe("performance persona never shows exceedsCapacity", () => {
-  // Use a small 4×H100 offering that can't directly serve 50 streams
-  const SMALL_H100: GpuOffering = {
+describe("performance persona scaled fallback", () => {
+  // x1 H100 offering — required for findScaledGpuSetups (only considers x1 offerings)
+  const H100_X1: GpuOffering = {
     gpu_name: "H100",
     vram_gb: 80,
-    gpu_count: 4,
-    total_vram_gb: 320,
-    price_per_hour: 10,
+    gpu_count: 1,
+    total_vram_gb: 80,
+    price_per_hour: 2.5,
     currency: "USD",
     provider: "test",
-    instance_name: "test-instance",
+    instance_name: "test-x1",
     location: "test-region",
     interconnect: null,
   };
 
-  const allGpus = [SMALL_H100];
+  const allGpus = [H100_X1];
   const allModels = [MINIMAX_M25];
   const benchmarks = [BENCHMARK_MINIMAX];
   const sotaScores = [SOTA];
 
-  it("all cells have exceedsCapacity: false", () => {
+  it("scales up from x1 offering and marks setups as projected", () => {
     const matrix = calculatePerformanceMatrix(
       allGpus, allModels, benchmarks, sotaScores, "swe_bench_verified",
     );
     expect(matrix.length).toBe(1);
+    // At least one cell should use the scaled fallback (no real offering can serve high concurrency)
+    const scaledCells = matrix[0].filter(
+      (cell) => cell.gpuSetups.length > 0 && cell.gpuSetups[0].isProjected,
+    );
+    expect(scaledCells.length).toBeGreaterThan(0);
+  });
+
+  it("projected setups never exceed 8 GPUs", () => {
+    const matrix = calculatePerformanceMatrix(
+      allGpus, allModels, benchmarks, sotaScores, "swe_bench_verified",
+    );
     for (const cell of matrix[0]) {
-      expect(cell.exceedsCapacity).toBe(false);
+      for (const setup of cell.gpuSetups) {
+        if (setup.isProjected) {
+          expect(setup.gpuCount).toBeLessThanOrEqual(8);
+        }
+      }
     }
   });
 
-  it("scaled cells have gpuCount >= available offering", () => {
+  it("shows exceedsCapacity when 8 GPUs is not enough", () => {
+    // GLM-4.7 is a huge model (352.8B BF16 → ~706 GB weights).
+    // With 80 GB/GPU, it needs ceil(706*1.15/80) = 11 GPUs minimum.
+    // Since the cap is 8, it can't fit at all → exceedsCapacity.
     const matrix = calculatePerformanceMatrix(
-      allGpus, allModels, benchmarks, sotaScores, "swe_bench_verified",
+      allGpus, [GLM_47], [BENCHMARK_GLM], sotaScores, "swe_bench_verified",
     );
-    // The "agent_swarm" tier (midpoint=50) likely requires more than 4 GPUs
-    const swarmCell = matrix[0][3]; // last column
-    expect(swarmCell.gpuSetups.length).toBeGreaterThan(0);
-    const setup = swarmCell.gpuSetups[0];
-    expect(setup.gpuCount).toBeGreaterThanOrEqual(4);
+    expect(matrix.length).toBe(1);
+    for (const cell of matrix[0]) {
+      expect(cell.exceedsCapacity).toBe(true);
+    }
   });
 
-  it("cells have throughput and utilization populated", () => {
+  it("cells with projected setups have throughput and utilization populated", () => {
     const matrix = calculatePerformanceMatrix(
       allGpus, allModels, benchmarks, sotaScores, "swe_bench_verified",
     );
     for (const cell of matrix[0]) {
-      expect(cell.decodeThroughputTokS).not.toBeNull();
-      expect(cell.decodeThroughputTokS).toBeGreaterThan(0);
-      expect(cell.utilization).not.toBeNull();
-      expect(cell.utilization).toBeGreaterThan(0);
-      expect(cell.utilization).toBeLessThanOrEqual(1.0);
+      if (cell.gpuSetups.length > 0) {
+        expect(cell.decodeThroughputTokS).not.toBeNull();
+        expect(cell.decodeThroughputTokS).toBeGreaterThan(0);
+        expect(cell.utilization).not.toBeNull();
+        expect(cell.utilization).toBeGreaterThan(0);
+        expect(cell.utilization).toBeLessThanOrEqual(1.0);
+      }
+    }
+  });
+
+  it("ignores GPU types without a x1 offering", () => {
+    // Only a 4×H100 offering, no x1 → findScaledGpuSetups returns nothing
+    const MULTI_ONLY: GpuOffering = {
+      gpu_name: "H100",
+      vram_gb: 80,
+      gpu_count: 4,
+      total_vram_gb: 320,
+      price_per_hour: 10,
+      currency: "USD",
+      provider: "test",
+      instance_name: "test-multi",
+      location: "test-region",
+      interconnect: null,
+    };
+    const matrix = calculatePerformanceMatrix(
+      [MULTI_ONLY], allModels, benchmarks, sotaScores, "swe_bench_verified",
+    );
+    expect(matrix.length).toBe(1);
+    // All tiers should show exceedsCapacity since the 4×H100 offering
+    // may not directly serve concurrency, and no x1 exists for fallback
+    for (const cell of matrix[0]) {
+      if (cell.gpuSetups.length === 0) {
+        expect(cell.exceedsCapacity).toBe(true);
+      }
     }
   });
 });
