@@ -8,7 +8,6 @@ import {
   calcKvCachePerRequest,
   calcDecodeThroughput,
   calcMaxConcurrentRequests,
-  calcTeamCapacity,
   resolveModelPrecision,
   resolveKvPrecisionBytes,
   isNvLink,
@@ -582,63 +581,6 @@ describe("calcDecodeThroughput", () => {
   it("returns null when model memory is null", () => {
     const m = { ...GLM_47, learnable_params_b: null };
     expect(calcDecodeThroughput(m, "fp16", "H100", 1, null)).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// calcTeamCapacity — end-to-end integration
-// ---------------------------------------------------------------------------
-
-describe("calcTeamCapacity", () => {
-  const offering: GpuOffering = {
-    gpu_name: "H100",
-    vram_gb: 80,
-    gpu_count: 12,
-    total_vram_gb: 960,
-    price_per_hour: 30,
-    currency: "USD",
-    provider: "test",
-    instance_name: "test-instance",
-    location: "test-region",
-    interconnect: null,
-  };
-
-  it("returns positive team size for GLM-4.7 on 12×H100", () => {
-    const result = calcTeamCapacity(GLM_47, "fp16", offering, "low-concurrency");
-    expect(result.maxConcurrentRequests).toBeGreaterThan(0);
-    expect(result.decodeThroughput).toBeGreaterThan(0);
-    expect(result.comfortableTeamSize).toBeGreaterThan(0);
-    expect(result.costPerUserPerMonth).toBeGreaterThan(0);
-    expect(result.costPerUserPerMonth).toBeLessThan(Infinity);
-  });
-
-  it("returns zero team for model that doesn't fit", () => {
-    // GLM-4.7 FP16 needs 811 GB, 4×H100 = 320 GB — doesn't fit
-    const small = { ...offering, gpu_count: 4, total_vram_gb: 320 };
-    const result = calcTeamCapacity(GLM_47, "fp16", small, "low-concurrency");
-    expect(result.maxConcurrentRequests).toBe(0);
-    expect(result.comfortableTeamSize).toBe(0);
-  });
-
-  it("hard limit > comfortable team size", () => {
-    const result = calcTeamCapacity(GLM_47, "fp16", offering, "low-concurrency");
-    if (result.comfortableTeamSize > 0) {
-      expect(result.hardLimitTeamSize).toBeGreaterThanOrEqual(result.comfortableTeamSize);
-    }
-  });
-
-  it("long-context regime uses model.context_length × 0.5 as input tokens", () => {
-    // Long-context should produce fewer concurrent requests due to huge KV
-    const lowConc = calcTeamCapacity(GLM_47, "fp16", offering, "low-concurrency");
-    const longCtx = calcTeamCapacity(GLM_47, "fp16", offering, "long-context");
-    expect(longCtx.maxConcurrentRequests).toBeLessThan(lowConc.maxConcurrentRequests);
-  });
-
-  it("returns default result for null learnable_params", () => {
-    const m = { ...GLM_47, learnable_params_b: null };
-    const result = calcTeamCapacity(m, "fp16", offering, "low-concurrency");
-    expect(result.maxConcurrentRequests).toBe(0);
-    expect(result.comfortableTeamSize).toBe(0);
   });
 });
 

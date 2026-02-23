@@ -123,30 +123,3 @@ export interface CostResult {
   monthlyCost: number | null;
 }
 
-export type UsageRegime = "low-concurrency" | "high-concurrency" | "long-context";
-
-export interface TeamCapacityResult {
-  /** Maximum concurrent requests that fit in VRAM */
-  maxConcurrentRequests: number;
-
-  /** Decode throughput in tokens/sec (null if GPU specs unavailable) */
-  decodeThroughput: number | null;
-
-  /** System capacity in requests/sec */
-  requestsPerSecond: number;
-
-  /** Safe requests/sec at utilization target */
-  safeRequestsPerSecond: number;
-
-  /** Recommended team size (comfortable capacity) */
-  comfortableTeamSize: number;
-
-  /** Maximum team size before system jams */
-  hardLimitTeamSize: number;
-
-  /** Cost per user per month */
-  costPerUserPerMonth: number;
-
-  /** Throughput utilization % at comfortable capacity */
-  throughputUtilization: number;
-}

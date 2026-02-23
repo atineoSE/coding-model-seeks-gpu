@@ -5,12 +5,9 @@ import type {
   KvCachePrecision,
   CostResult,
   BenchmarkScore,
-  UsageRegime,
-  TeamCapacityResult,
 } from "@/types";
 import { getOfferings } from "./data";
 import { getGpuThroughputSpec, supportsFp8KvCache } from "./gpu-specs";
-import { getRegimeParams } from "./regime-params";
 
 const HOURS_PER_MONTH = 720;
 
@@ -287,7 +284,7 @@ export function calcPpBubbleEfficiency(pp: number, batchSize: number): number {
 }
 
 // ============================================================================
-// Team Capacity & Throughput Calculations
+// Throughput Calculations
 // ============================================================================
 
 /**
@@ -421,111 +418,3 @@ export function calcMaxConcurrentRequests(
   return Math.max(0, Math.floor(kvBudgetGb / effectiveKvPerRequest));
 }
 
-/**
- * Calculate team capacity for a given GPU configuration and usage regime.
- *
- * This is the main function that ties everything together.
- *
- * Returns team sizing, cost per user, and utilization metrics.
- */
-export function calcTeamCapacity(
-  model: Model,
-  precision: Precision,
-  gpuOffering: GpuOffering,
-  regime: UsageRegime,
-): TeamCapacityResult {
-  const regimeParams = getRegimeParams(regime);
-  const modelMemoryGb = getModelMemory(model, precision);
-
-  // Initialize default result
-  const defaultResult: TeamCapacityResult = {
-    maxConcurrentRequests: 0,
-    decodeThroughput: null,
-    requestsPerSecond: 0,
-    safeRequestsPerSecond: 0,
-    comfortableTeamSize: 0,
-    hardLimitTeamSize: 0,
-    costPerUserPerMonth: Infinity,
-    throughputUtilization: 0,
-  };
-
-  if (modelMemoryGb === null) return defaultResult;
-
-  // Determine input/output tokens based on regime
-  let inputTokens = regimeParams.avgInputTokens;
-  if (regime === "long-context" && model.context_length) {
-    inputTokens = Math.floor(model.context_length * 0.5);
-  }
-  const outputTokens = regimeParams.avgOutputTokens;
-
-  // Calculate max concurrent requests
-  const maxConcurrentRequests = calcMaxConcurrentRequests(
-    model,
-    precision,
-    gpuOffering.total_vram_gb,
-    inputTokens,
-    outputTokens,
-  );
-
-  if (maxConcurrentRequests === 0) return defaultResult;
-
-  // Calculate decode throughput
-  const decodeThroughput = calcDecodeThroughput(
-    model,
-    precision,
-    gpuOffering.gpu_name,
-    gpuOffering.gpu_count,
-    gpuOffering.interconnect,
-  );
-
-  // If we don't have throughput data, we can't calculate team capacity
-  if (decodeThroughput === null) {
-    return {
-      ...defaultResult,
-      maxConcurrentRequests,
-      decodeThroughput: null,
-    };
-  }
-
-  const tokensPerRequest = inputTokens + outputTokens;
-
-  // Apply PP bubble penalty when pipeline parallelism is used
-  const { pp } = calcParallelismTopology(gpuOffering.gpu_count);
-  const ppEff = calcPpBubbleEfficiency(pp, maxConcurrentRequests);
-
-  // System capacity in requests/sec
-  // Formula: (decode_throughput × max_concurrent × pp_efficiency) / tokens_per_request
-  const requestsPerSecond = (decodeThroughput * maxConcurrentRequests * ppEff) / tokensPerRequest;
-
-  // Safe requests/sec at utilization target
-  const safeRequestsPerSecond = requestsPerSecond * regimeParams.utilizationTarget;
-
-  // Team sizing
-  // Formula: (safe_requests_per_sec × 3600) / (prompts_per_user_per_hour × burst_factor)
-  const requestsPerHour = safeRequestsPerSecond * 3600;
-  const userRequestsPerHour = regimeParams.promptsPerUserPerHour * regimeParams.burstFactor;
-  const comfortableTeamSize = Math.floor(requestsPerHour / userRequestsPerHour);
-
-  // Hard limit (100% utilization, no burst)
-  const hardLimitRequestsPerHour = requestsPerSecond * 3600;
-  const hardLimitTeamSize = Math.floor(hardLimitRequestsPerHour / regimeParams.promptsPerUserPerHour);
-
-  // Cost per user
-  const gpuMonthlyCost = gpuOffering.price_per_hour * HOURS_PER_MONTH;
-  const costPerUserPerMonth = comfortableTeamSize > 0 ? gpuMonthlyCost / comfortableTeamSize : Infinity;
-
-  // Throughput utilization at comfortable capacity
-  const actualRequestsPerSecond = (comfortableTeamSize * userRequestsPerHour) / 3600;
-  const throughputUtilization = requestsPerSecond > 0 ? (actualRequestsPerSecond / requestsPerSecond) * 100 : 0;
-
-  return {
-    maxConcurrentRequests,
-    decodeThroughput,
-    requestsPerSecond,
-    safeRequestsPerSecond,
-    comfortableTeamSize,
-    hardLimitTeamSize,
-    costPerUserPerMonth,
-    throughputUtilization,
-  };
-}
