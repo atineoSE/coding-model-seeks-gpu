@@ -13,7 +13,6 @@ import { CONCURRENCY_TIERS } from "../concurrency-tiers";
 
 const GLM_47: Model = {
   model_name: "GLM-4.7",
-  published_param_count_b: null,
   learnable_params_b: 352.8,
   active_params_b: 33.7,
   architecture: "MoE",
@@ -31,7 +30,6 @@ const GLM_47: Model = {
 
 const MINIMAX_M25: Model = {
   model_name: "MiniMax-M2.5",
-  published_param_count_b: 228.7,
   learnable_params_b: 228.7,
   active_params_b: 11.1,
   architecture: "MoE",

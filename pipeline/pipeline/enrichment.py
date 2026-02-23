@@ -7,9 +7,6 @@ class ModelSpec(BaseModel):
     """Validated model specification."""
 
     model_name: str
-    published_param_count_b: float | None = Field(
-        None, description="HF safetensors element count in billions (None when unavailable)"
-    )
     learnable_params_b: float | None = Field(
         None, description="True logical param count in billions (from config-based counting)"
     )

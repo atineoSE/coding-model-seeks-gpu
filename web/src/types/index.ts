@@ -21,7 +21,6 @@ export interface GpuOffering {
 
 export interface Model {
   model_name: string;
-  published_param_count_b: number | null;
   learnable_params_b: number | null;
   active_params_b: number | null;
   architecture: "Dense" | "MoE";

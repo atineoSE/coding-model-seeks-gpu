@@ -47,36 +47,11 @@ def fetch_hf_config(hf_id: str) -> dict | None:
         return None
 
 
-def fetch_hf_param_count(hf_id: str) -> float | None:
-    """Fetch total parameter count from the HF API (safetensors metadata).
-
-    This is the authoritative param count shown on the HF model page.
-    Returns total params in billions, or None if unavailable.
-    """
-    url = f"https://huggingface.co/api/models/{hf_id}"
-    try:
-        response = httpx.get(url, timeout=30.0, follow_redirects=True)
-        response.raise_for_status()
-        data = response.json()
-        total = data.get("safetensors", {}).get("parameters", {})
-        if not total:
-            return None
-        # Sum all dtypes to get total param count
-        total_params = sum(total.values())
-        params_b = round(total_params / 1e9, 1)
-        logger.info("HF API param count for %s: %.1fB", hf_id, params_b)
-        return params_b
-    except Exception:
-        logger.debug("Could not fetch HF API param count for %s", hf_id)
-        return None
-
-
 def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
     """Build a ModelSpec from the HF API and config.json.
 
-    Uses config-based parameter counting as the primary source for the true
-    logical parameter count (safetensors element counts can be wrong for
-    packed formats like INT4).  Raises if both paths fail.
+    Uses config-based parameter counting to derive the true logical
+    parameter count from architecture dimensions.
 
     Args:
         model_name: Display name of the model.
@@ -84,39 +59,22 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
 
     Raises:
         RuntimeError: If config.json is unavailable.
-        ValueError: If config-based param counting fails and safetensors
-            data is also missing.
+        ValueError: If config-based param counting fails.
     """
-    # 1. Fetch config.json first (required for all paths)
+    # 1. Fetch config.json (required)
     config = fetch_hf_config(hf_id)
     if not config:
         raise RuntimeError(f"No config.json available for {hf_id}")
 
-    # 1b. Check architecture support early — fail fast before expensive API calls
+    # 2. Check architecture support early — fail fast before expensive work
     effective_config = resolve_text_config(config)
     model_type = effective_config.get("model_type", "")
     if model_type not in KNOWN_ARCHITECTURES:
         raise UnsupportedArchitecture(model_name, model_type, hf_id)
 
-    # 2. Fetch safetensors element count (shown on HF model page)
-    published_param_count_b = fetch_hf_param_count(hf_id)
-
-    # 3. Run config-based counting (true logical param count)
-    config_result = None
-    try:
-        config_result = count_params_from_config(config)
-    except ValueError as e:
-        logger.warning("Config-based param count failed for %s: %s", hf_id, e)
-        if published_param_count_b is None:
-            raise  # Pipeline fails if both paths unavailable
-
-    # 4. Learnable params from config; fall back to safetensors
-    if config_result is not None:
-        learnable_params_b = round(config_result.total_params / 1e9, 1)
-    elif published_param_count_b is not None:
-        learnable_params_b = published_param_count_b
-    else:
-        raise ValueError(f"No param count available for {hf_id}")
+    # 3. Config-based counting (true logical param count)
+    config_result = count_params_from_config(config)
+    learnable_params_b = round(config_result.total_params / 1e9, 1)
 
     # 5. Active params from config result
     active_params_b = None
@@ -196,7 +154,6 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
 
     return ModelSpec(
         model_name=model_name,
-        published_param_count_b=published_param_count_b,
         learnable_params_b=learnable_params_b,
         active_params_b=active_params_b,
         architecture="MoE" if is_moe else "Dense",
@@ -242,10 +199,9 @@ def fetch_all_models(
             spec = fetch_model(name, hf_id)
             results.append(spec)
             logger.info(
-                "  -> %s: learnable=%.1fB published=%.1fB (active=%.1fB), %s, %s",
+                "  -> %s: learnable=%.1fB (active=%.1fB), %s, %s",
                 spec.model_name,
                 spec.learnable_params_b or 0,
-                spec.published_param_count_b or 0,
                 spec.active_params_b or 0,
                 spec.architecture,
                 spec.precision or "unknown",
@@ -279,7 +235,6 @@ if __name__ == "__main__":
     # Test with a single benchmark model
     spec = fetch_model("GLM-4.7", "zai-org/GLM-4.7")
     print(f"\n{spec.model_name}:")
-    print(f"  Published Params: {spec.published_param_count_b}B")
     print(f"  Learnable Params: {spec.learnable_params_b}B")
     print(f"  Active: {spec.active_params_b}B")
     print(f"  Architecture: {spec.architecture}")

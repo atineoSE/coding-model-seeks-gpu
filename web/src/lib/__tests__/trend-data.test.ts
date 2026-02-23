@@ -283,7 +283,6 @@ describe("computeGapTrend", () => {
 describe("computeCostTrend", () => {
   const TEST_MODEL: Model = {
     model_name: "MiniMax-M2.5",
-    published_param_count_b: 228.7,
     learnable_params_b: 228.7,
     active_params_b: 11.1,
     architecture: "MoE",

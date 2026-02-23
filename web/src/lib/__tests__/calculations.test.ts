@@ -24,7 +24,6 @@ import {
 
 const DEEPSEEK_V32: Model = {
   model_name: "DeepSeek-V3.2-Reasoner",
-  published_param_count_b: null,
   learnable_params_b: 671.1,
   active_params_b: 37.7,
   architecture: "MoE",
@@ -42,7 +41,6 @@ const DEEPSEEK_V32: Model = {
 
 const GLM_47: Model = {
   model_name: "GLM-4.7",
-  published_param_count_b: null,
   learnable_params_b: 352.8,
   active_params_b: 33.7,
   architecture: "MoE",
@@ -60,7 +58,6 @@ const GLM_47: Model = {
 
 const KIMI_K2: Model = {
   model_name: "Kimi-K2-Thinking",
-  published_param_count_b: null,
   learnable_params_b: 1026.4,
   active_params_b: 32.9,
   architecture: "MoE",
@@ -78,7 +75,6 @@ const KIMI_K2: Model = {
 
 const QWEN3_CODER: Model = {
   model_name: "Qwen3-Coder-480B",
-  published_param_count_b: null,
   learnable_params_b: 480.2,
   active_params_b: 35.5,
   architecture: "MoE",
@@ -97,7 +93,6 @@ const QWEN3_CODER: Model = {
 /** Model with null KV cache fields — should return 0 for all KV functions. */
 const INCOMPLETE_MODEL: Model = {
   model_name: "Incomplete",
-  published_param_count_b: null,
   learnable_params_b: 100,
   active_params_b: null,
   architecture: "Dense",
