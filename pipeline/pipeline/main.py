@@ -158,11 +158,7 @@ def main():
             gpu_specs = None
             if args.step in ("gpu", "all"):
                 offerings, source_metadata = run_gpu_pipeline()
-                if offerings:
-                    updates.append(f"GPU prices refreshed: {len(offerings)} offerings")
                 gpu_specs = run_gpu_specs_pipeline()
-                if gpu_specs:
-                    updates.append(f"GPU specs refreshed: {len(gpu_specs)} GPUs")
 
             if args.step in ("snapshots", "all"):
                 new_snapshots = run_snapshot_pipeline(force=args.force_snapshots)
