@@ -55,7 +55,7 @@
   },
   {
     "model_name": "Kimi-K2.5",
-    "published_param_count_b": null,
+    "published_param_count_b": 170.7,
     "learnable_params_b": 1026.4,
     "active_params_b": 32.9,
     "architecture": "MoE",

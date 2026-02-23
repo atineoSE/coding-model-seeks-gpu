@@ -555,12 +555,12 @@ describe("calcPpBubbleEfficiency", () => {
 describe("calcDecodeThroughput", () => {
   it("uses active model memory (not total) for MoE throughput", () => {
     // GLM-4.7: MoE, active_params_b=33.7 at fp16 → active_model = 67.4 GB
-    // H100 bandwidth = 3.35 TB/s
-    // 1 GPU: throughput = 3.35 × 1024 / 67.4 ≈ 50.9 tok/s
+    // H100 bandwidth = 3.36 TB/s (dbgpu/TechPowerUp)
+    // 1 GPU: throughput = 3.36 × 1024 / 67.4 ≈ 51.0 tok/s
     // (Old formula used total 705.6 GB → 4.86 tok/s, ~10x too low)
     const result = calcDecodeThroughput(GLM_47, "fp16", "H100", 1, null);
     expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(3.35 * 1024 / (33.7 * 2), 1);
+    expect(result!).toBeCloseTo(3.36 * 1024 / (33.7 * 2), 1);
   });
 
   it("scales with TP efficiency, not linearly with GPU count", () => {

@@ -19,6 +19,7 @@ from pipeline.notify import (
     notify_unsupported_architecture,
 )
 from pipeline.snapshots.exporter import load_index, run_snapshot_export
+from pipeline.sources.dbgpu_source import fetch_gpu_specs
 from pipeline.sources.gpuhunt_source import fetch_gpu_prices
 from pipeline.sources.huggingface import MODEL_NAME_TO_HF_ID, fetch_all_models
 
@@ -36,6 +37,14 @@ def run_gpu_pipeline() -> tuple[list[dict], dict]:
     offerings, source_metadata = fetch_gpu_prices()
     logger.info("GPU pipeline complete: %d offerings", len(offerings))
     return offerings, source_metadata
+
+
+def run_gpu_specs_pipeline() -> list[dict]:
+    """Fetch GPU hardware specs from dbgpu and return spec dicts."""
+    logger.info("=== GPU Specs Pipeline ===")
+    gpu_specs = fetch_gpu_specs()
+    logger.info("GPU specs pipeline complete: %d GPUs", len(gpu_specs))
+    return gpu_specs
 
 
 def run_snapshot_pipeline(*, force: bool = False) -> int:
@@ -60,10 +69,10 @@ def run_model_pipeline():
     return specs, skipped
 
 
-def run_export(offerings, specs, source_metadata=None):
+def run_export(offerings, specs, source_metadata=None, gpu_specs=None):
     """Export GPU and model data to JSON."""
     logger.info("=== JSON Export ===")
-    paths = export_all(offerings, specs, source_metadata=source_metadata)
+    paths = export_all(offerings, specs, source_metadata=source_metadata, gpu_specs=gpu_specs)
     for name, path in paths.items():
         logger.info("Exported %s -> %s", name, path)
     return paths
@@ -146,10 +155,14 @@ def main():
 
             offerings = []
             source_metadata = None
+            gpu_specs = None
             if args.step in ("gpu", "all"):
                 offerings, source_metadata = run_gpu_pipeline()
                 if offerings:
                     updates.append(f"GPU prices refreshed: {len(offerings)} offerings")
+                gpu_specs = run_gpu_specs_pipeline()
+                if gpu_specs:
+                    updates.append(f"GPU specs refreshed: {len(gpu_specs)} GPUs")
 
             if args.step in ("snapshots", "all"):
                 new_snapshots = run_snapshot_pipeline(force=args.force_snapshots)
@@ -172,7 +185,7 @@ def main():
                         )
 
             if args.step in ("export", "all"):
-                run_export(offerings, specs, source_metadata=source_metadata)
+                run_export(offerings, specs, source_metadata=source_metadata, gpu_specs=gpu_specs)
 
             # Success — send data update notification if anything changed
             if updates and is_enabled():

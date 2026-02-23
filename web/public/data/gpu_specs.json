@@ -1,0 +1,281 @@
+[
+  {
+    "gpu_name": "A10",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 31.2,
+    "memory_bandwidth_tb_s": 0.6,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A100",
+    "memory_size_gb": 40.0,
+    "fp16_tflops": 78.0,
+    "memory_bandwidth_tb_s": 1.56,
+    "nvlink_bandwidth_gb_s": 600,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A100_80G",
+    "memory_size_gb": 80.0,
+    "fp16_tflops": 78.0,
+    "memory_bandwidth_tb_s": 2.04,
+    "nvlink_bandwidth_gb_s": 600,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A10G",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 31.5,
+    "memory_bandwidth_tb_s": 0.6,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A40",
+    "memory_size_gb": 48.0,
+    "fp16_tflops": 37.4,
+    "memory_bandwidth_tb_s": 0.696,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A4000",
+    "memory_size_gb": 16.0,
+    "fp16_tflops": 19.2,
+    "memory_bandwidth_tb_s": 0.448,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A4500",
+    "memory_size_gb": 20.0,
+    "fp16_tflops": 23.6,
+    "memory_bandwidth_tb_s": 0.64,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A5000",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 27.8,
+    "memory_bandwidth_tb_s": 0.768,
+    "nvlink_bandwidth_gb_s": 112.5,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "A6000",
+    "memory_size_gb": 48.0,
+    "fp16_tflops": 38.7,
+    "memory_bandwidth_tb_s": 0.768,
+    "nvlink_bandwidth_gb_s": 112.5,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "B200",
+    "memory_size_gb": 180.0,
+    "fp16_tflops": 2382.4,
+    "memory_bandwidth_tb_s": 8.2,
+    "nvlink_bandwidth_gb_s": 1800,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
+    "gpu_name": "B300",
+    "memory_size_gb": 288.0,
+    "fp16_tflops": 2463.6,
+    "memory_bandwidth_tb_s": 8.2,
+    "nvlink_bandwidth_gb_s": 1800,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
+    "gpu_name": "GH200",
+    "memory_size_gb": 96,
+    "fp16_tflops": 990,
+    "memory_bandwidth_tb_s": 4.0,
+    "nvlink_bandwidth_gb_s": 900,
+    "fp8_multiplier": 2,
+    "architecture": "Hopper"
+  },
+  {
+    "gpu_name": "H100",
+    "memory_size_gb": 80.0,
+    "fp16_tflops": 267.6,
+    "memory_bandwidth_tb_s": 3.36,
+    "nvlink_bandwidth_gb_s": 900,
+    "fp8_multiplier": 2,
+    "architecture": "Hopper"
+  },
+  {
+    "gpu_name": "H100NVL",
+    "memory_size_gb": 94.0,
+    "fp16_tflops": 241.3,
+    "memory_bandwidth_tb_s": 3.94,
+    "nvlink_bandwidth_gb_s": 900,
+    "fp8_multiplier": 2,
+    "architecture": "Hopper"
+  },
+  {
+    "gpu_name": "H200",
+    "memory_size_gb": 141.0,
+    "fp16_tflops": 267.6,
+    "memory_bandwidth_tb_s": 4.89,
+    "nvlink_bandwidth_gb_s": 900,
+    "fp8_multiplier": 2,
+    "architecture": "Hopper"
+  },
+  {
+    "gpu_name": "L4",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 30.3,
+    "memory_bandwidth_tb_s": 0.3,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ada Lovelace"
+  },
+  {
+    "gpu_name": "L40",
+    "memory_size_gb": 48.0,
+    "fp16_tflops": 90.5,
+    "memory_bandwidth_tb_s": 0.864,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ada Lovelace"
+  },
+  {
+    "gpu_name": "L40S",
+    "memory_size_gb": 48.0,
+    "fp16_tflops": 91.6,
+    "memory_bandwidth_tb_s": 0.864,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ada Lovelace"
+  },
+  {
+    "gpu_name": "RTX3090",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 35.6,
+    "memory_bandwidth_tb_s": 0.936,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "RTX3090Ti",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 40.0,
+    "memory_bandwidth_tb_s": 1.01,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ampere"
+  },
+  {
+    "gpu_name": "RTX4000Ada",
+    "memory_size_gb": 20.0,
+    "fp16_tflops": 26.7,
+    "memory_bandwidth_tb_s": 0.36,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ada Lovelace"
+  },
+  {
+    "gpu_name": "RTX4090",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 82.6,
+    "memory_bandwidth_tb_s": 1.01,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ada Lovelace"
+  },
+  {
+    "gpu_name": "RTX5000Ada",
+    "memory_size_gb": 32.0,
+    "fp16_tflops": 65.3,
+    "memory_bandwidth_tb_s": 0.576,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ada Lovelace"
+  },
+  {
+    "gpu_name": "RTX5090",
+    "memory_size_gb": 32.0,
+    "fp16_tflops": 104.8,
+    "memory_bandwidth_tb_s": 1.79,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
+    "gpu_name": "RTX6000",
+    "memory_size_gb": 24.0,
+    "fp16_tflops": 32.6,
+    "memory_bandwidth_tb_s": 0.672,
+    "nvlink_bandwidth_gb_s": 100,
+    "fp8_multiplier": 1,
+    "architecture": "Turing"
+  },
+  {
+    "gpu_name": "RTX6000Ada",
+    "memory_size_gb": 48.0,
+    "fp16_tflops": 91.1,
+    "memory_bandwidth_tb_s": 0.96,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 1,
+    "architecture": "Ada Lovelace"
+  },
+  {
+    "gpu_name": "RTXPRO4500",
+    "memory_size_gb": 32.0,
+    "fp16_tflops": 50.5,
+    "memory_bandwidth_tb_s": 0.896,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
+    "gpu_name": "RTXPRO6000",
+    "memory_size_gb": 96.0,
+    "fp16_tflops": 126.0,
+    "memory_bandwidth_tb_s": 1.79,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
+    "gpu_name": "RTXPRO6000MaxQ",
+    "memory_size_gb": 96.0,
+    "fp16_tflops": 109.7,
+    "memory_bandwidth_tb_s": 1.79,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
+    "gpu_name": "RTXPRO6000WK",
+    "memory_size_gb": 96.0,
+    "fp16_tflops": 126.0,
+    "memory_bandwidth_tb_s": 1.79,
+    "nvlink_bandwidth_gb_s": null,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
+    "gpu_name": "V100",
+    "memory_size_gb": 16.0,
+    "fp16_tflops": 32.7,
+    "memory_bandwidth_tb_s": 1.13,
+    "nvlink_bandwidth_gb_s": 300,
+    "fp8_multiplier": 1,
+    "architecture": "Volta"
+  }
+]

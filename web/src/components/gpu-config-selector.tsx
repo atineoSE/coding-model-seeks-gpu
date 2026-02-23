@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { PresetGpuConfig } from "@/types";
 import { GPU_PRESETS } from "@/lib/gpu-presets";
-import { GPU_THROUGHPUT_SPECS, getGpuThroughputSpec } from "@/lib/gpu-specs";
+import { GPU_THROUGHPUT_SPECS, getGpuThroughputSpec, getGpuVram } from "@/lib/gpu-specs";
 import { isNvLink } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,31 +25,6 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-
-// Known VRAM per GPU type (GB)
-const GPU_VRAM: Record<string, number> = {
-  H100: 80,
-  H200: 141,
-  GH200: 96,
-  B200: 192,
-  B300: 192,
-  A100: 40,
-  A100_80G: 80,
-  A10: 24,
-  A16: 16,
-  A4000: 16,
-  A5000: 24,
-  A6000: 48,
-  L4: 24,
-  L40: 48,
-  L40S: 48,
-  RTX4090: 24,
-  RTX5090: 32,
-  RTX6000Ada: 48,
-  RTXPro6000: 48,
-  V100: 16,
-  V100_32G: 32,
-};
 
 interface GpuConfigSelectorProps {
   value: PresetGpuConfig | null;
@@ -74,7 +49,7 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
   function handleCustomSave() {
     const gpuName = customGpu;
     const count = parsedCount;
-    const vram = GPU_VRAM[gpuName] ?? 80;
+    const vram = getGpuVram(gpuName) ?? 80;
 
     const interconnect = count > 1 && customInterconnect === "nvlink" ? "nvlink" : null;
 
@@ -146,7 +121,7 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
                   <SelectContent>
                     {gpuTypes.map((gpu) => (
                       <SelectItem key={gpu} value={gpu}>
-                        {gpu} ({GPU_VRAM[gpu] ?? "?"}GB)
+                        {gpu} ({getGpuVram(gpu) ?? "?"}GB)
                       </SelectItem>
                     ))}
                   </SelectContent>

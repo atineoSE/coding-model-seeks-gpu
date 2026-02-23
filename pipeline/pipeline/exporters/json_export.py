@@ -71,6 +71,42 @@ def export_models(
     return path
 
 
+def export_gpu_specs(
+    gpu_specs: list[dict],
+    output_dir: Path | None = None,
+) -> Path:
+    """Export GPU throughput specs to gpu_specs.json.
+
+    Appends the hardcoded GH200 entry (not available in dbgpu).
+    """
+    if output_dir is None:
+        output_dir = EXPORT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # GH200: not in dbgpu. Source: pipeline/sources/gh200_specs.md (NVIDIA datasheet)
+    # HBM size: 96 GB HBM3
+    # FP16 Tensor Core: 990 TFLOPS (without sparsity)
+    # Memory bandwidth: Up to 4 TB/s (HBM3)
+    # NVLink-C2C: 900 GB/s
+    specs = list(gpu_specs)
+    specs.append({
+        "gpu_name": "GH200",
+        "memory_size_gb": 96,
+        "fp16_tflops": 990,
+        "memory_bandwidth_tb_s": 4.0,
+        "nvlink_bandwidth_gb_s": 900,
+        "fp8_multiplier": 2,
+        "architecture": "Hopper",
+    })
+
+    specs.sort(key=lambda r: r["gpu_name"])
+
+    path = output_dir / "gpu_specs.json"
+    path.write_text(json.dumps(specs, indent=2) + "\n")
+    logger.info("Exported %d GPU specs to %s", len(specs), path)
+    return path
+
+
 def export_metadata(output_dir: Path | None = None) -> Path:
     """Export pipeline run metadata to metadata.json."""
     if output_dir is None:
@@ -89,6 +125,7 @@ def export_all(
     specs: list[ModelSpec],
     output_dir: Path | None = None,
     source_metadata: dict | None = None,
+    gpu_specs: list[dict] | None = None,
 ) -> dict[str, Path]:
     """Export GPU and model data to JSON files.
 
@@ -101,4 +138,6 @@ def export_all(
     }
     if source_metadata is not None:
         result["gpu_source"] = export_gpu_source(source_metadata, output_dir)
+    if gpu_specs is not None:
+        result["gpu_specs"] = export_gpu_specs(gpu_specs, output_dir)
     return result

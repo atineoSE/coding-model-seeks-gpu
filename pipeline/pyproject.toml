@@ -11,6 +11,7 @@ dependencies = [
 # Full pipeline dependencies (model enrichment + GPU pricing)
 pipeline = [
     "beautifulsoup4>=4.12",
+    "dbgpu>=2025.12",
     "gpuhunt>=0.1",
     "httpx>=0.27",
     "pydantic>=2.7",
