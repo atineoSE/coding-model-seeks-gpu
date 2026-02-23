@@ -179,17 +179,23 @@ export function findScaledGpuSetups(
   const modelMemoryGb = getModelMemory(model, precision);
   if (modelMemoryGb === null) return [];
 
-  // Find cheapest per-GPU rate, vram, and interconnect for each GPU type
-  const gpuTypeMap = new Map<string, { perGpuPrice: number; vramGb: number; interconnect: string | null }>();
+  // Find cheapest per-GPU rate, vram, interconnect, and max gpu_count for each GPU type.
+  // The max gpu_count caps scaling to what actually exists as a single-node offering
+  // (you can't combine separate instances for TP).
+  const gpuTypeMap = new Map<string, { perGpuPrice: number; vramGb: number; interconnect: string | null; maxGpuCount: number }>();
   for (const g of allGpus) {
     const perGpu = g.price_per_hour / g.gpu_count;
     const existing = gpuTypeMap.get(g.gpu_name);
-    if (!existing || perGpu < existing.perGpuPrice) {
+    if (!existing) {
       gpuTypeMap.set(g.gpu_name, {
         perGpuPrice: perGpu,
         vramGb: g.vram_gb,
         interconnect: g.interconnect,
+        maxGpuCount: g.gpu_count,
       });
+    } else {
+      if (perGpu < existing.perGpuPrice) existing.perGpuPrice = perGpu;
+      if (g.gpu_count > existing.maxGpuCount) existing.maxGpuCount = g.gpu_count;
     }
   }
 
@@ -198,7 +204,7 @@ export function findScaledGpuSetups(
   for (const [gpuName, info] of gpuTypeMap) {
     const minGpus = gpusNeeded(modelMemoryGb * WEIGHT_OVERHEAD_FACTOR, info.vramGb);
 
-    for (let count = minGpus; count <= 64; count++) {
+    for (let count = minGpus; count <= info.maxGpuCount; count++) {
       const totalVram = count * info.vramGb;
       const interconnect = info.interconnect;
       const stats = calcGpuSetupStats(

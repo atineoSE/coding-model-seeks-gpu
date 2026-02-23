@@ -483,16 +483,23 @@ describe("isNvLink", () => {
 // ---------------------------------------------------------------------------
 
 describe("calcParallelismTopology", () => {
-  it("single-node: all GPUs do TP", () => {
-    expect(calcParallelismTopology(1)).toEqual({ tp: 1, pp: 1 });
-    expect(calcParallelismTopology(4)).toEqual({ tp: 4, pp: 1 });
-    expect(calcParallelismTopology(8)).toEqual({ tp: 8, pp: 1 });
+  it("NVLink: TP up to 8", () => {
+    expect(calcParallelismTopology(1, "NVLink sxm5")).toEqual({ tp: 1, pp: 1 });
+    expect(calcParallelismTopology(4, "NVLink sxm5")).toEqual({ tp: 4, pp: 1 });
+    expect(calcParallelismTopology(8, "NVLink sxm5")).toEqual({ tp: 8, pp: 1 });
   });
 
-  it("multi-node: TP=8, PP=ceil(gpuCount/8)", () => {
-    expect(calcParallelismTopology(10)).toEqual({ tp: 8, pp: 2 });
-    expect(calcParallelismTopology(16)).toEqual({ tp: 8, pp: 2 });
-    expect(calcParallelismTopology(24)).toEqual({ tp: 8, pp: 3 });
+  it("NVLink multi-node: TP=8, PP=ceil(gpuCount/8)", () => {
+    expect(calcParallelismTopology(10, "NVLink sxm5")).toEqual({ tp: 8, pp: 2 });
+    expect(calcParallelismTopology(16, "NVLink sxm5")).toEqual({ tp: 8, pp: 2 });
+    expect(calcParallelismTopology(24, "NVLink sxm5")).toEqual({ tp: 8, pp: 3 });
+  });
+
+  it("PCIe (null interconnect): TP capped at 4", () => {
+    expect(calcParallelismTopology(1)).toEqual({ tp: 1, pp: 1 });
+    expect(calcParallelismTopology(4)).toEqual({ tp: 4, pp: 1 });
+    expect(calcParallelismTopology(5)).toEqual({ tp: 4, pp: 2 });
+    expect(calcParallelismTopology(8)).toEqual({ tp: 4, pp: 2 });
   });
 });
 
@@ -567,11 +574,18 @@ describe("calcDecodeThroughput", () => {
     expect(t4pcie).toBeCloseTo(t1 * 4 * 0.76, 1);
   });
 
-  it("multi-node: 10 GPUs caps TP at 8", () => {
-    const t8 = calcDecodeThroughput(GLM_47, "fp16", "H100", 8, "PCIe")!;
-    const t10 = calcDecodeThroughput(GLM_47, "fp16", "H100", 10, "PCIe")!;
-    // 10 GPUs → tp=8, same throughput as 8 GPUs (PP doesn't add per-stream bandwidth)
+  it("NVLink multi-node: 10 GPUs caps TP at 8", () => {
+    const t8 = calcDecodeThroughput(GLM_47, "fp16", "H100", 8, "NVLink sxm5")!;
+    const t10 = calcDecodeThroughput(GLM_47, "fp16", "H100", 10, "NVLink sxm5")!;
+    // 10 GPUs NVLink → tp=8, same throughput as 8 GPUs (PP doesn't add per-stream bandwidth)
     expect(t10).toBeCloseTo(t8, 1);
+  });
+
+  it("PCIe: 8 GPUs caps TP at 4, uses PP=2", () => {
+    const t4 = calcDecodeThroughput(GLM_47, "fp16", "H100", 4, "PCIe")!;
+    const t8 = calcDecodeThroughput(GLM_47, "fp16", "H100", 8, "PCIe")!;
+    // 8 GPUs PCIe → tp=4, pp=2 — same per-stream throughput as 4 GPUs
+    expect(t8).toBeCloseTo(t4, 1);
   });
 
   it("returns null for unknown GPU", () => {

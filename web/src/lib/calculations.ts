@@ -244,12 +244,14 @@ export function isNvLink(interconnect: string | null): boolean {
 /**
  * Determine tensor-parallel (TP) and pipeline-parallel (PP) split.
  *
- * - gpuCount <= 8: all GPUs do TP (single node)
- * - gpuCount > 8: TP=8 (one node), PP = ceil(gpuCount / 8)
+ * NVLink:  TP up to 8 (single node), PP = ceil(gpuCount / 8)
+ * PCIe:    TP up to 4 (PCIe all-reduce is too costly beyond 4), PP for the rest
  */
-export function calcParallelismTopology(gpuCount: number): { tp: number; pp: number } {
-  if (gpuCount <= 8) return { tp: gpuCount, pp: 1 };
-  return { tp: 8, pp: Math.ceil(gpuCount / 8) };
+export function calcParallelismTopology(gpuCount: number, interconnect: string | null = null): { tp: number; pp: number } {
+  const maxTp = isNvLink(interconnect) ? 8 : 4;
+  const tp = Math.min(gpuCount, maxTp);
+  const pp = Math.ceil(gpuCount / tp);
+  return { tp, pp };
 }
 
 /**
@@ -367,7 +369,7 @@ export function calcDecodeThroughput(
   const modelSizeBytes = activeMemoryGb * 1024 * 1024 * 1024;
 
   // Only TP GPUs contribute bandwidth (PP stages hold different layers)
-  const { tp } = calcParallelismTopology(gpuCount);
+  const { tp } = calcParallelismTopology(gpuCount, interconnect);
   const tpEff = calcTpEfficiency(tp, interconnect);
 
   // Effective bandwidth: TP GPUs × per-GPU bandwidth × TP efficiency
