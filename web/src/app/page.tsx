@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { Persona, AdvancedSettings, PresetGpuConfig } from "@/types";
+import type { Persona, AdvancedSettings } from "@/types";
 import { DEFAULT_ADVANCED_SETTINGS } from "@/lib/matrix-calculator";
 import { useData, getBenchmarkGroups, getLocations, deduplicateGpus } from "@/lib/data";
 import { getModelMemory, resolveModelPrecision, WEIGHT_OVERHEAD_FACTOR } from "@/lib/calculations";
@@ -40,7 +40,6 @@ export default function Home() {
 
   const [persona, setPersona] = useState<Persona>("performance");
   const [benchmarkCategory, setBenchmarkCategory] = useState("");
-  const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig | null>(null);
   const [settings, setSettings] = useState<AdvancedSettings>(DEFAULT_ADVANCED_SETTINGS);
   const [location, setLocation] = useState("");
 
@@ -195,8 +194,6 @@ export default function Home() {
               benchmarks={data.benchmarks}
               sotaScores={data.sotaScores}
               benchmarkCategory={benchmarkCategory}
-              gpuConfig={gpuConfig}
-              onGpuConfigChange={setGpuConfig}
               settings={settings}
               currencySymbol={data.gpuSource.currency_symbol}
             />

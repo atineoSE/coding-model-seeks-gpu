@@ -49,7 +49,7 @@ interface GpuSetupStats {
  * plus raw single-stream decode throughput.
  * Delegates to shared functions in calculations.ts for throughput and KV cache.
  */
-function calcGpuSetupStats(
+export function calcGpuSetupStats(
   model: Model,
   gpuName: string,
   gpuCount: number,
@@ -421,5 +421,142 @@ export function calculateBudgetMatrix(
           : null,
       };
     });
+  });
+}
+
+// ============================================================================
+// Budget Chart Data (team-size view)
+// ============================================================================
+
+export interface BudgetChartDataPoint {
+  modelName: string;
+  concurrentStreams: number;
+  teamSizeIde: number;
+  teamSizeCli: number;
+  teamSizeAvg: number;
+  percentOfSota: number;
+  modelMemoryGb: number;
+  fits: boolean;
+  doesntFitReason: string | null;
+  decodeThroughputTokS: number | null;
+  maxConcurrentStreams: number;
+  benchmarkScore: number | null;
+}
+
+/**
+ * Calculate budget chart data for the team-size view.
+ *
+ * For each ranked model (by benchmark score), compute how many concurrent
+ * streams the GPU config can serve and translate that into development
+ * team sizes for IDE-workflow and CLI-workflow patterns.
+ */
+export function calculateBudgetChartData(
+  gpuConfig: PresetGpuConfig,
+  allModels: Model[],
+  benchmarks: BenchmarkScore[],
+  sotaScores: SotaScore[],
+  benchmarkCategory: string,
+  targetUtilization: number,
+  minTokPerSec: number,
+  ideStreamsPerDev: number,
+  cliStreamsPerDev: number,
+  settings: AdvancedSettings,
+): BudgetChartDataPoint[] {
+  // Filter benchmarks for the selected category
+  const categoryBenchmarks = benchmarks.filter(
+    (b) => b.benchmark_name === benchmarkCategory,
+  );
+
+  // Find SOTA score for the category
+  const sota = sotaScores.find((s) => s.benchmark_name === benchmarkCategory) ?? null;
+
+  // Match benchmarks to models and sort by score descending
+  const modelScores: { model: Model; benchmark: BenchmarkScore }[] = [];
+  for (const b of categoryBenchmarks) {
+    if (b.score === null) continue;
+    const model = allModels.find((m) => m.model_name === b.model_name);
+    if (!model) continue;
+    modelScores.push({ model, benchmark: b });
+  }
+  modelScores.sort((a, b) => (b.benchmark.score ?? 0) - (a.benchmark.score ?? 0));
+
+  return modelScores.map(({ model, benchmark }): BudgetChartDataPoint => {
+    const precision = resolveModelPrecision(model);
+    const modelMemoryGb = getModelMemory(model, precision);
+
+    // Check if model physically fits
+    const physicallyFits = modelMemoryGb !== null
+      ? gpusNeeded(modelMemoryGb * WEIGHT_OVERHEAD_FACTOR, gpuConfig.vramPerGpu) <= gpuConfig.gpuCount
+      : false;
+
+    const percentOfSota =
+      sota && benchmark.score !== null && sota.sota_score > 0
+        ? (benchmark.score / sota.sota_score) * 100
+        : 0;
+
+    if (!physicallyFits || modelMemoryGb === null) {
+      return {
+        modelName: model.model_name,
+        concurrentStreams: 0,
+        teamSizeIde: 0,
+        teamSizeCli: 0,
+        teamSizeAvg: 0,
+        percentOfSota,
+        modelMemoryGb: modelMemoryGb ?? 0,
+        fits: false,
+        doesntFitReason: "Not enough VRAM",
+        decodeThroughputTokS: null,
+        maxConcurrentStreams: 0,
+        benchmarkScore: benchmark.score,
+      };
+    }
+
+    // Compute stats
+    const stats = calcGpuSetupStats(
+      model,
+      gpuConfig.gpuName,
+      gpuConfig.gpuCount,
+      gpuConfig.totalVramGb,
+      gpuConfig.interconnect,
+      settings,
+    );
+
+    const throughputTooLow =
+      stats.decodeThroughputTokS !== null &&
+      stats.decodeThroughputTokS < minTokPerSec;
+
+    const fits = stats.maxConcurrentStreams > 0 && !throughputTooLow;
+
+    let doesntFitReason: string | null = null;
+    if (!fits) {
+      if (stats.maxConcurrentStreams === 0) {
+        doesntFitReason = "Not enough VRAM for KV cache";
+      } else if (throughputTooLow) {
+        doesntFitReason = `Throughput too low (${Math.round(stats.decodeThroughputTokS!)} tok/s < ${minTokPerSec} min)`;
+      }
+    }
+
+    const concurrentStreams = fits
+      ? Math.floor(stats.maxConcurrentStreams * targetUtilization)
+      : 0;
+
+    const teamSizeIde = concurrentStreams / ideStreamsPerDev;
+    const teamSizeCli = concurrentStreams / cliStreamsPerDev;
+    const teamSizeAvg = (teamSizeIde + teamSizeCli) / 2;
+
+    return {
+      modelName: model.model_name,
+      concurrentStreams,
+      teamSizeIde,
+      teamSizeCli,
+      teamSizeAvg,
+      percentOfSota,
+      modelMemoryGb,
+      fits,
+      doesntFitReason,
+      decodeThroughputTokS: stats.decodeThroughputTokS,
+      maxConcurrentStreams: stats.maxConcurrentStreams,
+      benchmarkScore: benchmark.score,
+    };
   });
 }

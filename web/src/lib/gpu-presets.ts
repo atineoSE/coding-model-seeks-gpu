@@ -10,6 +10,9 @@ import type { PresetGpuConfig } from "@/types";
  * Two configs per GPU type: a smaller entry-point and a larger one.
  */
 export const GPU_PRESETS: PresetGpuConfig[] = [
+  // RTX PRO — workstation Blackwell, NVLink-capable
+  { label: "8× RTX PRO 6000 96GB", gpuName: "RTXPRO6000", gpuCount: 8, vramPerGpu: 96, totalVramGb: 768, interconnect: "nvlink" },
+
   // Blackwell (B-series) — newest, highest bandwidth
   { label: "2× B300 192GB", gpuName: "B300", gpuCount: 2, vramPerGpu: 192, totalVramGb: 384, interconnect: "nvlink" },
   { label: "4× B300 192GB", gpuName: "B300", gpuCount: 4, vramPerGpu: 192, totalVramGb: 768, interconnect: "nvlink" },
