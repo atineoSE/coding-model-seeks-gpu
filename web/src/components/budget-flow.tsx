@@ -80,9 +80,9 @@ export function BudgetFlow({
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-medium truncate">{gpuConfig.label}{interconnectLabel}</span>
             <span className="text-muted-foreground shrink-0">&middot;</span>
-            <span className="text-muted-foreground shrink-0">{targetUtilization}% util</span>
+            <span className="text-muted-foreground shrink-0">utilization: {targetUtilization}%</span>
             <span className="text-muted-foreground shrink-0">&middot;</span>
-            <span className="text-muted-foreground shrink-0">{minTokPerSec} tok/s</span>
+            <span className="text-muted-foreground shrink-0">min throughput: {minTokPerSec} tok/s</span>
           </div>
           <svg
             width="16"
