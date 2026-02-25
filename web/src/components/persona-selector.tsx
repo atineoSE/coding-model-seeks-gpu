@@ -18,7 +18,7 @@ const personas: { key: Persona; title: string; subtitle: string; icon: string }[
   {
     key: "budget",
     title: "I\u2019ve got GPUs",
-    subtitle: "See what you can run on your existing GPU infrastructure",
+    subtitle: "Estimate team serving capacity for your existing setup",
     icon: "server",
   },
   {

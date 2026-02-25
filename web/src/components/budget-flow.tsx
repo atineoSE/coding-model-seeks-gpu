@@ -70,126 +70,132 @@ export function BudgetFlow({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-0">
-          <CardTitle>Your GPU Setup</CardTitle>
-          <CardDescription>
-            Configure your hardware and workload parameters to see how many developers each model can serve.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {/* Collapsed summary row */}
-          <button
-            onClick={() => setConfigExpanded(!configExpanded)}
-            className="flex items-center gap-2 w-full text-left text-sm rounded-lg border px-3 py-2.5 hover:bg-accent/50 transition-colors cursor-pointer"
+      {/* GPU setup — collapsible, shared across charts */}
+      <div className="rounded-lg border">
+        {/* Summary bar — always visible */}
+        <button
+          onClick={() => setConfigExpanded(!configExpanded)}
+          className="flex items-center justify-between w-full text-left text-sm px-3 py-2.5 hover:bg-accent/50 transition-colors cursor-pointer rounded-lg"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium truncate">{gpuConfig.label}{interconnectLabel}</span>
+            <span className="text-muted-foreground shrink-0">&middot;</span>
+            <span className="text-muted-foreground shrink-0">{targetUtilization}% util</span>
+            <span className="text-muted-foreground shrink-0">&middot;</span>
+            <span className="text-muted-foreground shrink-0">{minTokPerSec} tok/s</span>
+          </div>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="shrink-0 ml-2 text-muted-foreground"
           >
-            <span className="text-muted-foreground shrink-0">
-              {configExpanded ? "\u25BE" : "\u25B8"}
-            </span>
-            <span className="font-medium">{gpuConfig.label}{interconnectLabel}</span>
-            <span className="text-muted-foreground mx-1">&middot;</span>
-            <span className="text-muted-foreground">{targetUtilization}% utilization</span>
-            <span className="text-muted-foreground mx-1">&middot;</span>
-            <span className="text-muted-foreground">min {minTokPerSec} tok/s</span>
-          </button>
+            {configExpanded ? (
+              <path d="M4 10L8 6L12 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
+        </button>
 
-          {/* Expanded configuration */}
-          {configExpanded && (
-            <div className="mt-4 space-y-6">
-              <GpuConfigSelector value={gpuConfig} onChange={setGpuConfig} />
+        {/* Expanded configuration */}
+        {configExpanded && (
+          <div className="px-3 pb-3 pt-1 space-y-6 border-t">
+            <GpuConfigSelector value={gpuConfig} onChange={setGpuConfig} />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Utilization slider */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Target Utilization</Label>
-                    <span className="text-sm font-medium tabular-nums">{targetUtilization}%</span>
-                  </div>
-                  <Slider
-                    value={[targetUtilization]}
-                    onValueChange={([v]) => setTargetUtilization(v)}
-                    min={50}
-                    max={90}
-                    step={5}
-                  />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Utilization slider */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Target Utilization</Label>
+                  <span className="text-sm font-medium tabular-nums">{targetUtilization}%</span>
                 </div>
-
-                {/* Min tok/s slider */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Min Decode Throughput</Label>
-                    <span className="text-sm font-medium tabular-nums">{minTokPerSec} tok/s</span>
-                  </div>
-                  <Slider
-                    value={[minTokPerSec]}
-                    onValueChange={([v]) => setMinTokPerSec(v)}
-                    min={50}
-                    max={200}
-                    step={10}
-                  />
-                </div>
+                <Slider
+                  value={[targetUtilization]}
+                  onValueChange={([v]) => setTargetUtilization(v)}
+                  min={50}
+                  max={90}
+                  step={5}
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* IDE-workflow streams/dev */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Label>IDE-workflow streams/dev</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          IDE-workflow is representative of development activities focused around the IDE and short-horizon tasks like Cursor.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <StepperInput
-                    value={ideStreamsPerDev}
-                    onChange={setIdeStreamsPerDev}
-                    min={0.5}
-                    max={10}
-                    step={0.5}
-                  />
+              {/* Min tok/s slider */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Min Decode Throughput</Label>
+                  <span className="text-sm font-medium tabular-nums">{minTokPerSec} tok/s</span>
                 </div>
-
-                {/* CLI-workflow streams/dev */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Label>CLI-workflow streams/dev</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          CLI-workflow focuses on terminal and long-horizon tasks like Claude Code.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <StepperInput
-                    value={cliStreamsPerDev}
-                    onChange={setCliStreamsPerDev}
-                    min={1}
-                    max={20}
-                    step={1}
-                  />
-                </div>
+                <Slider
+                  value={[minTokPerSec]}
+                  onValueChange={([v]) => setMinTokPerSec(v)}
+                  min={50}
+                  max={200}
+                  step={10}
+                />
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* IDE-workflow streams/dev */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Label>IDE-workflow streams/dev</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        IDE-workflow is representative of development activities focused around the IDE and short-horizon tasks like Cursor.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <StepperInput
+                  value={ideStreamsPerDev}
+                  onChange={setIdeStreamsPerDev}
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                />
+              </div>
+
+              {/* CLI-workflow streams/dev */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Label>CLI-workflow streams/dev</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        CLI-workflow focuses on terminal and long-horizon tasks like Claude Code.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <StepperInput
+                  value={cliStreamsPerDev}
+                  onChange={setCliStreamsPerDev}
+                  min={1}
+                  max={20}
+                  step={1}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Team capacity chart */}
       <Card>
         <CardHeader>
           <CardTitle>Development Team Capacity</CardTitle>
           <CardDescription>
             Number of developers each model can serve on {gpuConfig.label}{interconnectLabel}, at {targetUtilization}% utilization.
-            Bar height shows the range between CLI and IDE workflow capacity.
+            Bar shows average capacity; whiskers indicate CLI (lower) and IDE (upper) workflow range.
           </CardDescription>
         </CardHeader>
         <CardContent>

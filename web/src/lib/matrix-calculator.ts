@@ -467,9 +467,6 @@ export function calculateBudgetChartData(
     (b) => b.benchmark_name === benchmarkCategory,
   );
 
-  // Find SOTA score for the category
-  const sota = sotaScores.find((s) => s.benchmark_name === benchmarkCategory) ?? null;
-
   // Match benchmarks to models and sort by score descending
   const modelScores: { model: Model; benchmark: BenchmarkScore }[] = [];
   for (const b of categoryBenchmarks) {
@@ -480,7 +477,14 @@ export function calculateBudgetChartData(
   }
   modelScores.sort((a, b) => (b.benchmark.score ?? 0) - (a.benchmark.score ?? 0));
 
-  return modelScores.map(({ model, benchmark }): BudgetChartDataPoint => {
+  // Pre-compute SOTA percentages and filter to models with at least 50% of SOTA
+  const sota = sotaScores.find((s) => s.benchmark_name === benchmarkCategory) ?? null;
+  const filteredModelScores = modelScores.filter(({ benchmark: b }) => {
+    if (!sota || b.score === null || sota.sota_score <= 0) return false;
+    return (b.score / sota.sota_score) * 100 >= 50;
+  });
+
+  return filteredModelScores.map(({ model, benchmark }): BudgetChartDataPoint => {
     const precision = resolveModelPrecision(model);
     const modelMemoryGb = getModelMemory(model, precision);
 
@@ -540,9 +544,9 @@ export function calculateBudgetChartData(
       ? Math.floor(stats.maxConcurrentStreams * targetUtilization)
       : 0;
 
-    const teamSizeIde = concurrentStreams / ideStreamsPerDev;
-    const teamSizeCli = concurrentStreams / cliStreamsPerDev;
-    const teamSizeAvg = (teamSizeIde + teamSizeCli) / 2;
+    const teamSizeIde = Math.floor(concurrentStreams / ideStreamsPerDev);
+    const teamSizeCli = Math.floor(concurrentStreams / cliStreamsPerDev);
+    const teamSizeAvg = Math.floor((teamSizeIde + teamSizeCli) / 2);
 
     return {
       modelName: model.model_name,
