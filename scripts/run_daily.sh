@@ -18,8 +18,8 @@ git -C external/openhands-index-results checkout origin/main
 # 3. Try to update gpuhunt to latest (best-effort; continues if already up-to-date)
 pip install --no-cache-dir --upgrade gpuhunt || true
 
-# 4. Install pipeline (deps already in image, fast)
-pip install --no-cache-dir -e pipeline/
+# 4. Install pipeline (deps pre-installed in image via pyproject.toml, fast editable install)
+pip install --no-cache-dir -e pipeline/[pipeline]
 
 # 5. Run the pipeline (always queries gpuhunt regardless of dependency update)
 python -m pipeline.main --step all
