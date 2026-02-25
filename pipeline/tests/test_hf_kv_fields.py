@@ -25,10 +25,7 @@ from tests.test_param_counter import (
 
 def _mock_fetch(model_name: str, hf_id: str, config: dict):
     """Call fetch_model with mocked HTTP, returning a ModelSpec."""
-    with (
-        patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config),
-        patch("pipeline.sources.huggingface.fetch_hf_param_count", return_value=None),
-    ):
+    with patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config):
         return fetch_model(model_name, hf_id)
 
 
