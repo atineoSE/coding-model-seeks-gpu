@@ -24,12 +24,14 @@ logger = logging.getLogger(__name__)
 MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "DeepSeek-V3.2-Reasoner": "deepseek-ai/DeepSeek-V3.2-Speciale",
     "GLM-4.7": "zai-org/GLM-4.7",
+    "GLM-5": "zai-org/GLM-5",
     "Kimi-K2.5": "moonshotai/Kimi-K2.5",
     "Kimi-K2-Thinking": "moonshotai/Kimi-K2-Thinking",
     "MiniMax-M2.5": "MiniMaxAI/MiniMax-M2.5",
     "MiniMax-M2.1": "MiniMaxAI/MiniMax-M2.1",
     "Qwen3-Coder-480B": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
     "Nemotron-3-Nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
+    "Qwen3-Coder-Next": "Qwen/Qwen3-Coder-Next",
 }
 
 
