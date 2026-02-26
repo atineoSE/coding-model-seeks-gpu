@@ -146,6 +146,28 @@ KNOWN_ARCHITECTURES: dict[str, tuple[AttentionType, MoEFieldMapping]] = {
             num_mlp_projections=2,
         ),
     ),
+    "glm_moe_dsa": (
+        AttentionType.MLA,
+        MoEFieldMapping(
+            expert_count_key="n_routed_experts",
+            shared_expert_key="n_shared_experts",
+            shared_expert_is_count=True,
+            expert_intermediate_key="moe_intermediate_size",
+            dense_layers_key="first_k_dense_replace",
+            mtp_key="num_nextn_predict_layers",
+        ),
+    ),
+    "qwen3_next": (
+        AttentionType.GQA,
+        MoEFieldMapping(
+            expert_count_key="num_experts",
+            shared_expert_key="shared_expert_intermediate_size",
+            shared_expert_is_count=False,
+            expert_intermediate_key="moe_intermediate_size",
+            dense_layers_key=None,
+            mtp_key=None,
+        ),
+    ),
 }
 
 
@@ -201,6 +223,68 @@ def _gqa_attention_params(config: dict) -> int:
     o_proj = (n_heads * head_dim) * hidden
 
     return q_proj + k_proj + v_proj + o_proj
+
+
+def _dsa_indexer_params(config: dict) -> int:
+    """DSA (Dynamic Sparse Attention) indexer params per layer.
+
+    Returns 0 if DSA fields are absent (non-DSA architectures).
+    """
+    index_n_heads = config.get("index_n_heads")
+    index_head_dim = config.get("index_head_dim")
+    if index_n_heads is None or index_head_dim is None:
+        return 0
+
+    hidden = _require(config, "hidden_size")
+    index_n_heads = int(index_n_heads)
+    index_head_dim = int(index_head_dim)
+
+    # wq_b: maps from hidden → index_n_heads * index_head_dim
+    wq_b = hidden * (index_n_heads * index_head_dim)
+    # wk: maps from hidden → index_n_heads * index_head_dim
+    wk = hidden * (index_n_heads * index_head_dim)
+    # weights_proj: maps from index_n_heads * index_head_dim → index_n_heads
+    weights_proj = (index_n_heads * index_head_dim) * index_n_heads
+    # k_norm: LayerNorm with weight + bias over index_head_dim
+    k_norm = 2 * index_head_dim
+
+    return wq_b + wk + weights_proj + k_norm
+
+
+def _qwen3_next_linear_attn_params(config: dict) -> int:
+    """Qwen3-Next Mamba2-style linear attention params per layer."""
+    hidden = _require(config, "hidden_size")
+    n_attn_heads = _require(config, "num_attention_heads")
+    head_dim = config.get("head_dim", hidden // n_attn_heads)
+
+    linear_n_key_heads = _require(config, "linear_num_key_heads")
+    linear_key_head_dim = _require(config, "linear_key_head_dim")
+    linear_n_value_heads = _require(config, "linear_num_value_heads")
+    linear_value_head_dim = _require(config, "linear_value_head_dim")
+    conv_kernel = _require(config, "linear_conv_kernel_dim")
+
+    q_dim = n_attn_heads * head_dim
+    k_dim = linear_n_key_heads * linear_key_head_dim
+    v_dim = linear_n_value_heads * linear_value_head_dim
+    z_dim = n_attn_heads * head_dim  # gate, same as Q
+
+    # in_proj_qkvz: combined Q/K/V/Z projection
+    in_proj_qkvz = hidden * (q_dim + k_dim + v_dim + z_dim)
+    # in_proj_ba: B/A state projections (B + A = 2 * n_key_heads * ssm_state)
+    # From safetensors: shape is [hidden, 2 * linear_n_key_heads]
+    in_proj_ba = hidden * (2 * linear_n_key_heads)
+    # conv1d: depthwise causal convolution over (v_dim + k_dim)
+    d_conv = v_dim + k_dim
+    conv1d = d_conv * conv_kernel + d_conv  # weight + bias
+    # out_proj: maps v_dim → hidden
+    out_proj = v_dim * hidden
+    # norm (RMSNorm over v_dim)
+    norm = v_dim
+    # A_log + dt_bias: per-head parameters
+    a_log = n_attn_heads
+    dt_bias = n_attn_heads
+
+    return in_proj_qkvz + in_proj_ba + conv1d + out_proj + norm + a_log + dt_bias
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +450,76 @@ def _count_hybrid_params(
     )
 
 
+def _count_interval_hybrid_params(
+    config: dict, attn_type: AttentionType, mapping: MoEFieldMapping
+) -> ParamCountResult:
+    """Count params for interval-based hybrid architectures (linear attn + full attn + MoE).
+
+    Uses ``full_attention_interval`` to decide which layers get full GQA attention
+    vs Mamba2-style linear attention.  Every ``full_attention_interval``-th layer
+    (1-indexed from the end of each group) uses full attention; the rest use linear.
+    All layers have MoE FFN.
+    """
+    hidden = _require(config, "hidden_size")
+    vocab = _require(config, "vocab_size")
+    n_layers = _require(config, "num_hidden_layers")
+    n_active_experts = _require(config, "num_experts_per_tok")
+    interval = _require(config, "full_attention_interval")
+
+    n_proj = mapping.num_mlp_projections
+
+    gqa_per_layer = _gqa_attention_params(config)
+    linear_per_layer = _qwen3_next_linear_attn_params(config)
+
+    total_moe_per_layer = _moe_layer_params(config, mapping)
+    active_moe_per_layer = _moe_layer_params(config, mapping, num_active_experts=n_active_experts)
+
+    n_experts = _require(config, mapping.expert_count_key)
+    expert_intermediate = _require(config, mapping.expert_intermediate_key)
+    routed_per_moe_layer = n_experts * _dense_mlp_params(
+        hidden, expert_intermediate, num_projections=n_proj
+    )
+
+    num_full_attn = 0
+    num_linear_attn = 0
+    total_layer_params = 0
+    active_layer_params = 0
+    routed_expert_params = 0
+
+    for i in range(n_layers):
+        norms = 2 * hidden  # input_layernorm + post_attention_layernorm
+
+        if (i + 1) % interval == 0:
+            attn_params = gqa_per_layer
+            num_full_attn += 1
+        else:
+            attn_params = linear_per_layer
+            num_linear_attn += 1
+
+        total_layer_params += norms + attn_params + total_moe_per_layer
+        active_layer_params += norms + attn_params + active_moe_per_layer
+        routed_expert_params += routed_per_moe_layer
+
+    embed = vocab * hidden
+    lm_head = 0 if config.get("tie_word_embeddings", False) else vocab * hidden
+    final_norm = hidden
+
+    total = embed + lm_head + total_layer_params + final_norm
+    active = embed + lm_head + active_layer_params + final_norm
+
+    return ParamCountResult(
+        total_params=total,
+        active_params=active,
+        routed_expert_params=routed_expert_params,
+        model_type=config.get("model_type", ""),
+        num_layers=n_layers,
+        num_moe_layers=n_layers,  # all layers have MoE FFN
+        num_dense_layers=0,
+        num_mamba_layers=num_linear_attn,
+        num_attention_layers=num_full_attn,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Main entry point — parameter counting
 # ---------------------------------------------------------------------------
@@ -388,6 +542,10 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
     # Hybrid architectures (Mamba2 + Attention + MoE) have a per-layer pattern
     if "hybrid_override_pattern" in config:
         return _count_hybrid_params(config, attn_type, mapping)
+
+    # Interval-based hybrid (e.g. Qwen3-Next: linear attn + full GQA at intervals)
+    if config.get("full_attention_interval", 0) > 1:
+        return _count_interval_hybrid_params(config, attn_type, mapping)
 
     # Core dimensions
     hidden = _require(config, "hidden_size")
@@ -422,8 +580,11 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
     expert_intermediate = _require(config, mapping.expert_intermediate_key)
     routed_expert_params = moe_layers * n_experts * _dense_mlp_params(hidden, expert_intermediate)
 
-    dense_block = attn_per_layer + _dense_mlp_params(hidden, intermediate) + norms_per_layer
-    moe_block = attn_per_layer + _moe_layer_params(config, mapping) + norms_per_layer
+    # DSA indexer overhead (0 for non-DSA architectures)
+    dsa_per_layer = _dsa_indexer_params(config)
+
+    dense_block = attn_per_layer + _dense_mlp_params(hidden, intermediate) + norms_per_layer + dsa_per_layer
+    moe_block = attn_per_layer + _moe_layer_params(config, mapping) + norms_per_layer + dsa_per_layer
 
     total = embed + lm_head + dense_layers * dense_block + moe_layers * moe_block + final_norm
 
@@ -438,6 +599,7 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
         attn_per_layer
         + _moe_layer_params(config, mapping, num_active_experts=n_active_experts)
         + norms_per_layer
+        + dsa_per_layer
     )
     active = (
         embed + lm_head + dense_layers * dense_block + moe_layers * active_moe_block + final_norm

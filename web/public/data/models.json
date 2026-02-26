@@ -1,8 +1,8 @@
 [
   {
     "model_name": "DeepSeek-V3.2-Reasoner",
-    "learnable_params_b": 671.1,
-    "active_params_b": 37.7,
+    "learnable_params_b": 678.3,
+    "active_params_b": 44.9,
     "architecture": "MoE",
     "context_length": 163840,
     "precision": "FP8",
@@ -32,6 +32,23 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "zai-org/GLM-4.7"
+  },
+  {
+    "model_name": "GLM-5",
+    "learnable_params_b": 747.2,
+    "active_params_b": 45.1,
+    "architecture": "MoE",
+    "context_length": 202752,
+    "precision": "BF16",
+    "attention_type": "MLA",
+    "num_hidden_layers": 78,
+    "num_kv_layers": null,
+    "num_kv_heads": null,
+    "head_dim": null,
+    "routed_expert_params_b": 724.8,
+    "kv_lora_rank": 512,
+    "qk_rope_head_dim": 64,
+    "hf_model_id": "zai-org/GLM-5"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -134,5 +151,22 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "Qwen/Qwen3-Coder-480B-A35B-Instruct"
+  },
+  {
+    "model_name": "Qwen3-Coder-Next",
+    "learnable_params_b": 79.7,
+    "active_params_b": 3.9,
+    "architecture": "MoE",
+    "context_length": 262144,
+    "precision": "BF16",
+    "attention_type": "GQA",
+    "num_hidden_layers": 48,
+    "num_kv_layers": 12,
+    "num_kv_heads": 2,
+    "head_dim": 256,
+    "routed_expert_params_b": 77.3,
+    "kv_lora_rank": null,
+    "qk_rope_head_dim": null,
+    "hf_model_id": "Qwen/Qwen3-Coder-Next"
   }
 ]

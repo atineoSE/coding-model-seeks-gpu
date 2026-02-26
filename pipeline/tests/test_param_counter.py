@@ -201,6 +201,54 @@ QWEN3_CODER_CONFIG = {
     "torch_dtype": "bfloat16",
 }
 
+GLM5_CONFIG = {
+    "model_type": "glm_moe_dsa",
+    "hidden_size": 6144,
+    "intermediate_size": 12288,
+    "num_hidden_layers": 78,
+    "num_attention_heads": 64,
+    "num_key_value_heads": 64,
+    "vocab_size": 154880,
+    "kv_lora_rank": 512,
+    "q_lora_rank": 2048,
+    "qk_nope_head_dim": 192,
+    "qk_rope_head_dim": 64,
+    "v_head_dim": 256,
+    "n_routed_experts": 256,
+    "num_experts_per_tok": 8,
+    "n_shared_experts": 1,
+    "moe_intermediate_size": 2048,
+    "first_k_dense_replace": 3,
+    "num_nextn_predict_layers": 1,
+    "tie_word_embeddings": False,
+    "dtype": "bfloat16",
+    "index_n_heads": 32,
+    "index_head_dim": 128,
+}
+
+QWEN3_NEXT_CONFIG = {
+    "model_type": "qwen3_next",
+    "hidden_size": 2048,
+    "intermediate_size": 5120,
+    "num_hidden_layers": 48,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 2,
+    "head_dim": 256,
+    "vocab_size": 151936,
+    "num_experts": 512,
+    "num_experts_per_tok": 10,
+    "moe_intermediate_size": 512,
+    "shared_expert_intermediate_size": 512,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+    "full_attention_interval": 4,
+    "linear_num_key_heads": 16,
+    "linear_key_head_dim": 128,
+    "linear_num_value_heads": 32,
+    "linear_value_head_dim": 128,
+    "linear_conv_kernel_dim": 4,
+}
+
 
 # ===================================================================
 # Ground truth validation
@@ -244,6 +292,8 @@ class TestAllModels:
             ("MiniMax-M2.5", MINIMAX_M25_CONFIG, 229, 11),
             ("MiniMax-M2.1", MINIMAX_M21_CONFIG, 229, 11),
             ("Qwen3-Coder-480B", QWEN3_CODER_CONFIG, 480, 35),
+            ("GLM-5", GLM5_CONFIG, 744, 45),
+            ("Qwen3-Next", QWEN3_NEXT_CONFIG, 80, 4),
         ],
     )
     def test_reasonable_total(self, name, config, expected_total_b, expected_active_b):
@@ -266,6 +316,8 @@ class TestAllModels:
             KIMI_K2_THINKING_CONFIG,
             MINIMAX_M25_CONFIG,
             QWEN3_CODER_CONFIG,
+            GLM5_CONFIG,
+            QWEN3_NEXT_CONFIG,
         ]:
             result = count_params_from_config(config)
             assert result.num_moe_layers > 0, f"{result.model_type} should be MoE"
@@ -283,7 +335,7 @@ class TestAllModels:
 
     def test_routed_expert_params_dominates(self):
         """Routed experts should be the bulk of params in large MoE models."""
-        for config in [KIMI_K2_THINKING_CONFIG, QWEN3_CODER_CONFIG]:
+        for config in [KIMI_K2_THINKING_CONFIG, QWEN3_CODER_CONFIG, GLM5_CONFIG, QWEN3_NEXT_CONFIG]:
             result = count_params_from_config(config)
             fraction = result.routed_expert_params / result.total_params
             assert fraction > 0.9, (
@@ -433,3 +485,66 @@ class TestNemotronH:
         result = count_params_from_config(DEEPSEEK_V32_CONFIG)
         assert result.num_mamba_layers == 0
         assert result.num_attention_layers == 0
+
+
+# ===================================================================
+# GLM-5 (glm_moe_dsa) — MLA + DSA Indexer + MoE
+# ===================================================================
+
+
+class TestGlm5:
+    """Validate GLM-5 MLA + DSA + MoE architecture."""
+
+    def test_layer_counts(self):
+        result = count_params_from_config(GLM5_CONFIG)
+        assert result.num_dense_layers == 3
+        assert result.num_moe_layers == 75
+        assert result.num_layers == 78
+
+    def test_total_params(self):
+        """~744B total params within 5%."""
+        result = count_params_from_config(GLM5_CONFIG)
+        total_b = result.total_params / 1e9
+        assert abs(total_b - 744) / 744 < 0.05, f"total={total_b:.1f}B, expected ~744B"
+
+    def test_active_params(self):
+        """~45B active params within 10%."""
+        result = count_params_from_config(GLM5_CONFIG)
+        active_b = result.active_params / 1e9
+        assert abs(active_b - 45) / 45 < 0.10, f"active={active_b:.1f}B, expected ~45B"
+
+    def test_model_type(self):
+        result = count_params_from_config(GLM5_CONFIG)
+        assert result.model_type == "glm_moe_dsa"
+
+
+# ===================================================================
+# Qwen3-Coder-Next (qwen3_next) — Mamba2 + GQA Hybrid + MoE
+# ===================================================================
+
+
+class TestQwen3Next:
+    """Validate Qwen3-Coder-Next interval-based hybrid architecture."""
+
+    def test_layer_counts(self):
+        result = count_params_from_config(QWEN3_NEXT_CONFIG)
+        assert result.num_attention_layers == 12
+        assert result.num_mamba_layers == 36
+        assert result.num_moe_layers == 48
+        assert result.num_layers == 48
+
+    def test_total_params(self):
+        """~80B total params within 5%."""
+        result = count_params_from_config(QWEN3_NEXT_CONFIG)
+        total_b = result.total_params / 1e9
+        assert abs(total_b - 80) / 80 < 0.05, f"total={total_b:.1f}B, expected ~80B"
+
+    def test_active_params(self):
+        """~4B active params within 10%."""
+        result = count_params_from_config(QWEN3_NEXT_CONFIG)
+        active_b = result.active_params / 1e9
+        assert abs(active_b - 4) / 4 < 0.10, f"active={active_b:.1f}B, expected ~4B"
+
+    def test_model_type(self):
+        result = count_params_from_config(QWEN3_NEXT_CONFIG)
+        assert result.model_type == "qwen3_next"

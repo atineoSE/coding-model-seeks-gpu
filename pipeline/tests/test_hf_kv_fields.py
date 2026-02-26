@@ -15,11 +15,13 @@ from pipeline.sources.huggingface import fetch_model
 from tests.test_param_counter import (
     DEEPSEEK_V32_CONFIG,
     GLM_47_CONFIG,
+    GLM5_CONFIG,
     KIMI_K2_THINKING_CONFIG,
     KIMI_K25_CONFIG,
     MINIMAX_M25_CONFIG,
     NEMOTRON_H_30B_CONFIG,
     QWEN3_CODER_CONFIG,
+    QWEN3_NEXT_CONFIG,
 )
 
 
@@ -60,6 +62,14 @@ class TestMlaKvFields:
         assert spec.num_hidden_layers == 61
         assert spec.kv_lora_rank == 512
         assert spec.qk_rope_head_dim == 64
+
+    def test_glm5(self):
+        spec = _mock_fetch("GLM5", "zai-org/GLM-5", GLM5_CONFIG)
+        assert spec.attention_type == "MLA"
+        assert spec.num_hidden_layers == 78
+        assert spec.kv_lora_rank == 512
+        assert spec.qk_rope_head_dim == 64
+        assert spec.num_kv_layers is None  # non-hybrid standard path
 
 
 # ===================================================================
@@ -233,3 +243,34 @@ class TestHybridKvFields:
         ]:
             spec = _mock_fetch(name, hf_id, config)
             assert spec.num_kv_layers is None, f"{name} should have num_kv_layers=None"
+
+
+# ===================================================================
+# Qwen3-Coder-Next — interval-based hybrid KV cache
+# ===================================================================
+
+
+class TestQwen3NextKvFields:
+    """Qwen3-Next has GQA attention on 12 of 48 layers."""
+
+    def test_attention_type(self):
+        spec = _mock_fetch("Q3N", "Qwen/Qwen3-Coder-Next", QWEN3_NEXT_CONFIG)
+        assert spec.attention_type == "GQA"
+
+    def test_num_kv_layers(self):
+        spec = _mock_fetch("Q3N", "Qwen/Qwen3-Coder-Next", QWEN3_NEXT_CONFIG)
+        assert spec.num_kv_layers == 12
+
+    def test_num_kv_heads(self):
+        spec = _mock_fetch("Q3N", "Qwen/Qwen3-Coder-Next", QWEN3_NEXT_CONFIG)
+        assert spec.num_kv_heads == 2
+
+    def test_head_dim(self):
+        spec = _mock_fetch("Q3N", "Qwen/Qwen3-Coder-Next", QWEN3_NEXT_CONFIG)
+        assert spec.head_dim == 256
+
+    def test_kv_bytes_per_token(self):
+        """KV bytes = 2 (K+V) × 12 layers × 2 heads × 256 dim × 2 bytes = 24,576."""
+        spec = _mock_fetch("Q3N", "Qwen/Qwen3-Coder-Next", QWEN3_NEXT_CONFIG)
+        kv_bytes = 2 * spec.num_kv_layers * spec.num_kv_heads * spec.head_dim * 2
+        assert kv_bytes == 24_576
