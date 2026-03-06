@@ -91,8 +91,8 @@
     "price_per_hour": 4.17,
     "currency": "USD",
     "provider": "runpod",
-    "instance_name": "NVIDIA A100 80GB PCIe",
-    "location": "US-MO-1",
+    "instance_name": "NVIDIA A100-SXM4-80GB",
+    "location": "US",
     "interconnect": null
   },
   {
@@ -124,11 +124,11 @@
     "vram_gb": 80.0,
     "gpu_count": 5,
     "total_vram_gb": 400.0,
-    "price_per_hour": 7.45,
+    "price_per_hour": 6.949999999999999,
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA A100-SXM4-80GB",
-    "location": "US-MD-1",
+    "location": "US",
     "interconnect": null
   },
   {
@@ -136,11 +136,11 @@
     "vram_gb": 80.0,
     "gpu_count": 6,
     "total_vram_gb": 480.0,
-    "price_per_hour": 8.94,
+    "price_per_hour": 8.34,
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA A100-SXM4-80GB",
-    "location": "US-MD-1",
+    "location": "US",
     "interconnect": null
   },
   {
@@ -260,7 +260,91 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA A40",
-    "location": "EU-SE-1",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A40",
+    "vram_gb": 48.0,
+    "gpu_count": 4,
+    "total_vram_gb": 192.0,
+    "price_per_hour": 1.6,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA A40",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A40",
+    "vram_gb": 48.0,
+    "gpu_count": 5,
+    "total_vram_gb": 240.0,
+    "price_per_hour": 2.0,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA A40",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A40",
+    "vram_gb": 48.0,
+    "gpu_count": 6,
+    "total_vram_gb": 288.0,
+    "price_per_hour": 2.4000000000000004,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA A40",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A40",
+    "vram_gb": 48.0,
+    "gpu_count": 7,
+    "total_vram_gb": 336.0,
+    "price_per_hour": 2.8000000000000003,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA A40",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A40",
+    "vram_gb": 48.0,
+    "gpu_count": 8,
+    "total_vram_gb": 384.0,
+    "price_per_hour": 3.2,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA A40",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A40",
+    "vram_gb": 48.0,
+    "gpu_count": 9,
+    "total_vram_gb": 432.0,
+    "price_per_hour": 3.6,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA A40",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A40",
+    "vram_gb": 48.0,
+    "gpu_count": 10,
+    "total_vram_gb": 480.0,
+    "price_per_hour": 4.0,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA A40",
+    "location": "CA-MTL-1",
     "interconnect": null
   },
   {
@@ -328,11 +412,11 @@
     "vram_gb": 24.0,
     "gpu_count": 1,
     "total_vram_gb": 24.0,
-    "price_per_hour": 0.27,
+    "price_per_hour": 0.16,
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA RTX A5000",
-    "location": "CA-MTL-1",
+    "location": "FR",
     "interconnect": null
   },
   {
@@ -396,6 +480,30 @@
     "interconnect": null
   },
   {
+    "gpu_name": "A5000",
+    "vram_gb": 24.0,
+    "gpu_count": 7,
+    "total_vram_gb": 168.0,
+    "price_per_hour": 1.8900000000000001,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A5000",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A5000",
+    "vram_gb": 24.0,
+    "gpu_count": 8,
+    "total_vram_gb": 192.0,
+    "price_per_hour": 2.16,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A5000",
+    "location": "CA-MTL-1",
+    "interconnect": null
+  },
+  {
     "gpu_name": "A6000",
     "vram_gb": 48.0,
     "gpu_count": 1,
@@ -441,6 +549,42 @@
     "provider": "verda",
     "instance_name": "4A6000.40V",
     "location": "FIN-01",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A6000",
+    "vram_gb": 48.0,
+    "gpu_count": 5,
+    "total_vram_gb": 240.0,
+    "price_per_hour": 2.45,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A6000",
+    "location": "EU-SE-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A6000",
+    "vram_gb": 48.0,
+    "gpu_count": 6,
+    "total_vram_gb": 288.0,
+    "price_per_hour": 2.94,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A6000",
+    "location": "EU-SE-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "A6000",
+    "vram_gb": 48.0,
+    "gpu_count": 7,
+    "total_vram_gb": 336.0,
+    "price_per_hour": 3.4299999999999997,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA RTX A6000",
+    "location": "EU-SE-1",
     "interconnect": null
   },
   {
@@ -668,7 +812,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA H100 80GB HBM3",
-    "location": "EUR-IS-3",
+    "location": "US-CA-2",
     "interconnect": null
   },
   {
@@ -701,42 +845,6 @@
     "gpu_count": 2,
     "total_vram_gb": 188.0,
     "price_per_hour": 6.14,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA H100 NVL",
-    "location": "OC-AU-1",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "H100NVL",
-    "vram_gb": 94.0,
-    "gpu_count": 3,
-    "total_vram_gb": 282.0,
-    "price_per_hour": 9.209999999999999,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA H100 NVL",
-    "location": "OC-AU-1",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "H100NVL",
-    "vram_gb": 94.0,
-    "gpu_count": 4,
-    "total_vram_gb": 376.0,
-    "price_per_hour": 12.28,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA H100 NVL",
-    "location": "OC-AU-1",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "H100NVL",
-    "vram_gb": 94.0,
-    "gpu_count": 5,
-    "total_vram_gb": 470.0,
-    "price_per_hour": 15.35,
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA H100 NVL",
@@ -800,7 +908,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA H200",
-    "location": "US-GA-2",
+    "location": "HR",
     "interconnect": null
   },
   {
@@ -812,7 +920,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA H200",
-    "location": "US-GA-2",
+    "location": "CA-MTL-3",
     "interconnect": null
   },
   {
@@ -824,7 +932,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA H200",
-    "location": "US-GA-2",
+    "location": "US",
     "interconnect": null
   },
   {
@@ -840,6 +948,18 @@
     "interconnect": null
   },
   {
+    "gpu_name": "H200NVL",
+    "vram_gb": 143.0,
+    "gpu_count": 1,
+    "total_vram_gb": 143.0,
+    "price_per_hour": 3.39,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA H200 NVL",
+    "location": "US-MD-1",
+    "interconnect": null
+  },
+  {
     "gpu_name": "L4",
     "vram_gb": 24.0,
     "gpu_count": 1,
@@ -848,7 +968,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA L4",
-    "location": "US-MO-2",
+    "location": "EUR-IS-1",
     "interconnect": null
   },
   {
@@ -860,7 +980,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA L4",
-    "location": "US-MO-2",
+    "location": "EUR-IS-1",
     "interconnect": null
   },
   {
@@ -872,7 +992,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA L4",
-    "location": "US-MO-2",
+    "location": "EUR-IS-1",
     "interconnect": null
   },
   {
@@ -880,11 +1000,35 @@
     "vram_gb": 24.0,
     "gpu_count": 4,
     "total_vram_gb": 96.0,
-    "price_per_hour": 3.995897,
+    "price_per_hour": 1.56,
     "currency": "USD",
-    "provider": "gcp",
-    "instance_name": "g2-standard-48",
-    "location": "us-east4-c",
+    "provider": "runpod",
+    "instance_name": "NVIDIA L4",
+    "location": "EUR-IS-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "L4",
+    "vram_gb": 24.0,
+    "gpu_count": 5,
+    "total_vram_gb": 120.0,
+    "price_per_hour": 1.9500000000000002,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA L4",
+    "location": "EUR-IS-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "L4",
+    "vram_gb": 24.0,
+    "gpu_count": 6,
+    "total_vram_gb": 144.0,
+    "price_per_hour": 2.34,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA L4",
+    "location": "EUR-IS-1",
     "interconnect": null
   },
   {
@@ -1000,11 +1144,11 @@
     "vram_gb": 48.0,
     "gpu_count": 1,
     "total_vram_gb": 48.0,
-    "price_per_hour": 0.9143,
+    "price_per_hour": 0.86,
     "currency": "USD",
-    "provider": "verda",
-    "instance_name": "1L40S.20V",
-    "location": "FIN-01",
+    "provider": "runpod",
+    "instance_name": "NVIDIA L40S",
+    "location": "OC-AU-1",
     "interconnect": null
   },
   {
@@ -1024,11 +1168,23 @@
     "vram_gb": 48.0,
     "gpu_count": 2,
     "total_vram_gb": 96.0,
-    "price_per_hour": 1.829,
+    "price_per_hour": 1.72,
     "currency": "USD",
-    "provider": "verda",
-    "instance_name": "2L40S.40V",
-    "location": "FIN-01",
+    "provider": "runpod",
+    "instance_name": "NVIDIA L40S",
+    "location": "US-NC-1",
+    "interconnect": null
+  },
+  {
+    "gpu_name": "L40S",
+    "vram_gb": 48.0,
+    "gpu_count": 3,
+    "total_vram_gb": 144.0,
+    "price_per_hour": 2.58,
+    "currency": "USD",
+    "provider": "runpod",
+    "instance_name": "NVIDIA L40S",
+    "location": "US-NC-1",
     "interconnect": null
   },
   {
@@ -1132,11 +1288,11 @@
     "vram_gb": 24.0,
     "gpu_count": 5,
     "total_vram_gb": 120.0,
-    "price_per_hour": 1.1,
+    "price_per_hour": 2.3000000000000003,
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA GeForce RTX 3090",
-    "location": "CZ",
+    "location": "EU-CZ-1",
     "interconnect": null
   },
   {
@@ -1144,11 +1300,11 @@
     "vram_gb": 24.0,
     "gpu_count": 6,
     "total_vram_gb": 144.0,
-    "price_per_hour": 1.32,
+    "price_per_hour": 2.7600000000000002,
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA GeForce RTX 3090",
-    "location": "CZ",
+    "location": "EU-CZ-1",
     "interconnect": null
   },
   {
@@ -1204,11 +1360,11 @@
     "vram_gb": 20.0,
     "gpu_count": 1,
     "total_vram_gb": 20.0,
-    "price_per_hour": 0.26,
+    "price_per_hour": 0.2,
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA RTX 4000 Ada Generation",
-    "location": "EUR-IS-1",
+    "location": "SK",
     "interconnect": null
   },
   {
@@ -1360,11 +1516,11 @@
     "vram_gb": 24.0,
     "gpu_count": 8,
     "total_vram_gb": 192.0,
-    "price_per_hour": 2.72,
+    "price_per_hour": 3.12,
     "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA GeForce RTX 4090",
-    "location": "US",
+    "provider": "cloudrift",
+    "instance_name": "rtx49-10c-kn.8",
+    "location": "ap-east-tw-kn-1",
     "interconnect": null
   },
   {
@@ -1424,7 +1580,7 @@
     "currency": "USD",
     "provider": "cloudrift",
     "instance_name": "rtx59-7-50-400-ec.1",
-    "location": "eu-west-uk-lo-3",
+    "location": "eu-west-uk-lo-2",
     "interconnect": null
   },
   {
@@ -1460,7 +1616,7 @@
     "currency": "USD",
     "provider": "cloudrift",
     "instance_name": "rtx59-7-50-400-ec.4",
-    "location": "eu-west-uk-lo-2",
+    "location": "eu-west-uk-lo-3",
     "interconnect": null
   },
   {
@@ -1472,7 +1628,7 @@
     "currency": "USD",
     "provider": "cloudrift",
     "instance_name": "rtx59-7-50-400-ec.5",
-    "location": "eu-west-uk-lo-2",
+    "location": "eu-west-uk-lo-3",
     "interconnect": null
   },
   {
@@ -1544,19 +1700,7 @@
     "currency": "USD",
     "provider": "runpod",
     "instance_name": "NVIDIA RTX 6000 Ada Generation",
-    "location": "US",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "RTX6000Ada",
-    "vram_gb": 48.0,
-    "gpu_count": 3,
-    "total_vram_gb": 144.0,
-    "price_per_hour": 2.2199999999999998,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX 6000 Ada Generation",
-    "location": "US",
+    "location": "ES",
     "interconnect": null
   },
   {
@@ -1564,47 +1708,11 @@
     "vram_gb": 48.0,
     "gpu_count": 4,
     "total_vram_gb": 192.0,
-    "price_per_hour": 3.08,
+    "price_per_hour": 3.305,
     "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX 6000 Ada Generation",
-    "location": "US-WA-1",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "RTX6000Ada",
-    "vram_gb": 48.0,
-    "gpu_count": 5,
-    "total_vram_gb": 240.0,
-    "price_per_hour": 3.85,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX 6000 Ada Generation",
-    "location": "US-WA-1",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "RTX6000Ada",
-    "vram_gb": 48.0,
-    "gpu_count": 6,
-    "total_vram_gb": 288.0,
-    "price_per_hour": 4.62,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX 6000 Ada Generation",
-    "location": "US-WA-1",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "RTX6000Ada",
-    "vram_gb": 48.0,
-    "gpu_count": 7,
-    "total_vram_gb": 336.0,
-    "price_per_hour": 5.390000000000001,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX 6000 Ada Generation",
-    "location": "US-WA-1",
+    "provider": "verda",
+    "instance_name": "4RTX6000ADA.40V",
+    "location": "FIN-01",
     "interconnect": null
   },
   {
@@ -1612,11 +1720,11 @@
     "vram_gb": 48.0,
     "gpu_count": 8,
     "total_vram_gb": 384.0,
-    "price_per_hour": 6.16,
+    "price_per_hour": 6.61,
     "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX 6000 Ada Generation",
-    "location": "US-WA-1",
+    "provider": "verda",
+    "instance_name": "8RTX6000ADA.80V",
+    "location": "FIN-01",
     "interconnect": null
   },
   {
@@ -1893,30 +2001,6 @@
     "provider": "runpod",
     "instance_name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
     "location": "CZ",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "RTXPRO6000WK",
-    "vram_gb": 96.0,
-    "gpu_count": 5,
-    "total_vram_gb": 480.0,
-    "price_per_hour": 9.45,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
-    "location": "EUR-IS-1",
-    "interconnect": null
-  },
-  {
-    "gpu_name": "RTXPRO6000WK",
-    "vram_gb": 96.0,
-    "gpu_count": 6,
-    "total_vram_gb": 576.0,
-    "price_per_hour": 11.34,
-    "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
-    "location": "EUR-IS-1",
     "interconnect": null
   },
   {
