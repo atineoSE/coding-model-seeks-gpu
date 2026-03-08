@@ -168,5 +168,22 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "Qwen/Qwen3-Coder-Next"
+  },
+  {
+    "model_name": "Qwen3.5-Flash",
+    "learnable_params_b": 34.7,
+    "active_params_b": 3.5,
+    "architecture": "MoE",
+    "context_length": 262144,
+    "precision": "BF16",
+    "attention_type": "GQA",
+    "num_hidden_layers": 40,
+    "num_kv_layers": 10,
+    "num_kv_heads": 2,
+    "head_dim": 256,
+    "routed_expert_params_b": 32.2,
+    "kv_lora_rank": null,
+    "qk_rope_head_dim": null,
+    "hf_model_id": "Qwen/Qwen3.5-35B-A3B"
   }
 ]
