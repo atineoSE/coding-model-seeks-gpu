@@ -226,6 +226,31 @@ GLM5_CONFIG = {
     "index_head_dim": 128,
 }
 
+QWEN35_FLASH_CONFIG = {
+    "model_type": "qwen3_5_moe",
+    "text_config": {
+        "model_type": "qwen3_5_moe_text",
+        "hidden_size": 2048,
+        "num_hidden_layers": 40,
+        "num_attention_heads": 16,
+        "num_key_value_heads": 2,
+        "head_dim": 256,
+        "vocab_size": 248320,
+        "num_experts": 256,
+        "num_experts_per_tok": 8,
+        "moe_intermediate_size": 512,
+        "shared_expert_intermediate_size": 512,
+        "full_attention_interval": 4,
+        "linear_num_key_heads": 16,
+        "linear_key_head_dim": 128,
+        "linear_num_value_heads": 32,
+        "linear_value_head_dim": 128,
+        "linear_conv_kernel_dim": 4,
+        "dtype": "bfloat16",
+    },
+    "tie_word_embeddings": False,
+}
+
 QWEN3_NEXT_CONFIG = {
     "model_type": "qwen3_next",
     "hidden_size": 2048,
@@ -294,6 +319,7 @@ class TestAllModels:
             ("Qwen3-Coder-480B", QWEN3_CODER_CONFIG, 480, 35),
             ("GLM-5", GLM5_CONFIG, 744, 45),
             ("Qwen3-Next", QWEN3_NEXT_CONFIG, 80, 4),
+            ("Qwen3.5-Flash", QWEN35_FLASH_CONFIG, 35, 3.5),
         ],
     )
     def test_reasonable_total(self, name, config, expected_total_b, expected_active_b):
@@ -318,6 +344,7 @@ class TestAllModels:
             QWEN3_CODER_CONFIG,
             GLM5_CONFIG,
             QWEN3_NEXT_CONFIG,
+            QWEN35_FLASH_CONFIG,
         ]:
             result = count_params_from_config(config)
             assert result.num_moe_layers > 0, f"{result.model_type} should be MoE"
@@ -335,7 +362,7 @@ class TestAllModels:
 
     def test_routed_expert_params_dominates(self):
         """Routed experts should be the bulk of params in large MoE models."""
-        for config in [KIMI_K2_THINKING_CONFIG, QWEN3_CODER_CONFIG, GLM5_CONFIG, QWEN3_NEXT_CONFIG]:
+        for config in [KIMI_K2_THINKING_CONFIG, QWEN3_CODER_CONFIG, GLM5_CONFIG, QWEN3_NEXT_CONFIG, QWEN35_FLASH_CONFIG]:
             result = count_params_from_config(config)
             fraction = result.routed_expert_params / result.total_params
             assert fraction > 0.9, (
@@ -548,3 +575,41 @@ class TestQwen3Next:
     def test_model_type(self):
         result = count_params_from_config(QWEN3_NEXT_CONFIG)
         assert result.model_type == "qwen3_next"
+
+
+# ===================================================================
+# Qwen3.5-Flash (qwen3_5_moe) — Multimodal + DeltaNet + GQA + MoE
+# ===================================================================
+
+
+class TestQwen35Flash:
+    """Validate Qwen3.5-Flash hybrid architecture with multimodal unwrap."""
+
+    def test_layer_counts(self):
+        result = count_params_from_config(QWEN35_FLASH_CONFIG)
+        assert result.num_attention_layers == 10
+        assert result.num_mamba_layers == 30
+        assert result.num_moe_layers == 40
+        assert result.num_layers == 40
+
+    def test_total_params(self):
+        """~35B total params within 5%."""
+        result = count_params_from_config(QWEN35_FLASH_CONFIG)
+        total_b = result.total_params / 1e9
+        assert abs(total_b - 35) / 35 < 0.05, f"total={total_b:.1f}B, expected ~35B"
+
+    def test_active_params(self):
+        """~3.5B active params within 10%."""
+        result = count_params_from_config(QWEN35_FLASH_CONFIG)
+        active_b = result.active_params / 1e9
+        assert abs(active_b - 3.5) / 3.5 < 0.10, f"active={active_b:.1f}B, expected ~3.5B"
+
+    def test_model_type(self):
+        result = count_params_from_config(QWEN35_FLASH_CONFIG)
+        assert result.model_type == "qwen3_5_moe_text"
+
+    def test_multimodal_unwrap(self):
+        """Top-level model_type is qwen3_5_moe; text backbone is qwen3_5_moe_text."""
+        result = count_params_from_config(QWEN35_FLASH_CONFIG)
+        assert result.model_type == "qwen3_5_moe_text"
+        assert result.num_layers == 40

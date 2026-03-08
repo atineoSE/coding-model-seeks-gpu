@@ -29,6 +29,7 @@ export interface Model {
   routed_expert_params_b: number | null;
   attention_type: "MLA" | "GQA" | null;
   num_hidden_layers: number | null;
+  num_kv_layers: number | null;
   num_kv_heads: number | null;
   head_dim: number | null;
   kv_lora_rank: number | null;

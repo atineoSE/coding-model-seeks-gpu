@@ -300,17 +300,20 @@ export function calcPpBubbleEfficiency(pp: number, batchSize: number): number {
  * Returns 0 if required fields are missing.
  */
 export function calcKvCachePerToken(model: Model, kvPrecisionBytes: 1 | 2 = 2): number {
-  const layers = model.num_hidden_layers;
-  if (layers === null) return 0;
+  const totalLayers = model.num_hidden_layers;
+  if (totalLayers === null) return 0;
+
+  // Hybrid models: only some layers have KV cache (e.g. DeltaNet/Mamba2 + Attention)
+  const kvLayers = model.num_kv_layers ?? totalLayers;
 
   let bytesPerToken: number;
 
   if (model.attention_type === "MLA") {
     if (model.kv_lora_rank === null || model.qk_rope_head_dim === null) return 0;
-    bytesPerToken = layers * (model.kv_lora_rank + model.qk_rope_head_dim) * kvPrecisionBytes;
+    bytesPerToken = kvLayers * (model.kv_lora_rank + model.qk_rope_head_dim) * kvPrecisionBytes;
   } else if (model.attention_type === "GQA") {
     if (model.num_kv_heads === null || model.head_dim === null) return 0;
-    bytesPerToken = 2 * layers * model.num_kv_heads * model.head_dim * kvPrecisionBytes;
+    bytesPerToken = 2 * kvLayers * model.num_kv_heads * model.head_dim * kvPrecisionBytes;
   } else {
     return 0;
   }

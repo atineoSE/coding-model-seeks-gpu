@@ -291,6 +291,7 @@ describe("computeCostTrend", () => {
     routed_expert_params_b: null,
     attention_type: "GQA",
     num_hidden_layers: 62,
+    num_kv_layers: null,
     num_kv_heads: 8,
     head_dim: 128,
     kv_lora_rank: null,

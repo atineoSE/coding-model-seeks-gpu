@@ -57,7 +57,7 @@ class PrecisionInfo:
 # Multimodal wrapper handling
 # ---------------------------------------------------------------------------
 
-MULTIMODAL_MODEL_TYPES = {"kimi_k25"}
+MULTIMODAL_MODEL_TYPES = {"kimi_k25", "qwen3_5_moe"}
 
 
 def resolve_text_config(config: dict) -> dict:
@@ -158,6 +158,17 @@ KNOWN_ARCHITECTURES: dict[str, tuple[AttentionType, MoEFieldMapping]] = {
         ),
     ),
     "qwen3_next": (
+        AttentionType.GQA,
+        MoEFieldMapping(
+            expert_count_key="num_experts",
+            shared_expert_key="shared_expert_intermediate_size",
+            shared_expert_is_count=False,
+            expert_intermediate_key="moe_intermediate_size",
+            dense_layers_key=None,
+            mtp_key=None,
+        ),
+    ),
+    "qwen3_5_moe_text": (
         AttentionType.GQA,
         MoEFieldMapping(
             expert_count_key="num_experts",
