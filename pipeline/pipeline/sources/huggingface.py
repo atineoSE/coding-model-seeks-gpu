@@ -44,7 +44,7 @@ SPDX_DISPLAY_NAMES: dict[str, str] = {
 
 # Mapping of custom license_name values to human-readable display names.
 CUSTOM_LICENSE_DISPLAY_NAMES: dict[str, str] = {
-    "modified-mit": "Modified MIT",
+    "minimax-model-license": "MiniMax Model License",
     "nvidia-open-model-license": "NVIDIA Open Model License",
 }
 
@@ -79,7 +79,6 @@ def resolve_license_info(
     card_data = metadata.get("cardData", {})
     spdx_id = card_data.get("license")
     license_name_raw = card_data.get("license_name")
-    license_link = card_data.get("license_link")
 
     if not spdx_id:
         return (None, None, None)
@@ -94,19 +93,19 @@ def resolve_license_info(
     else:
         display_name = spdx_id
 
-    # Resolve URL: license_link > LICENSE in siblings > choosealicense fallback
+    # Resolve URL: LICENSE-MODEL > LICENSE > choosealicense fallback
+    # LICENSE-MODEL is preferred because repos with split licenses
+    # (e.g. LICENSE-CODE + LICENSE-MODEL) use it for the model license.
     license_url: str | None = None
-    if license_link:
-        license_url = license_link
-    else:
-        siblings = metadata.get("siblings", [])
-        has_license_file = any(
-            s.get("rfilename") == "LICENSE" for s in siblings
-        )
-        if has_license_file:
-            license_url = f"https://huggingface.co/{hf_id}/blob/main/LICENSE"
-        elif spdx_id != "other":
-            license_url = f"{CHOOSEALICENSE_BASE_URL}/{spdx_id}.md"
+    siblings = metadata.get("siblings", [])
+    sibling_names = {s.get("rfilename") for s in siblings}
+
+    if "LICENSE-MODEL" in sibling_names:
+        license_url = f"https://huggingface.co/{hf_id}/blob/main/LICENSE-MODEL"
+    elif "LICENSE" in sibling_names:
+        license_url = f"https://huggingface.co/{hf_id}/blob/main/LICENSE"
+    elif spdx_id != "other":
+        license_url = f"{CHOOSEALICENSE_BASE_URL}/{spdx_id}.md"
 
     return (spdx_id, display_name, license_url)
 

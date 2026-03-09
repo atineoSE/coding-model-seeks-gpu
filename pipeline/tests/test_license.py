@@ -55,43 +55,53 @@ class TestResolveLicenseInfo:
         assert name == "MIT"
         assert url == f"{CHOOSEALICENSE_BASE_URL}/mit.md"
 
-    def test_apache_with_license_link(self):
+    def test_apache_with_license_file(self):
         metadata = {
-            "cardData": {
-                "license": "apache-2.0",
-                "license_link": "https://huggingface.co/Qwen/model/blob/main/LICENSE",
-            },
+            "cardData": {"license": "apache-2.0"},
             "siblings": [{"rfilename": "LICENSE"}],
         }
         spdx, name, url = resolve_license_info(metadata, "Qwen/model")
         assert spdx == "apache-2.0"
         assert name == "Apache 2.0"
-        # license_link takes priority over siblings
         assert url == "https://huggingface.co/Qwen/model/blob/main/LICENSE"
 
-    def test_custom_modified_mit(self):
+    def test_custom_minimax_model_license(self):
         metadata = {
-            "cardData": {"license": "other", "license_name": "modified-mit"},
-            "siblings": [{"rfilename": "LICENSE"}],
+            "cardData": {"license": "other", "license_name": "minimax-model-license"},
+            "siblings": [
+                {"rfilename": "LICENSE-CODE"},
+                {"rfilename": "LICENSE-MODEL"},
+            ],
         }
-        spdx, name, url = resolve_license_info(metadata, "moonshotai/Kimi")
+        spdx, name, url = resolve_license_info(metadata, "MiniMaxAI/MiniMax-M2.5")
         assert spdx == "other"
-        assert name == "Modified MIT"
-        assert url == "https://huggingface.co/moonshotai/Kimi/blob/main/LICENSE"
+        assert name == "MiniMax Model License"
+        assert url == "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL"
 
-    def test_custom_nvidia_with_license_link(self):
+    def test_license_model_takes_priority_over_license(self):
+        """When both LICENSE and LICENSE-MODEL exist, prefer LICENSE-MODEL."""
+        metadata = {
+            "cardData": {"license": "other", "license_name": "some-license"},
+            "siblings": [
+                {"rfilename": "LICENSE"},
+                {"rfilename": "LICENSE-MODEL"},
+            ],
+        }
+        _, _, url = resolve_license_info(metadata, "org/model")
+        assert url == "https://huggingface.co/org/model/blob/main/LICENSE-MODEL"
+
+    def test_custom_nvidia_with_license_file(self):
         metadata = {
             "cardData": {
                 "license": "other",
                 "license_name": "nvidia-open-model-license",
-                "license_link": "https://www.nvidia.com/license",
             },
-            "siblings": [],
+            "siblings": [{"rfilename": "LICENSE"}],
         }
         spdx, name, url = resolve_license_info(metadata, "nvidia/model")
         assert spdx == "other"
         assert name == "NVIDIA Open Model License"
-        assert url == "https://www.nvidia.com/license"
+        assert url == "https://huggingface.co/nvidia/model/blob/main/LICENSE"
 
     def test_custom_unknown_license_name_title_cased(self):
         """Unknown custom license names should be title-cased."""
@@ -117,18 +127,18 @@ class TestResolveLicenseInfo:
         assert name is None
         assert url is None
 
-    def test_url_priority_license_link_over_siblings(self):
-        """license_link should take priority even when LICENSE file exists."""
+    def test_license_link_ignored(self):
+        """license_link from cardData should be ignored (may be broken)."""
         metadata = {
             "cardData": {
-                "license": "other",
-                "license_name": "modified-mit",
-                "license_link": "https://github.com/org/repo/blob/main/LICENSE",
+                "license": "mit",
+                "license_link": "https://example.com/broken-link",
             },
             "siblings": [{"rfilename": "LICENSE"}],
         }
         _, _, url = resolve_license_info(metadata, "org/model")
-        assert url == "https://github.com/org/repo/blob/main/LICENSE"
+        # Should use LICENSE file, not the license_link
+        assert url == "https://huggingface.co/org/model/blob/main/LICENSE"
 
     def test_url_priority_siblings_over_choosealicense(self):
         """LICENSE file in repo should take priority over choosealicense fallback."""
@@ -196,18 +206,15 @@ class TestFetchModelLicenseIntegration:
 
     def test_apache_license_from_metadata(self):
         metadata = {
-            "cardData": {
-                "license": "apache-2.0",
-                "license_link": "https://huggingface.co/Qwen/model/blob/main/LICENSE",
-            },
-            "siblings": [],
+            "cardData": {"license": "apache-2.0"},
+            "siblings": [{"rfilename": "LICENSE"}],
         }
         spec = _mock_fetch_with_metadata(
             "Q3", "Qwen/Qwen3-Coder-480B", QWEN3_CODER_CONFIG, metadata
         )
         assert spec.license_spdx == "apache-2.0"
         assert spec.license_name == "Apache 2.0"
-        assert spec.license_url == "https://huggingface.co/Qwen/model/blob/main/LICENSE"
+        assert spec.license_url == "https://huggingface.co/Qwen/Qwen3-Coder-480B/blob/main/LICENSE"
 
     def test_no_metadata_returns_none_license(self):
         """When HF API metadata fetch fails, license fields should be None."""
