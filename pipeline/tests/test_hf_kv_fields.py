@@ -26,9 +26,18 @@ from tests.test_param_counter import (
 )
 
 
+_TEST_LICENSE = ("Test License", "https://example.com/LICENSE")
+
+
 def _mock_fetch(model_name: str, hf_id: str, config: dict):
-    """Call fetch_model with mocked HTTP, returning a ModelSpec."""
-    with patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config):
+    """Call fetch_model with mocked HTTP and license info, returning a ModelSpec."""
+    with (
+        patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config),
+        patch.dict(
+            "pipeline.sources.huggingface.MODEL_LICENSE_INFO",
+            {hf_id: _TEST_LICENSE},
+        ),
+    ):
         return fetch_model(model_name, hf_id)
 
 

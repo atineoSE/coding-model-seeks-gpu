@@ -1,6 +1,6 @@
-"""Tests for license metadata extraction from HuggingFace API.
+"""Tests for license metadata in the pipeline.
 
-Covers resolve_license_info logic, fetch_model integration (mocked HTTP),
+Covers the MODEL_LICENSE_INFO mapping, fetch_model integration (mocked HTTP),
 and the pipeline-to-frontend data contract (ModelSpec fields match
 the TypeScript Model interface).
 """
@@ -11,10 +11,8 @@ import pytest
 
 from pipeline.enrichment import ModelSpec
 from pipeline.sources.huggingface import (
-    CHOOSEALICENSE_BASE_URL,
-    CUSTOM_LICENSE_DISPLAY_NAMES,
-    SPDX_DISPLAY_NAMES,
-    resolve_license_info,
+    MODEL_LICENSE_INFO,
+    MODEL_NAME_TO_HF_ID,
     fetch_model,
 )
 
@@ -27,212 +25,79 @@ from tests.test_param_counter import (
 
 
 # ===================================================================
-# resolve_license_info — unit tests
+# MODEL_LICENSE_INFO mapping — unit tests
 # ===================================================================
 
 
-class TestResolveLicenseInfo:
-    """Unit tests for license info resolution from HF API metadata."""
+class TestModelLicenseInfo:
+    """Tests for the explicit license mapping."""
 
-    def test_standard_mit_with_license_file(self):
-        metadata = {
-            "cardData": {"license": "mit"},
-            "siblings": [{"rfilename": "LICENSE"}, {"rfilename": "config.json"}],
-        }
-        spdx, name, url = resolve_license_info(metadata, "deepseek-ai/DS")
-        assert spdx == "mit"
-        assert name == "MIT"
-        assert url == "https://huggingface.co/deepseek-ai/DS/blob/main/LICENSE"
+    def test_all_models_have_license_info(self):
+        """Every model in MODEL_NAME_TO_HF_ID must have a license entry."""
+        for model_name, hf_id in MODEL_NAME_TO_HF_ID.items():
+            assert hf_id in MODEL_LICENSE_INFO, (
+                f"Missing license info for {model_name} ({hf_id}). "
+                f"Add an entry to MODEL_LICENSE_INFO."
+            )
 
-    def test_standard_mit_without_license_file(self):
-        """Falls back to choosealicense dataset."""
-        metadata = {
-            "cardData": {"license": "mit"},
-            "siblings": [{"rfilename": "config.json"}],
-        }
-        spdx, name, url = resolve_license_info(metadata, "zai-org/GLM")
-        assert spdx == "mit"
-        assert name == "MIT"
-        assert url == f"{CHOOSEALICENSE_BASE_URL}/mit.md"
+    def test_license_entries_have_name_and_url(self):
+        """Each license entry must have a non-empty name and URL."""
+        for hf_id, (name, url) in MODEL_LICENSE_INFO.items():
+            assert name, f"Empty license_name for {hf_id}"
+            assert url, f"Empty license_url for {hf_id}"
 
-    def test_apache_with_license_file(self):
-        metadata = {
-            "cardData": {"license": "apache-2.0"},
-            "siblings": [{"rfilename": "LICENSE"}],
-        }
-        spdx, name, url = resolve_license_info(metadata, "Qwen/model")
-        assert spdx == "apache-2.0"
-        assert name == "Apache 2.0"
-        assert url == "https://huggingface.co/Qwen/model/blob/main/LICENSE"
-
-    def test_custom_minimax_model_license(self):
-        metadata = {
-            "cardData": {"license": "other", "license_name": "minimax-model-license"},
-            "siblings": [
-                {"rfilename": "LICENSE-CODE"},
-                {"rfilename": "LICENSE-MODEL"},
-            ],
-        }
-        spdx, name, url = resolve_license_info(metadata, "MiniMaxAI/MiniMax-M2.5")
-        assert spdx == "other"
+    def test_minimax_m25_license(self):
+        name, url = MODEL_LICENSE_INFO["MiniMaxAI/MiniMax-M2.5"]
         assert name == "MiniMax Model License"
-        assert url == "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL"
+        assert "LICENSE-MODEL" in url
 
-    def test_license_model_takes_priority_over_license(self):
-        """When both LICENSE and LICENSE-MODEL exist, prefer LICENSE-MODEL."""
-        metadata = {
-            "cardData": {"license": "other", "license_name": "some-license"},
-            "siblings": [
-                {"rfilename": "LICENSE"},
-                {"rfilename": "LICENSE-MODEL"},
-            ],
-        }
-        _, _, url = resolve_license_info(metadata, "org/model")
-        assert url == "https://huggingface.co/org/model/blob/main/LICENSE-MODEL"
+    def test_deepseek_mit_license(self):
+        name, url = MODEL_LICENSE_INFO["deepseek-ai/DeepSeek-V3.2-Speciale"]
+        assert name == "MIT"
+        assert "deepseek-ai/DeepSeek-V3.2-Speciale" in url
 
-    def test_custom_nvidia_with_license_file(self):
-        metadata = {
-            "cardData": {
-                "license": "other",
-                "license_name": "nvidia-open-model-license",
-            },
-            "siblings": [{"rfilename": "LICENSE"}],
-        }
-        spdx, name, url = resolve_license_info(metadata, "nvidia/model")
-        assert spdx == "other"
-        assert name == "NVIDIA Open Model License"
-        assert url == "https://huggingface.co/nvidia/model/blob/main/LICENSE"
-
-    def test_custom_unknown_license_name_title_cased(self):
-        """Unknown custom license names should be title-cased."""
-        metadata = {
-            "cardData": {"license": "other", "license_name": "some-custom-license"},
-            "siblings": [],
-        }
-        spdx, name, url = resolve_license_info(metadata, "org/model")
-        assert name == "Some Custom License"
-        assert url is None  # no file, no link, not standard SPDX
-
-    def test_missing_card_data(self):
-        metadata = {"siblings": []}
-        spdx, name, url = resolve_license_info(metadata, "org/model")
-        assert spdx is None
-        assert name is None
-        assert url is None
-
-    def test_empty_card_data(self):
-        metadata = {"cardData": {}, "siblings": []}
-        spdx, name, url = resolve_license_info(metadata, "org/model")
-        assert spdx is None
-        assert name is None
-        assert url is None
-
-    def test_license_link_ignored(self):
-        """license_link from cardData should be ignored (may be broken)."""
-        metadata = {
-            "cardData": {
-                "license": "mit",
-                "license_link": "https://example.com/broken-link",
-            },
-            "siblings": [{"rfilename": "LICENSE"}],
-        }
-        _, _, url = resolve_license_info(metadata, "org/model")
-        # Should use LICENSE file, not the license_link
-        assert url == "https://huggingface.co/org/model/blob/main/LICENSE"
-
-    def test_url_priority_siblings_over_choosealicense(self):
-        """LICENSE file in repo should take priority over choosealicense fallback."""
-        metadata = {
-            "cardData": {"license": "mit"},
-            "siblings": [{"rfilename": "LICENSE"}],
-        }
-        _, _, url = resolve_license_info(metadata, "org/model")
-        assert url == "https://huggingface.co/org/model/blob/main/LICENSE"
-
-    def test_all_spdx_display_names_mapped(self):
-        """All entries in SPDX_DISPLAY_NAMES should produce the expected display name."""
-        for spdx_id, expected_name in SPDX_DISPLAY_NAMES.items():
-            metadata = {"cardData": {"license": spdx_id}, "siblings": []}
-            _, name, _ = resolve_license_info(metadata, "org/model")
-            assert name == expected_name, f"SPDX '{spdx_id}' should display as '{expected_name}'"
-
-    def test_unknown_spdx_falls_back_to_code(self):
-        """Unknown SPDX identifiers should use the raw code as display name."""
-        metadata = {"cardData": {"license": "bsd-3-clause"}, "siblings": []}
-        spdx, name, url = resolve_license_info(metadata, "org/model")
-        assert spdx == "bsd-3-clause"
-        assert name == "bsd-3-clause"
-        assert url == f"{CHOOSEALICENSE_BASE_URL}/bsd-3-clause.md"
-
-    def test_all_custom_display_names_mapped(self):
-        """All entries in CUSTOM_LICENSE_DISPLAY_NAMES should produce the expected name."""
-        for raw_name, expected_name in CUSTOM_LICENSE_DISPLAY_NAMES.items():
-            metadata = {
-                "cardData": {"license": "other", "license_name": raw_name},
-                "siblings": [],
-            }
-            _, name, _ = resolve_license_info(metadata, "org/model")
-            assert name == expected_name
+    def test_qwen_apache_license(self):
+        name, url = MODEL_LICENSE_INFO["Qwen/Qwen3-Coder-480B-A35B-Instruct"]
+        assert name == "Apache 2.0"
 
 
 # ===================================================================
-# fetch_model integration — license fields populated via mock
+# fetch_model integration — license fields populated from mapping
 # ===================================================================
 
 
-def _mock_fetch_with_metadata(model_name, hf_id, config, metadata):
-    """Call fetch_model with mocked config.json and API metadata."""
-    with (
-        patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config),
-        patch("pipeline.sources.huggingface.fetch_hf_metadata", return_value=metadata),
-    ):
+def _mock_fetch(model_name, hf_id, config):
+    """Call fetch_model with mocked config.json."""
+    with patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config):
         return fetch_model(model_name, hf_id)
 
 
 class TestFetchModelLicenseIntegration:
-    """Integration tests: fetch_model populates license fields on ModelSpec."""
+    """Integration tests: fetch_model populates license fields from mapping."""
 
-    def test_mit_license_from_metadata(self):
-        metadata = {
-            "cardData": {"license": "mit"},
-            "siblings": [{"rfilename": "LICENSE"}],
-        }
-        spec = _mock_fetch_with_metadata(
-            "DS", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG, metadata
+    def test_mit_license_from_mapping(self):
+        spec = _mock_fetch(
+            "DS", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG
         )
-        assert spec.license_spdx == "mit"
         assert spec.license_name == "MIT"
         assert "deepseek-ai/DeepSeek-V3.2-Speciale" in spec.license_url
 
-    def test_apache_license_from_metadata(self):
-        metadata = {
-            "cardData": {"license": "apache-2.0"},
-            "siblings": [{"rfilename": "LICENSE"}],
-        }
-        spec = _mock_fetch_with_metadata(
-            "Q3", "Qwen/Qwen3-Coder-480B", QWEN3_CODER_CONFIG, metadata
+    def test_apache_license_from_mapping(self):
+        spec = _mock_fetch(
+            "Q3", "Qwen/Qwen3-Coder-480B-A35B-Instruct", QWEN3_CODER_CONFIG
         )
-        assert spec.license_spdx == "apache-2.0"
         assert spec.license_name == "Apache 2.0"
-        assert spec.license_url == "https://huggingface.co/Qwen/Qwen3-Coder-480B/blob/main/LICENSE"
+        assert "Qwen3-Coder-480B-A35B-Instruct" in spec.license_url
 
-    def test_no_metadata_returns_none_license(self):
-        """When HF API metadata fetch fails, license fields should be None."""
-        spec = _mock_fetch_with_metadata(
-            "GLM", "zai-org/GLM-4.7", GLM_47_CONFIG, None
-        )
-        assert spec.license_spdx is None
-        assert spec.license_name is None
-        assert spec.license_url is None
+    def test_missing_license_raises(self):
+        """fetch_model should fail if hf_id is not in MODEL_LICENSE_INFO."""
+        with pytest.raises(ValueError, match="Missing license info"):
+            _mock_fetch("Unknown", "org/unknown-model", GLM_47_CONFIG)
 
     def test_license_fields_coexist_with_existing_fields(self):
         """License fields should not break existing ModelSpec fields."""
-        metadata = {
-            "cardData": {"license": "mit"},
-            "siblings": [],
-        }
-        spec = _mock_fetch_with_metadata(
-            "DS", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG, metadata
+        spec = _mock_fetch(
+            "DS", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG
         )
         # Existing fields still work
         assert spec.model_name == "DS"
@@ -265,7 +130,6 @@ TYPESCRIPT_MODEL_FIELDS = {
     "kv_lora_rank",
     "qk_rope_head_dim",
     "hf_model_id",
-    "license_spdx",
     "license_name",
     "license_url",
 }
@@ -287,12 +151,10 @@ class TestDataContract:
         """model_dump() output should include license fields (used by JSON exporter)."""
         spec = ModelSpec(
             model_name="TestModel",
-            license_spdx="mit",
             license_name="MIT",
             license_url="https://example.com/LICENSE",
         )
         dumped = spec.model_dump()
-        assert dumped["license_spdx"] == "mit"
         assert dumped["license_name"] == "MIT"
         assert dumped["license_url"] == "https://example.com/LICENSE"
 
@@ -300,6 +162,5 @@ class TestDataContract:
         """License fields should be null when not set."""
         spec = ModelSpec(model_name="TestModel")
         dumped = spec.model_dump()
-        assert dumped["license_spdx"] is None
         assert dumped["license_name"] is None
         assert dumped["license_url"] is None

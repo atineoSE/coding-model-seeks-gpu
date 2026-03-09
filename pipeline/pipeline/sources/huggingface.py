@@ -35,79 +35,55 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "Qwen3.5-Flash": "Qwen/Qwen3.5-35B-A3B",
 }
 
-
-# Mapping of SPDX identifiers to human-readable display names.
-SPDX_DISPLAY_NAMES: dict[str, str] = {
-    "mit": "MIT",
-    "apache-2.0": "Apache 2.0",
+# Explicit license info per HF repo ID.
+# Maintained manually — the pipeline fails if a model is missing from here.
+# Format: hf_id -> (license_name, license_url)
+MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
+    "deepseek-ai/DeepSeek-V3.2-Speciale": (
+        "MIT",
+        "https://huggingface.co/deepseek-ai/DeepSeek-V3.2-Speciale/blob/main/LICENSE",
+    ),
+    "zai-org/GLM-4.7": (
+        "MIT",
+        "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
+    ),
+    "zai-org/GLM-5": (
+        "MIT",
+        "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
+    ),
+    "moonshotai/Kimi-K2.5": (
+        "Modified MIT",
+        "https://huggingface.co/moonshotai/Kimi-K2.5/blob/main/LICENSE",
+    ),
+    "moonshotai/Kimi-K2-Thinking": (
+        "Modified MIT",
+        "https://huggingface.co/moonshotai/Kimi-K2-Thinking/blob/main/LICENSE",
+    ),
+    "MiniMaxAI/MiniMax-M2.5": (
+        "MiniMax Model License",
+        "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL",
+    ),
+    "MiniMaxAI/MiniMax-M2.1": (
+        "Modified MIT",
+        "https://github.com/MiniMax-AI/MiniMax-M2.1/blob/main/LICENSE",
+    ),
+    "Qwen/Qwen3-Coder-480B-A35B-Instruct": (
+        "Apache 2.0",
+        "https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct/blob/main/LICENSE",
+    ),
+    "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8": (
+        "NVIDIA Open Model License",
+        "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
+    ),
+    "Qwen/Qwen3-Coder-Next": (
+        "Apache 2.0",
+        "https://choosealicense.com/licenses/apache-2.0/",
+    ),
+    "Qwen/Qwen3.5-35B-A3B": (
+        "Apache 2.0",
+        "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/blob/main/LICENSE",
+    ),
 }
-
-# Mapping of custom license_name values to human-readable display names.
-CUSTOM_LICENSE_DISPLAY_NAMES: dict[str, str] = {
-    "minimax-model-license": "MiniMax Model License",
-    "nvidia-open-model-license": "NVIDIA Open Model License",
-}
-
-# Choosealicense HuggingFace dataset for standard SPDX license texts.
-CHOOSEALICENSE_BASE_URL = (
-    "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown"
-)
-
-
-def fetch_hf_metadata(hf_id: str) -> dict | None:
-    """Fetch model metadata from the HuggingFace API."""
-    url = f"https://huggingface.co/api/models/{hf_id}"
-    try:
-        response = httpx.get(url, timeout=30.0, follow_redirects=True)
-        response.raise_for_status()
-        metadata = response.json()
-        logger.info("Fetched API metadata for %s", hf_id)
-        return metadata
-    except Exception:
-        logger.debug("No API metadata available for %s", hf_id)
-        return None
-
-
-def resolve_license_info(
-    metadata: dict, hf_id: str
-) -> tuple[str | None, str | None, str | None]:
-    """Extract license SPDX, display name, and URL from HF API metadata.
-
-    Returns:
-        (license_spdx, license_name, license_url)
-    """
-    card_data = metadata.get("cardData", {})
-    spdx_id = card_data.get("license")
-    license_name_raw = card_data.get("license_name")
-
-    if not spdx_id:
-        return (None, None, None)
-
-    # Build display name
-    if spdx_id == "other" and license_name_raw:
-        display_name = CUSTOM_LICENSE_DISPLAY_NAMES.get(
-            license_name_raw, license_name_raw.replace("-", " ").title()
-        )
-    elif spdx_id in SPDX_DISPLAY_NAMES:
-        display_name = SPDX_DISPLAY_NAMES[spdx_id]
-    else:
-        display_name = spdx_id
-
-    # Resolve URL: LICENSE-MODEL > LICENSE > choosealicense fallback
-    # LICENSE-MODEL is preferred because repos with split licenses
-    # (e.g. LICENSE-CODE + LICENSE-MODEL) use it for the model license.
-    license_url: str | None = None
-    siblings = metadata.get("siblings", [])
-    sibling_names = {s.get("rfilename") for s in siblings}
-
-    if "LICENSE-MODEL" in sibling_names:
-        license_url = f"https://huggingface.co/{hf_id}/blob/main/LICENSE-MODEL"
-    elif "LICENSE" in sibling_names:
-        license_url = f"https://huggingface.co/{hf_id}/blob/main/LICENSE"
-    elif spdx_id != "other":
-        license_url = f"{CHOOSEALICENSE_BASE_URL}/{spdx_id}.md"
-
-    return (spdx_id, display_name, license_url)
 
 
 def fetch_hf_config(hf_id: str) -> dict | None:
@@ -138,15 +114,17 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
         RuntimeError: If config.json is unavailable.
         ValueError: If config-based param counting fails.
     """
-    # 1. Fetch config.json (required) and API metadata (for license info)
+    # 1. Fetch config.json (required) and look up license info (required)
     config = fetch_hf_config(hf_id)
     if not config:
         raise RuntimeError(f"No config.json available for {hf_id}")
 
-    metadata = fetch_hf_metadata(hf_id)
-    license_spdx, license_name, license_url = (
-        resolve_license_info(metadata, hf_id) if metadata else (None, None, None)
-    )
+    if hf_id not in MODEL_LICENSE_INFO:
+        raise ValueError(
+            f"Missing license info for {hf_id}. "
+            f"Add an entry to MODEL_LICENSE_INFO in huggingface.py."
+        )
+    license_name, license_url = MODEL_LICENSE_INFO[hf_id]
 
     # 2. Check architecture support early — fail fast before expensive work
     effective_config = resolve_text_config(config)
@@ -250,7 +228,6 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
         kv_lora_rank=kv_lora_rank,
         qk_rope_head_dim=qk_rope_head_dim,
         hf_model_id=hf_id,
-        license_spdx=license_spdx,
         license_name=license_name,
         license_url=license_url,
     )

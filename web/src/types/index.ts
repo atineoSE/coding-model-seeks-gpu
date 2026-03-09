@@ -35,7 +35,6 @@ export interface Model {
   kv_lora_rank: number | null;
   qk_rope_head_dim: number | null;
   hf_model_id: string | null;
-  license_spdx: string | null;
   license_name: string | null;
   license_url: string | null;
 }
