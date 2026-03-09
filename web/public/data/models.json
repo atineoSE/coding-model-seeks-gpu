@@ -14,7 +14,10 @@
     "routed_expert_params_b": 653.9,
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
-    "hf_model_id": "deepseek-ai/DeepSeek-V3.2-Speciale"
+    "hf_model_id": "deepseek-ai/DeepSeek-V3.2-Speciale",
+    "license_spdx": "mit",
+    "license_name": "MIT",
+    "license_url": "https://huggingface.co/deepseek-ai/DeepSeek-V3.2-Speciale/blob/main/LICENSE"
   },
   {
     "model_name": "GLM-4.7",
@@ -31,7 +34,10 @@
     "routed_expert_params_b": 336.0,
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
-    "hf_model_id": "zai-org/GLM-4.7"
+    "hf_model_id": "zai-org/GLM-4.7",
+    "license_spdx": "mit",
+    "license_name": "MIT",
+    "license_url": "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md"
   },
   {
     "model_name": "GLM-5",
@@ -48,7 +54,10 @@
     "routed_expert_params_b": 724.8,
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
-    "hf_model_id": "zai-org/GLM-5"
+    "hf_model_id": "zai-org/GLM-5",
+    "license_spdx": "mit",
+    "license_name": "MIT",
+    "license_url": "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -65,7 +74,10 @@
     "routed_expert_params_b": 1014.7,
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
-    "hf_model_id": "moonshotai/Kimi-K2-Thinking"
+    "hf_model_id": "moonshotai/Kimi-K2-Thinking",
+    "license_spdx": "other",
+    "license_name": "Modified MIT",
+    "license_url": "https://huggingface.co/moonshotai/Kimi-K2-Thinking/blob/main/LICENSE"
   },
   {
     "model_name": "Kimi-K2.5",
@@ -82,7 +94,10 @@
     "routed_expert_params_b": 1014.7,
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
-    "hf_model_id": "moonshotai/Kimi-K2.5"
+    "hf_model_id": "moonshotai/Kimi-K2.5",
+    "license_spdx": "other",
+    "license_name": "Modified MIT",
+    "license_url": "https://huggingface.co/moonshotai/Kimi-K2.5/blob/main/LICENSE"
   },
   {
     "model_name": "MiniMax-M2.1",
@@ -99,7 +114,10 @@
     "routed_expert_params_b": 224.7,
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
-    "hf_model_id": "MiniMaxAI/MiniMax-M2.1"
+    "hf_model_id": "MiniMaxAI/MiniMax-M2.1",
+    "license_spdx": "other",
+    "license_name": "Modified MIT",
+    "license_url": "https://github.com/MiniMax-AI/MiniMax-M2.1/blob/main/LICENSE"
   },
   {
     "model_name": "MiniMax-M2.5",
@@ -116,7 +134,10 @@
     "routed_expert_params_b": 224.7,
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
-    "hf_model_id": "MiniMaxAI/MiniMax-M2.5"
+    "hf_model_id": "MiniMaxAI/MiniMax-M2.5",
+    "license_spdx": "other",
+    "license_name": "Modified MIT",
+    "license_url": "https://github.com/MiniMax-AI/MiniMax-M2.5/blob/main/LICENSE"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -133,7 +154,10 @@
     "routed_expert_params_b": 29.4,
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
-    "hf_model_id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8"
+    "hf_model_id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
+    "license_spdx": "other",
+    "license_name": "NVIDIA Open Model License",
+    "license_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"
   },
   {
     "model_name": "Qwen3-Coder-480B",
@@ -150,7 +174,10 @@
     "routed_expert_params_b": 468.1,
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
-    "hf_model_id": "Qwen/Qwen3-Coder-480B-A35B-Instruct"
+    "hf_model_id": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+    "license_spdx": "apache-2.0",
+    "license_name": "Apache 2.0",
+    "license_url": "https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct/blob/main/LICENSE"
   },
   {
     "model_name": "Qwen3-Coder-Next",
@@ -167,7 +194,10 @@
     "routed_expert_params_b": 77.3,
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
-    "hf_model_id": "Qwen/Qwen3-Coder-Next"
+    "hf_model_id": "Qwen/Qwen3-Coder-Next",
+    "license_spdx": "apache-2.0",
+    "license_name": "Apache 2.0",
+    "license_url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/main/LICENSE"
   },
   {
     "model_name": "Qwen3.5-Flash",
@@ -184,6 +214,9 @@
     "routed_expert_params_b": 32.2,
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
-    "hf_model_id": "Qwen/Qwen3.5-35B-A3B"
+    "hf_model_id": "Qwen/Qwen3.5-35B-A3B",
+    "license_spdx": "apache-2.0",
+    "license_name": "Apache 2.0",
+    "license_url": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/blob/main/LICENSE"
   }
 ]
