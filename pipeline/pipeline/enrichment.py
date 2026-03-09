@@ -27,3 +27,10 @@ class ModelSpec(BaseModel):
     kv_lora_rank: int | None = Field(None, description="KV LoRA rank (MLA only)")
     qk_rope_head_dim: int | None = Field(None, description="RoPE head dimension (MLA only)")
     hf_model_id: str | None = Field(None, description="HuggingFace repo ID for linking")
+    license_spdx: str | None = Field(
+        None, description="SPDX license identifier (e.g., 'mit', 'apache-2.0', 'other')"
+    )
+    license_name: str | None = Field(
+        None, description="Human-readable license name (e.g., 'MIT', 'Apache 2.0')"
+    )
+    license_url: str | None = Field(None, description="URL to the license text")
