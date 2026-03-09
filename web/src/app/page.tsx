@@ -9,6 +9,7 @@ import { getGpuThroughputSpec } from "@/lib/gpu-specs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RegionFilter } from "@/components/region-filter";
 import { CategorySelector, type BenchmarkCategory } from "@/components/category-selector";
+import { LicenseFilter } from "@/components/license-filter";
 
 import { PersonaSelector } from "@/components/persona-selector";
 import { PerformanceFlow } from "@/components/performance-flow";
@@ -42,6 +43,22 @@ export default function Home() {
   const [benchmarkCategory, setBenchmarkCategory] = useState("");
   const [settings, setSettings] = useState<AdvancedSettings>(DEFAULT_ADVANCED_SETTINGS);
   const [location, setLocation] = useState("");
+  const [licenseFilter, setLicenseFilter] = useState("All");
+
+  const licenseOptions = useMemo(() => {
+    if (!data) return [];
+    return [...new Set(
+      data.models
+        .map((m) => m.license_name)
+        .filter((n): n is string => n !== null)
+    )].sort();
+  }, [data]);
+
+  const filteredModels = useMemo(() => {
+    if (!data) return [];
+    if (licenseFilter === "All") return data.models;
+    return data.models.filter((m) => m.license_name === licenseFilter);
+  }, [data, licenseFilter]);
 
   const locations = useMemo(() => {
     if (!data) return [];
@@ -149,6 +166,11 @@ export default function Home() {
               value={benchmarkCategory}
               onChange={setBenchmarkCategory}
             />
+            <LicenseFilter
+              licenses={licenseOptions}
+              value={licenseFilter}
+              onChange={setLicenseFilter}
+            />
           </div>
         </div>
 
@@ -176,7 +198,7 @@ export default function Home() {
           <div className="mt-8">
             <PerformanceFlow
               gpus={filteredGpus}
-              models={data.models}
+              models={filteredModels}
               benchmarks={data.benchmarks}
               sotaScores={data.sotaScores}
               benchmarkCategory={benchmarkCategory}
@@ -190,7 +212,7 @@ export default function Home() {
           <div className="mt-8">
             <BudgetFlow
               gpus={filteredGpus}
-              models={data.models}
+              models={filteredModels}
               benchmarks={data.benchmarks}
               sotaScores={data.sotaScores}
               benchmarkCategory={benchmarkCategory}
@@ -203,7 +225,7 @@ export default function Home() {
         {data && persona === "trends" && (
           <div className="mt-8">
             <TrendsSection
-              models={data.models}
+              models={filteredModels}
               gpus={filteredGpus}
               benchmarks={data.benchmarks}
               benchmarkCategory={benchmarkCategory}

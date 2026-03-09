@@ -36,6 +36,81 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
 }
 
 
+# Mapping of SPDX identifiers to human-readable display names.
+SPDX_DISPLAY_NAMES: dict[str, str] = {
+    "mit": "MIT",
+    "apache-2.0": "Apache 2.0",
+}
+
+# Mapping of custom license_name values to human-readable display names.
+CUSTOM_LICENSE_DISPLAY_NAMES: dict[str, str] = {
+    "modified-mit": "Modified MIT",
+    "nvidia-open-model-license": "NVIDIA Open Model License",
+}
+
+# Choosealicense HuggingFace dataset for standard SPDX license texts.
+CHOOSEALICENSE_BASE_URL = (
+    "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown"
+)
+
+
+def fetch_hf_metadata(hf_id: str) -> dict | None:
+    """Fetch model metadata from the HuggingFace API."""
+    url = f"https://huggingface.co/api/models/{hf_id}"
+    try:
+        response = httpx.get(url, timeout=30.0, follow_redirects=True)
+        response.raise_for_status()
+        metadata = response.json()
+        logger.info("Fetched API metadata for %s", hf_id)
+        return metadata
+    except Exception:
+        logger.debug("No API metadata available for %s", hf_id)
+        return None
+
+
+def resolve_license_info(
+    metadata: dict, hf_id: str
+) -> tuple[str | None, str | None, str | None]:
+    """Extract license SPDX, display name, and URL from HF API metadata.
+
+    Returns:
+        (license_spdx, license_name, license_url)
+    """
+    card_data = metadata.get("cardData", {})
+    spdx_id = card_data.get("license")
+    license_name_raw = card_data.get("license_name")
+    license_link = card_data.get("license_link")
+
+    if not spdx_id:
+        return (None, None, None)
+
+    # Build display name
+    if spdx_id == "other" and license_name_raw:
+        display_name = CUSTOM_LICENSE_DISPLAY_NAMES.get(
+            license_name_raw, license_name_raw.replace("-", " ").title()
+        )
+    elif spdx_id in SPDX_DISPLAY_NAMES:
+        display_name = SPDX_DISPLAY_NAMES[spdx_id]
+    else:
+        display_name = spdx_id
+
+    # Resolve URL: license_link > LICENSE in siblings > choosealicense fallback
+    license_url: str | None = None
+    if license_link:
+        license_url = license_link
+    else:
+        siblings = metadata.get("siblings", [])
+        has_license_file = any(
+            s.get("rfilename") == "LICENSE" for s in siblings
+        )
+        if has_license_file:
+            license_url = f"https://huggingface.co/{hf_id}/blob/main/LICENSE"
+        elif spdx_id != "other":
+            license_url = f"{CHOOSEALICENSE_BASE_URL}/{spdx_id}.md"
+
+    return (spdx_id, display_name, license_url)
+
+
 def fetch_hf_config(hf_id: str) -> dict | None:
     """Fetch a HuggingFace model config.json for architecture details."""
     url = f"https://huggingface.co/{hf_id}/raw/main/config.json"
@@ -64,10 +139,15 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
         RuntimeError: If config.json is unavailable.
         ValueError: If config-based param counting fails.
     """
-    # 1. Fetch config.json (required)
+    # 1. Fetch config.json (required) and API metadata (for license info)
     config = fetch_hf_config(hf_id)
     if not config:
         raise RuntimeError(f"No config.json available for {hf_id}")
+
+    metadata = fetch_hf_metadata(hf_id)
+    license_spdx, license_name, license_url = (
+        resolve_license_info(metadata, hf_id) if metadata else (None, None, None)
+    )
 
     # 2. Check architecture support early — fail fast before expensive work
     effective_config = resolve_text_config(config)
@@ -171,6 +251,9 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
         kv_lora_rank=kv_lora_rank,
         qk_rope_head_dim=qk_rope_head_dim,
         hf_model_id=hf_id,
+        license_spdx=license_spdx,
+        license_name=license_name,
+        license_url=license_url,
     )
 
 

@@ -155,6 +155,19 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
             </Badge>
           )}
           <PrecisionBadge model={model} />
+          {model.license_name && (
+            model.license_url ? (
+              <a href={model.license_url} target="_blank" rel="noopener noreferrer">
+                <Badge variant="outline" className="text-[10px] hover:bg-accent cursor-pointer">
+                  {model.license_name}
+                </Badge>
+              </a>
+            ) : (
+              <Badge variant="outline" className="text-[10px]">
+                {model.license_name}
+              </Badge>
+            )
+          )}
         </div>
       </div>
     </div>
