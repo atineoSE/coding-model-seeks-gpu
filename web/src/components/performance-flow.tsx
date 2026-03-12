@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { GpuOffering, Model, BenchmarkScore, SotaScore, AdvancedSettings } from "@/types";
 import { calculatePerformanceMatrix } from "@/lib/matrix-calculator";
+import { computeTotalBenchmarkCost } from "@/lib/benchmark-costs";
 import { RecommendationMatrix } from "@/components/recommendation-matrix";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
@@ -38,6 +39,23 @@ export function PerformanceFlow({
     [gpus, models, benchmarks, sotaScores, benchmarkCategory, settings],
   );
 
+  const sota = sotaScores.find((s) => s.benchmark_name === benchmarkCategory) ?? null;
+
+  const sotaTotalBenchmarkCost = useMemo(
+    () =>
+      sota
+        ? computeTotalBenchmarkCost(sota.sota_model_name, benchmarkCategory, benchmarks)
+        : null,
+    [sota, benchmarkCategory, benchmarks],
+  );
+
+  const benchmarkDisplayName = useMemo(
+    () =>
+      benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
+        ?.benchmark_display_name ?? benchmarkCategory,
+    [benchmarks, benchmarkCategory],
+  );
+
   return (
     <div className="space-y-6">
       <Card>
@@ -49,7 +67,13 @@ export function PerformanceFlow({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <RecommendationMatrix rows={matrix} persona="performance" currencySymbol={currencySymbol} />
+          <RecommendationMatrix
+            rows={matrix}
+            persona="performance"
+            currencySymbol={currencySymbol}
+            sotaTotalBenchmarkCost={sotaTotalBenchmarkCost}
+            benchmarkDisplayName={benchmarkDisplayName}
+          />
         </CardContent>
       </Card>
     </div>

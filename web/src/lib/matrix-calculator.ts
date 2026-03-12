@@ -19,6 +19,7 @@ import {
   resolveKvPrecisionBytes,
   WEIGHT_OVERHEAD_FACTOR,
 } from "./calculations";
+import { computeTotalBenchmarkCost } from "./benchmark-costs";
 
 
 const HOURS_PER_MONTH = 720;
@@ -276,6 +277,10 @@ export function calculatePerformanceMatrix(
         ? benchmark.score / sota.sota_score
         : 0;
 
+    const totalBenchmarkCost = computeTotalBenchmarkCost(
+      model.model_name, benchmarkCategory, benchmarks,
+    );
+
     return CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig): MatrixCell => {
       let gpuSetups = findGpuSetups(
         model,
@@ -296,6 +301,7 @@ export function calculatePerformanceMatrix(
         benchmark,
         sotaScore: sota,
         percentOfSota,
+        totalBenchmarkCost,
         gpuSetups,
         costPerStreamPerMonth: cheapest?.costPerStreamPerMonth ?? null,
         exceedsCapacity: gpuSetups.length === 0,
@@ -365,6 +371,10 @@ export function calculateBudgetMatrix(
         ? benchmark.score / sota.sota_score
         : 0;
 
+    const totalBenchmarkCost = computeTotalBenchmarkCost(
+      model.model_name, benchmarkCategory, benchmarks,
+    );
+
     // Compute stats once per model (same GPU config for all tiers)
     const stats = calcGpuSetupStats(
       model,
@@ -412,6 +422,7 @@ export function calculateBudgetMatrix(
         benchmark,
         sotaScore: sota,
         percentOfSota,
+        totalBenchmarkCost,
         gpuSetups: gpuSetup ? [gpuSetup] : [],
         costPerStreamPerMonth: costPerStream,
         exceedsCapacity: cannotServe,

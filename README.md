@@ -12,9 +12,9 @@ Pick a model and find the GPU setup you need, or pick a GPU and find the best mo
 
 A **Python pipeline** fetches GPU pricing across 13+ cloud providers, enriches model specs from HuggingFace, and exports everything as static JSON. A **Next.js frontend** loads that JSON and lets users explore model-GPU pairings through three lenses:
 
-- **Performance** — "What GPU do I need for the best model?" Ranks top models by benchmark score, shows GPU options at different concurrency tiers with monthly costs.
-- **Budget** — "What's the best model for my GPU?" Select a GPU config and see which models fit, with cost breakdowns.
-- **Trends** — Historical benchmark and pricing data over time.
+- **Performance** — "What GPU do I need for the best model?" Ranks top open-source models by benchmark score, shows GPU options at different concurrency tiers with monthly costs. Each model displays its SOTA percentage and the total API cost to run the selected benchmark, so you can weigh hardware investment against the API alternative.
+- **Budget** — "What's the best model for my GPU?" Select a GPU config and see which models fit, with throughput estimates and team-size capacity per concurrency tier.
+- **Trends** — "How is the landscape evolving?" Tracks three trends over time: the score gap between best closed-source and open-source models, the GPU cost to self-host the best open-source model, and API cost efficiency (cost per task) for the leading models on each benchmark.
 
 The app calculates VRAM requirements (including KV cache for MLA and GQA attention), throughput estimates, and concurrency capacity for each model-GPU combination.
 

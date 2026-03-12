@@ -276,6 +276,70 @@ export function computeGapTrend(
 }
 
 // ---------------------------------------------------------------------------
+// Chart 2b: Efficiency Trend (API cost per task for the best models)
+// ---------------------------------------------------------------------------
+
+export interface EfficiencyTrendPoint {
+  date: string;
+  closedSourceCostPerTask: number;
+  closedSourceModel: string;
+  openSourceCostPerTask: number;
+  openSourceModel: string;
+}
+
+/**
+ * Build a lookup of latest cost_per_task per model from the most recent snapshot.
+ */
+function buildLatestCosts(
+  snapshots: SnapshotData[],
+  category: string,
+): Map<string, number> {
+  const costs = new Map<string, number>();
+  if (snapshots.length === 0) return costs;
+
+  const latest = snapshots[snapshots.length - 1];
+  for (const b of latest.benchmarks) {
+    if (b.benchmark_name !== category || b.cost_per_task === null) continue;
+    const resolved = resolveModelName(b.model_name);
+    // Keep the cost for the model (if duplicate, take from highest-scoring entry
+    // which is already handled by generator — just overwrite)
+    costs.set(resolved, b.cost_per_task);
+  }
+  return costs;
+}
+
+/**
+ * Compute efficiency trend from canonical gap trend points.
+ * For each gap trend point, look up both leaders' cost_per_task.
+ */
+export function computeEfficiencyTrend(
+  gapPoints: GapTrendPoint[],
+  snapshots: SnapshotData[],
+  category: string,
+): EfficiencyTrendPoint[] {
+  if (gapPoints.length === 0 || snapshots.length === 0) return [];
+
+  const latestCosts = buildLatestCosts(snapshots, category);
+  const points: EfficiencyTrendPoint[] = [];
+
+  for (const gp of gapPoints) {
+    const closedCost = latestCosts.get(gp.closedSourceModel);
+    const openCost = latestCosts.get(gp.openSourceModel);
+    if (closedCost === undefined || openCost === undefined) continue;
+
+    points.push({
+      date: gp.date,
+      closedSourceCostPerTask: closedCost,
+      closedSourceModel: gp.closedSourceModel,
+      openSourceCostPerTask: openCost,
+      openSourceModel: gp.openSourceModel,
+    });
+  }
+
+  return points;
+}
+
+// ---------------------------------------------------------------------------
 // Chart 2: Cost Trend
 // ---------------------------------------------------------------------------
 

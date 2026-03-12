@@ -4,11 +4,13 @@ import { useMemo } from "react";
 import type { Model, GpuOffering, AdvancedSettings } from "@/types";
 import { GapChart } from "@/components/gap-chart";
 import { CostTrendChart } from "@/components/cost-trend-chart";
+import { EfficiencyChart } from "@/components/efficiency-chart";
 import { ScalingChart } from "@/components/scaling-chart";
 import {
   useSnapshotData,
   computeGapTrend,
   computeCostTrend,
+  computeEfficiencyTrend,
   computeScalingCurve,
   computeGpuReferenceCosts,
   findBestOpenSourceModel,
@@ -57,7 +59,16 @@ export function TrendsSection({
     [gapData, models, gpus, settings],
   );
 
-  // GPU reference costs (shared by Charts 2 & 3)
+  // Chart 3: Efficiency Trend (API cost per task for best models)
+  const efficiencyData = useMemo(
+    () =>
+      gapData.length > 0 && snapshots.length > 0
+        ? computeEfficiencyTrend(gapData, snapshots, benchmarkCategory)
+        : [],
+    [gapData, snapshots, benchmarkCategory],
+  );
+
+  // GPU reference costs (shared by Charts 2 & 4)
   const referenceCosts = useMemo(
     () => computeGpuReferenceCosts(gpus),
     [gpus],
@@ -102,6 +113,13 @@ export function TrendsSection({
       <div className="grid gap-6">
         <GapChart data={gapData} />
         <CostTrendChart data={costData} referenceCosts={referenceCosts} currencySymbol={currencySymbol} />
+        <EfficiencyChart
+          data={efficiencyData}
+          categoryDisplayName={
+            benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
+              ?.benchmark_display_name ?? benchmarkCategory
+          }
+        />
         <ScalingChart
           data={scalingData}
           referenceCosts={referenceCosts}

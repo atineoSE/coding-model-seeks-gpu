@@ -92,6 +92,7 @@ export interface MatrixCell {
   benchmark: BenchmarkScore;
   sotaScore: SotaScore | null;
   percentOfSota: number;
+  totalBenchmarkCost: number | null;
   gpuSetups: GpuSetupOption[];
   costPerStreamPerMonth: number | null;
   exceedsCapacity: boolean;

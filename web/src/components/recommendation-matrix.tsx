@@ -28,6 +28,8 @@ interface RecommendationMatrixProps {
   rows: MatrixCell[][];
   persona: Persona;
   currencySymbol?: string;
+  sotaTotalBenchmarkCost?: number | null;
+  benchmarkDisplayName?: string;
 }
 
 const RANK_COLORS = [
@@ -142,9 +144,12 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
           )}
         </div>
 
-        {/* SOTA percentage */}
+        {/* SOTA percentage + API cost */}
         <div className="text-xs text-muted-foreground mt-0.5">
           {formatPercent(cell.percentOfSota)} of SOTA
+          {cell.totalBenchmarkCost !== null && (
+            <> · {formatCurrency(cell.totalBenchmarkCost)} in API costs</>
+          )}
         </div>
 
         {/* Badges */}
@@ -328,13 +333,15 @@ function getCellHeatmapClass(
   return HEATMAP_STEPS[idx];
 }
 
-function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax, useThroughput }: {
+function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax, useThroughput, sotaTotalBenchmarkCost, benchmarkDisplayName }: {
   rows: MatrixCell[][];
   persona: Persona;
   currencySymbol: string;
   colMin: number[];
   colMax: number[];
   useThroughput: boolean;
+  sotaTotalBenchmarkCost?: number | null;
+  benchmarkDisplayName?: string;
 }) {
   const sotaScore = rows[0]?.[0]?.sotaScore ?? null;
 
@@ -346,6 +353,23 @@ function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax,
             SOTA: {formatSotaModelName(sotaScore.sota_model_name)}
           </span>{" "}
           <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>
+          {sotaTotalBenchmarkCost !== null && sotaTotalBenchmarkCost !== undefined && (
+            <>
+              {" "}&mdash;{" "}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help border-b border-dotted border-muted-foreground/50">
+                    {formatCurrency(sotaTotalBenchmarkCost, currencySymbol)} in API costs
+                    {benchmarkDisplayName && <> for {benchmarkDisplayName}</>}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Cost of evaluating this model on the selected benchmark via API,
+                  as reported by the OpenHands Index.
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
         </div>
       )}
       <TabsList className="grid w-full grid-cols-4 group-data-[orientation=horizontal]/tabs:h-auto">
@@ -390,7 +414,7 @@ function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax,
   );
 }
 
-export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: RecommendationMatrixProps) {
+export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sotaTotalBenchmarkCost, benchmarkDisplayName }: RecommendationMatrixProps) {
   const isDesktop = useIsDesktop();
 
   if (rows.length === 0) {
@@ -437,6 +461,8 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: Re
           colMin={colMin}
           colMax={colMax}
           useThroughput={useThroughput}
+          sotaTotalBenchmarkCost={sotaTotalBenchmarkCost}
+          benchmarkDisplayName={benchmarkDisplayName}
         />
         {hasProjected && (
           <p className="text-xs text-muted-foreground mt-3">
@@ -462,6 +488,23 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$" }: Re
                     </span>
                     {" "}
                     <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>
+                    {sotaTotalBenchmarkCost !== null && sotaTotalBenchmarkCost !== undefined && (
+                      <>
+                        {" "}&mdash;{" "}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-muted-foreground/50">
+                              {formatCurrency(sotaTotalBenchmarkCost, currencySymbol)} in API costs
+                              {benchmarkDisplayName && <> for {benchmarkDisplayName}</>}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Cost of evaluating this model on the selected benchmark via API,
+                            as reported by the OpenHands Index.
+                          </TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
                   </div>
                 )}
               </th>
