@@ -114,27 +114,17 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 pb-8 max-w-6xl">
-        {/* Sticky header */}
-        <div className="sticky top-0 z-10 bg-background pt-6 pb-4">
+        {/* Header — scrolls away */}
+        <div className="pt-6 pb-4">
           {/* Title row */}
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Coding Model Seeks GPU
-                <span className="ml-2 text-sm font-normal text-muted-foreground align-middle">
-                  v0.1
-                </span>
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Open source coding LLMs ranked by real-world performance, sized to real hardware.
-                {data?.updatedAt && (
-                  <span className="ml-2 text-xs text-muted-foreground/60">
-                    Updated {new Date(data.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Coding Model Seeks GPU
+              <span className="ml-2 text-sm font-normal text-muted-foreground align-middle">
+                v0.1
+              </span>
+            </h1>
+            <div className="flex items-center gap-2 shrink-0">
               <AdvancedSettingsDialog
                 settings={settings}
                 onSettingsChange={setSettings}
@@ -151,9 +141,19 @@ export default function Home() {
               <ThemeToggle />
             </div>
           </div>
+          <p className="text-muted-foreground">
+            Open source coding LLMs ranked by real-world performance, sized to real hardware.
+            {data?.updatedAt && (
+              <span className="ml-2 text-xs text-muted-foreground/60">
+                Updated {new Date(data.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+              </span>
+            )}
+          </p>
+        </div>
 
-          {/* Filters row — stack on mobile */}
-          <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
+        {/* Sticky filters */}
+        <div className="sticky top-0 z-10 bg-background py-3">
+          <div className="flex flex-col sm:flex-row items-start gap-4">
             {ENABLE_LOCATION_FILTER && (
               <RegionFilter
                 locations={locations}
