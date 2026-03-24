@@ -142,6 +142,9 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
           {minVram !== null && (
             <>{model.learnable_params_b !== null ? " · " : ""}min {minVram} GB VRAM</>
           )}
+          {model.context_length !== null && (
+            <> · {Math.round(model.context_length / 1024)}K context</>
+          )}
         </div>
 
         {/* SOTA percentage + API cost */}
