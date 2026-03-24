@@ -34,7 +34,7 @@ const HOURS_PER_MONTH = 720;
 const KV_MEMORY_SAFETY_MARGIN = 0.75;
 
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
-  avgInputTokens: 4000,
+  avgInputTokens: 40_000,
   avgOutputTokens: 1500,
   minTokPerStream: 20,
   prefixCacheHitRate: 80,
