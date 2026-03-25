@@ -45,8 +45,8 @@ export function BudgetFlow({
   const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(GPU_PRESETS[0]);
   const [targetUtilization, setTargetUtilization] = useState(80);
   const [minTokPerSec, setMinTokPerSec] = useState(100);
-  const [ideStreamsPerDev, setIdeStreamsPerDev] = useState(1.5);
-  const [cliStreamsPerDev, setCliStreamsPerDev] = useState(4);
+  const [ideRequestsPerHour, setIdeRequestsPerHour] = useState(25);
+  const [cliRequestsPerHour, setCliRequestsPerHour] = useState(40);
   const [configExpanded, setConfigExpanded] = useState(false);
 
   const chartData = useMemo(
@@ -59,11 +59,11 @@ export function BudgetFlow({
         benchmarkCategory,
         targetUtilization / 100,
         minTokPerSec,
-        ideStreamsPerDev,
-        cliStreamsPerDev,
+        ideRequestsPerHour,
+        cliRequestsPerHour,
         settings,
       ),
-    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, targetUtilization, minTokPerSec, ideStreamsPerDev, cliStreamsPerDev, settings],
+    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, targetUtilization, minTokPerSec, ideRequestsPerHour, cliRequestsPerHour, settings],
   );
 
   const interconnectLabel = isNvLink(gpuConfig.interconnect) ? " NVLink" : "";
@@ -137,51 +137,51 @@ export function BudgetFlow({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* IDE-workflow streams/dev */}
+              {/* IDE-workflow requests/hour */}
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
-                  <Label>IDE-workflow streams/dev</Label>
+                  <Label>IDE requests/hour</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        IDE-workflow is representative of development activities focused around the IDE and short-horizon tasks like Cursor.
+                        Average LLM requests per hour for IDE-workflow developers (e.g. Cursor completions, inline edits).
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
                 <StepperInput
-                  value={ideStreamsPerDev}
-                  onChange={setIdeStreamsPerDev}
-                  min={0.5}
-                  max={10}
-                  step={0.5}
+                  value={ideRequestsPerHour}
+                  onChange={setIdeRequestsPerHour}
+                  min={5}
+                  max={100}
+                  step={5}
                 />
               </div>
 
-              {/* CLI-workflow streams/dev */}
+              {/* CLI-workflow requests/hour */}
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
-                  <Label>CLI-workflow streams/dev</Label>
+                  <Label>CLI requests/hour</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        CLI-workflow focuses on terminal and long-horizon tasks like Claude Code.
+                        Average LLM requests per hour for CLI-workflow developers (e.g. Claude Code agentic tasks).
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
                 <StepperInput
-                  value={cliStreamsPerDev}
-                  onChange={setCliStreamsPerDev}
-                  min={1}
-                  max={20}
-                  step={1}
+                  value={cliRequestsPerHour}
+                  onChange={setCliRequestsPerHour}
+                  min={5}
+                  max={200}
+                  step={5}
                 />
               </div>
             </div>

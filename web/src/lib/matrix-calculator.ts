@@ -441,6 +441,10 @@ export interface BudgetChartDataPoint {
   teamSizeIde: number;
   teamSizeCli: number;
   teamSizeAvg: number;
+  /** Stream occupancy per developer for IDE workflow (0–1) */
+  ideOccupancy: number;
+  /** Stream occupancy per developer for CLI workflow (0–1) */
+  cliOccupancy: number;
   percentOfSota: number;
   modelMemoryGb: number;
   fits: boolean;
@@ -456,6 +460,10 @@ export interface BudgetChartDataPoint {
  * For each ranked model (by benchmark score), compute how many concurrent
  * streams the GPU config can serve and translate that into development
  * team sizes for IDE-workflow and CLI-workflow patterns.
+ *
+ * Team sizes are derived from Little's Law: each developer occupies a stream
+ * for (avgOutputTokens / decodeTokPerS) seconds per request. The duty cycle
+ * depends on the model's decode speed — faster models free streams sooner.
  */
 export function calculateBudgetChartData(
   gpuConfig: PresetGpuConfig,
@@ -465,8 +473,8 @@ export function calculateBudgetChartData(
   benchmarkCategory: string,
   targetUtilization: number,
   minTokPerSec: number,
-  ideStreamsPerDev: number,
-  cliStreamsPerDev: number,
+  ideRequestsPerHour: number,
+  cliRequestsPerHour: number,
   settings: AdvancedSettings,
 ): BudgetChartDataPoint[] {
   // Filter benchmarks for the selected category
@@ -512,6 +520,8 @@ export function calculateBudgetChartData(
         teamSizeIde: 0,
         teamSizeCli: 0,
         teamSizeAvg: 0,
+        ideOccupancy: 0,
+        cliOccupancy: 0,
         percentOfSota,
         modelMemoryGb: modelMemoryGb ?? 0,
         fits: false,
@@ -551,8 +561,21 @@ export function calculateBudgetChartData(
       ? Math.floor(stats.maxConcurrentStreams * targetUtilization)
       : 0;
 
-    const teamSizeIde = Math.floor(concurrentStreams / ideStreamsPerDev);
-    const teamSizeCli = Math.floor(concurrentStreams / cliStreamsPerDev);
+    // Duty-cycle team size via Little's Law:
+    // Each request holds a stream for (avgOutputTokens / decodeTokS) seconds.
+    // occupancy = requestsPerHour × secondsPerRequest / 3600
+    const decodeTokS = stats.decodeThroughputTokS;
+    let teamSizeIde = 0;
+    let teamSizeCli = 0;
+    let ideOccupancy = 0;
+    let cliOccupancy = 0;
+    if (fits && decodeTokS && decodeTokS > 0) {
+      const secondsPerRequest = settings.avgOutputTokens / decodeTokS;
+      ideOccupancy = ideRequestsPerHour * secondsPerRequest / 3600;
+      cliOccupancy = cliRequestsPerHour * secondsPerRequest / 3600;
+      teamSizeIde = ideOccupancy > 0 ? Math.floor(concurrentStreams / ideOccupancy) : 0;
+      teamSizeCli = cliOccupancy > 0 ? Math.floor(concurrentStreams / cliOccupancy) : 0;
+    }
     const teamSizeAvg = Math.floor((teamSizeIde + teamSizeCli) / 2);
 
     return {
@@ -561,6 +584,8 @@ export function calculateBudgetChartData(
       teamSizeIde,
       teamSizeCli,
       teamSizeAvg,
+      ideOccupancy,
+      cliOccupancy,
       percentOfSota,
       modelMemoryGb,
       fits,

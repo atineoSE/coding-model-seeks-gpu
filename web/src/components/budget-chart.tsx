@@ -211,6 +211,12 @@ function BudgetTooltip({ active, payload }: {
                   <span className="font-medium text-foreground">{Math.round(point.decodeThroughputTokS)} tok/s</span>
                 </>
               )}
+              {point.ideOccupancy > 0 && (
+                <>
+                  <span>Duty (IDE/CLI):</span>
+                  <span className="font-medium text-foreground">{(point.ideOccupancy * 100).toFixed(1)}% / {(point.cliOccupancy * 100).toFixed(1)}%</span>
+                </>
+              )}
             </div>
           </>
         ) : (
