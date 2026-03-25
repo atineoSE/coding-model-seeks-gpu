@@ -25,13 +25,13 @@ import { computeTotalBenchmarkCost } from "./benchmark-costs";
 const HOURS_PER_MONTH = 720;
 
 /**
- * KV memory safety margin (0–1).
+ * Default GPU memory utilization (0–1), matching vLLM's --gpu-memory-utilization.
  *
- * PagedAttention block fragmentation, memory allocator overhead, and runtime
- * CUDA state mean the theoretical max KV slots are never fully usable.
- * 0.75 = use at most 75% of the theoretical KV budget.
+ * Controls what fraction of total VRAM is available for weights + KV cache.
+ * The remaining headroom covers CUDA context, PagedAttention block fragmentation,
+ * memory allocator overhead, and runtime state.
  */
-const KV_MEMORY_SAFETY_MARGIN = 0.75;
+export const DEFAULT_MEMORY_UTILIZATION = 0.90;
 
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   avgInputTokens: 40_000,
@@ -47,6 +47,9 @@ interface GpuSetupStats {
 /**
  * Calculate the maximum concurrent streams a GPU setup can handle,
  * plus raw single-stream decode throughput.
+ *
+ * The memoryUtilization parameter (0–1) mirrors vLLM's --gpu-memory-utilization:
+ * it caps the usable fraction of total VRAM for weights + KV cache.
  * Delegates to shared functions in calculations.ts for throughput and KV cache.
  */
 export function calcGpuSetupStats(
@@ -56,6 +59,7 @@ export function calcGpuSetupStats(
   totalVramGb: number,
   interconnect: string | null,
   settings: AdvancedSettings,
+  memoryUtilization: number = DEFAULT_MEMORY_UTILIZATION,
 ): GpuSetupStats {
   const precision = resolveModelPrecision(model);
 
@@ -68,16 +72,15 @@ export function calcGpuSetupStats(
   // Resolve KV cache precision — always auto (FP8 on supported GPUs)
   const kvPrecisionBytes = resolveKvPrecisionBytes("auto", gpuName);
 
+  // Apply memory utilization to total VRAM (like vLLM's --gpu-memory-utilization)
+  const usableVramGb = totalVramGb * memoryUtilization;
+
   // Max concurrent requests via shared function (physics-based VRAM budget)
-  const kvMax = calcMaxConcurrentRequests(
-    model, precision, totalVramGb,
+  const maxConcurrentStreams = calcMaxConcurrentRequests(
+    model, precision, usableVramGb,
     settings.avgInputTokens, settings.avgOutputTokens,
     kvPrecisionBytes,
   );
-  if (kvMax === 0) return { maxConcurrentStreams: 0, decodeThroughputTokS: decodeThroughput };
-
-  // Apply KV memory safety margin for fragmentation / allocator overhead
-  const maxConcurrentStreams = Math.floor(kvMax * KV_MEMORY_SAFETY_MARGIN);
 
   return {
     maxConcurrentStreams,
@@ -437,7 +440,7 @@ export function calculateBudgetMatrix(
 
 export interface BudgetChartDataPoint {
   modelName: string;
-  concurrentStreams: number;
+  maxConcurrentStreams: number;
   teamSizeIde: number;
   teamSizeCli: number;
   teamSizeAvg: number;
@@ -450,7 +453,6 @@ export interface BudgetChartDataPoint {
   fits: boolean;
   doesntFitReason: string | null;
   decodeThroughputTokS: number | null;
-  maxConcurrentStreams: number;
   benchmarkScore: number | null;
 }
 
@@ -471,7 +473,7 @@ export function calculateBudgetChartData(
   benchmarks: BenchmarkScore[],
   sotaScores: SotaScore[],
   benchmarkCategory: string,
-  targetUtilization: number,
+  memoryUtilization: number,
   minTokPerSec: number,
   ideRequestsPerHour: number,
   cliRequestsPerHour: number,
@@ -516,7 +518,7 @@ export function calculateBudgetChartData(
     if (!physicallyFits || modelMemoryGb === null) {
       return {
         modelName: model.model_name,
-        concurrentStreams: 0,
+        maxConcurrentStreams: 0,
         teamSizeIde: 0,
         teamSizeCli: 0,
         teamSizeAvg: 0,
@@ -527,12 +529,11 @@ export function calculateBudgetChartData(
         fits: false,
         doesntFitReason: "Not enough VRAM",
         decodeThroughputTokS: null,
-        maxConcurrentStreams: 0,
         benchmarkScore: benchmark.score,
       };
     }
 
-    // Compute stats
+    // Compute stats with memory utilization applied to VRAM
     const stats = calcGpuSetupStats(
       model,
       gpuConfig.gpuName,
@@ -540,6 +541,7 @@ export function calculateBudgetChartData(
       gpuConfig.totalVramGb,
       gpuConfig.interconnect,
       settings,
+      memoryUtilization,
     );
 
     const throughputTooLow =
@@ -557,10 +559,6 @@ export function calculateBudgetChartData(
       }
     }
 
-    const concurrentStreams = fits
-      ? Math.floor(stats.maxConcurrentStreams * targetUtilization)
-      : 0;
-
     // Duty-cycle team size via Little's Law:
     // Each request holds a stream for (avgOutputTokens / decodeTokS) seconds.
     // occupancy = requestsPerHour × secondsPerRequest / 3600
@@ -573,14 +571,14 @@ export function calculateBudgetChartData(
       const secondsPerRequest = settings.avgOutputTokens / decodeTokS;
       ideOccupancy = ideRequestsPerHour * secondsPerRequest / 3600;
       cliOccupancy = cliRequestsPerHour * secondsPerRequest / 3600;
-      teamSizeIde = ideOccupancy > 0 ? Math.floor(concurrentStreams / ideOccupancy) : 0;
-      teamSizeCli = cliOccupancy > 0 ? Math.floor(concurrentStreams / cliOccupancy) : 0;
+      teamSizeIde = ideOccupancy > 0 ? Math.floor(stats.maxConcurrentStreams / ideOccupancy) : 0;
+      teamSizeCli = cliOccupancy > 0 ? Math.floor(stats.maxConcurrentStreams / cliOccupancy) : 0;
     }
     const teamSizeAvg = Math.floor((teamSizeIde + teamSizeCli) / 2);
 
     return {
       modelName: model.model_name,
-      concurrentStreams,
+      maxConcurrentStreams: stats.maxConcurrentStreams,
       teamSizeIde,
       teamSizeCli,
       teamSizeAvg,
@@ -591,7 +589,6 @@ export function calculateBudgetChartData(
       fits,
       doesntFitReason,
       decodeThroughputTokS: stats.decodeThroughputTokS,
-      maxConcurrentStreams: stats.maxConcurrentStreams,
       benchmarkScore: benchmark.score,
     };
   });

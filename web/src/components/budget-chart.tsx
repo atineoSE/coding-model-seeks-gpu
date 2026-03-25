@@ -202,7 +202,7 @@ function BudgetTooltip({ active, payload }: {
               <span>% of SOTA:</span>
               <span className="font-medium text-foreground">{point.percentOfSota.toFixed(1)}%</span>
               <span>Streams:</span>
-              <span className="font-medium text-foreground">{point.concurrentStreams} / {point.maxConcurrentStreams}</span>
+              <span className="font-medium text-foreground">{point.maxConcurrentStreams}</span>
               <span>Memory:</span>
               <span className="font-medium text-foreground">{point.modelMemoryGb.toFixed(0)} GB</span>
               {point.decodeThroughputTokS !== null && (

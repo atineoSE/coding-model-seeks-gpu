@@ -390,9 +390,15 @@ export function calcDecodeThroughput(
 /**
  * Calculate maximum concurrent requests that fit in VRAM.
  *
- * Uses leftover VRAM after weights (with overhead) for KV cache budget:
- *   kvBudget = totalVram - weightMem × WEIGHT_OVERHEAD_FACTOR
+ * Uses leftover VRAM after raw weights for KV cache budget:
+ *   kvBudget = totalVram - weightMem
  *   maxConcurrent = floor(kvBudget / kvCachePerRequest)
+ *
+ * The caller is responsible for applying memory utilization to totalVramGb
+ * (e.g. vLLM's --gpu-memory-utilization) before calling this function.
+ * WEIGHT_OVERHEAD_FACTOR is NOT applied here — it is used separately for
+ * the "does the model physically fit?" check, while memoryUtilization
+ * handles the runtime overhead reserve.
  *
  * Each concurrent stream needs its full KV allocation — prefix caching (APC)
  * is a latency optimization (skips prefill compute) but does not reduce the
@@ -414,7 +420,7 @@ export function calcMaxConcurrentRequests(
   const kvCachePerRequest = calcKvCachePerRequest(model, inputTokens, outputTokens, kvPrecisionBytes);
   if (kvCachePerRequest === 0) return 0;
 
-  const kvBudgetGb = totalVramGb - modelMemoryGb * WEIGHT_OVERHEAD_FACTOR;
+  const kvBudgetGb = totalVramGb - modelMemoryGb;
   if (kvBudgetGb <= 0) return 0;
 
   return Math.max(0, Math.floor(kvBudgetGb / kvCachePerRequest));

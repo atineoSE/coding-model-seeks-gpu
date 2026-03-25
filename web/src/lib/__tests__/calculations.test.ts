@@ -355,30 +355,28 @@ describe("calcKvCachePerRequest", () => {
 // ---------------------------------------------------------------------------
 
 describe("calcMaxConcurrentRequests", () => {
-  it("uses leftover VRAM after weights × overhead", () => {
+  it("uses leftover VRAM after raw weights for KV budget", () => {
     // GLM-4.7 at fp16: 352.8 × 2 = 705.6 GB weight
-    // On 12 × H100 (960 GB total): kvBudget = 960 - 705.6 × 1.15 = 960 - 811.44 = 148.56 GB
+    // On 12 × H100 (960 GB total): kvBudget = 960 - 705.6 = 254.4 GB
     // KV per request (1000+500 tokens): 0.5264 GB
-    // Max concurrent: floor(148.56 / 0.5264) = 282
+    // Max concurrent: floor(254.4 / 0.5264) = 483
     const result = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500);
-    expect(result).toBe(282);
+    expect(result).toBe(483);
   });
 
   it("returns 0 when weights exceed VRAM", () => {
-    // GLM-4.7 at fp16: 705.6 GB, with overhead 811.44 GB > 640 GB
+    // GLM-4.7 at fp16: 705.6 GB > 640 GB
     const result = calcMaxConcurrentRequests(GLM_47, "fp16", 640, 1000, 500);
     expect(result).toBe(0);
   });
 
   it("MLA models fit more concurrent requests than GQA", () => {
     // Both on 960 GB VRAM, same token counts
-    // DeepSeek FP16: 1342.2 GB weight — doesn't fit at fp16
-    // Use int8: 671.1 GB weight, overhead = 771.77 GB
-    // kvBudget = 960 - 771.77 = 188.23 GB, kvPerReq = 0.0982 GB
-    // Max = floor(188.23 / 0.0982) = 1917
+    // DeepSeek int8: 671.1 GB weight
+    // kvBudget = 960 - 671.1 = 288.9 GB, kvPerReq = 0.0982 GB
     const dsResult = calcMaxConcurrentRequests(DEEPSEEK_V32, "int8", 960, 1000, 500);
 
-    // GLM-4.7 at fp16: 282 (from test above)
+    // GLM-4.7 at fp16: 483 (from test above)
     const glmResult = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500);
 
     expect(dsResult).toBeGreaterThan(glmResult);

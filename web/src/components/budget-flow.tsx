@@ -43,10 +43,10 @@ export function BudgetFlow({
 }: BudgetFlowProps) {
   // Internal state — no longer lifted to page.tsx
   const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(GPU_PRESETS[0]);
-  const [targetUtilization, setTargetUtilization] = useState(80);
+  const [memoryUtilization, setMemoryUtilization] = useState(90);
   const [minTokPerSec, setMinTokPerSec] = useState(100);
-  const [ideRequestsPerHour, setIdeRequestsPerHour] = useState(25);
-  const [cliRequestsPerHour, setCliRequestsPerHour] = useState(40);
+  const [ideRequestsPerHour, setIdeRequestsPerHour] = useState(50);
+  const [cliRequestsPerHour, setCliRequestsPerHour] = useState(200);
   const [configExpanded, setConfigExpanded] = useState(false);
 
   const chartData = useMemo(
@@ -57,13 +57,13 @@ export function BudgetFlow({
         benchmarks,
         sotaScores,
         benchmarkCategory,
-        targetUtilization / 100,
+        memoryUtilization / 100,
         minTokPerSec,
         ideRequestsPerHour,
         cliRequestsPerHour,
         settings,
       ),
-    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, targetUtilization, minTokPerSec, ideRequestsPerHour, cliRequestsPerHour, settings],
+    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, memoryUtilization, minTokPerSec, ideRequestsPerHour, cliRequestsPerHour, settings],
   );
 
   const interconnectLabel = isNvLink(gpuConfig.interconnect) ? " NVLink" : "";
@@ -80,7 +80,7 @@ export function BudgetFlow({
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-medium truncate">{gpuConfig.label}{interconnectLabel}</span>
             <span className="text-muted-foreground shrink-0">&middot;</span>
-            <span className="text-muted-foreground shrink-0">utilization: {targetUtilization}%</span>
+            <span className="text-muted-foreground shrink-0">memory utilization: {memoryUtilization}%</span>
             <span className="text-muted-foreground shrink-0">&middot;</span>
             <span className="text-muted-foreground shrink-0">min throughput: {minTokPerSec} tok/s</span>
           </div>
@@ -105,17 +105,17 @@ export function BudgetFlow({
             <GpuConfigSelector value={gpuConfig} onChange={setGpuConfig} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* Utilization slider */}
+              {/* Memory utilization slider */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Target Utilization</Label>
-                  <span className="text-sm font-medium tabular-nums">{targetUtilization}%</span>
+                  <Label>GPU Memory Utilization</Label>
+                  <span className="text-sm font-medium tabular-nums">{memoryUtilization}%</span>
                 </div>
                 <Slider
-                  value={[targetUtilization]}
-                  onValueChange={([v]) => setTargetUtilization(v)}
-                  min={50}
-                  max={90}
+                  value={[memoryUtilization]}
+                  onValueChange={([v]) => setMemoryUtilization(v)}
+                  min={70}
+                  max={95}
                   step={5}
                 />
               </div>
@@ -155,9 +155,9 @@ export function BudgetFlow({
                 <StepperInput
                   value={ideRequestsPerHour}
                   onChange={setIdeRequestsPerHour}
-                  min={5}
-                  max={100}
-                  step={5}
+                  min={10}
+                  max={200}
+                  step={10}
                 />
               </div>
 
@@ -179,9 +179,9 @@ export function BudgetFlow({
                 <StepperInput
                   value={cliRequestsPerHour}
                   onChange={setCliRequestsPerHour}
-                  min={5}
-                  max={200}
-                  step={5}
+                  min={50}
+                  max={500}
+                  step={50}
                 />
               </div>
             </div>
@@ -194,7 +194,7 @@ export function BudgetFlow({
         <CardHeader>
           <CardTitle>Development Team Capacity</CardTitle>
           <CardDescription>
-            Number of developers each model can serve on {gpuConfig.label}{interconnectLabel}, at {targetUtilization}% utilization.
+            Number of developers each model can serve on {gpuConfig.label}{interconnectLabel}, at {memoryUtilization}% GPU memory utilization.
             Bar shows average capacity; whiskers indicate CLI (lower) and IDE (upper) workflow range.
           </CardDescription>
         </CardHeader>
