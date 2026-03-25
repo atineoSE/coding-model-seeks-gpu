@@ -316,7 +316,6 @@ describe("computeCostTrend", () => {
     avgInputTokens: 40_000,
     avgOutputTokens: 1500,
     minTokPerStream: 20,
-    prefixCacheHitRate: 80,
   };
 
   it("produces matching cost points from gap trend points", () => {

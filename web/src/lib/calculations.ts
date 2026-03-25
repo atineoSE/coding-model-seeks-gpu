@@ -392,12 +392,13 @@ export function calcDecodeThroughput(
  *
  * Uses leftover VRAM after weights (with overhead) for KV cache budget:
  *   kvBudget = totalVram - weightMem × WEIGHT_OVERHEAD_FACTOR
- *   effectiveKvPerRequest = kvCachePerRequest × avgCacheUtilization
- *   maxConcurrent = floor(kvBudget / effectiveKvPerRequest)
+ *   maxConcurrent = floor(kvBudget / kvCachePerRequest)
+ *
+ * Each concurrent stream needs its full KV allocation — prefix caching (APC)
+ * is a latency optimization (skips prefill compute) but does not reduce the
+ * per-stream VRAM footprint when streams have independent contexts.
  *
  * @param kvPrecisionBytes — 1 for FP8, 2 for FP16 (default: 2)
- * @param avgCacheUtilization — fraction of KV actually used per request after
- *   prefix caching (0.1–1.0, default: 1.0 = no caching)
  */
 export function calcMaxConcurrentRequests(
   model: Model,
@@ -406,7 +407,6 @@ export function calcMaxConcurrentRequests(
   inputTokens: number,
   outputTokens: number,
   kvPrecisionBytes: 1 | 2 = 2,
-  avgCacheUtilization: number = 1.0,
 ): number {
   const modelMemoryGb = getModelMemory(model, precision);
   if (modelMemoryGb === null) return 0;
@@ -414,12 +414,9 @@ export function calcMaxConcurrentRequests(
   const kvCachePerRequest = calcKvCachePerRequest(model, inputTokens, outputTokens, kvPrecisionBytes);
   if (kvCachePerRequest === 0) return 0;
 
-  const effectiveKvPerRequest = kvCachePerRequest * avgCacheUtilization;
-  if (effectiveKvPerRequest === 0) return 0;
-
   const kvBudgetGb = totalVramGb - modelMemoryGb * WEIGHT_OVERHEAD_FACTOR;
   if (kvBudgetGb <= 0) return 0;
 
-  return Math.max(0, Math.floor(kvBudgetGb / effectiveKvPerRequest));
+  return Math.max(0, Math.floor(kvBudgetGb / kvCachePerRequest));
 }
 

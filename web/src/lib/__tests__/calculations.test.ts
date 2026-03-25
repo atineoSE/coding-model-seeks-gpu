@@ -401,20 +401,6 @@ describe("calcMaxConcurrentRequests", () => {
     expect(fp8).toBeLessThan(fp16 * 2.1);
   });
 
-  it("prefix caching (30% hit rate → 0.70 utilization) increases concurrent requests", () => {
-    const baseline = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500, 2, 1.0);
-    const withCaching = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500, 2, 0.70);
-    // 30% prefix cache hit rate → ~43% more concurrent requests
-    expect(withCaching).toBeGreaterThan(baseline);
-    expect(withCaching).toBeCloseTo(Math.floor(148.56 / (0.5264 * 0.70)), 0);
-  });
-
-  it("FP8 KV + prefix caching stack multiplicatively", () => {
-    const baseline = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500, 2, 1.0);
-    const both = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500, 1, 0.70);
-    // FP8 (2x) × prefix caching (1/0.7 ≈ 1.43x) ≈ 2.86x
-    expect(both).toBeGreaterThan(baseline * 2.5);
-  });
 });
 
 // ---------------------------------------------------------------------------

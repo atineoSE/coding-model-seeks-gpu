@@ -115,7 +115,6 @@ export interface AdvancedSettings {
   avgInputTokens: number;
   avgOutputTokens: number;
   minTokPerStream: number;
-  prefixCacheHitRate: number;
 }
 
 export interface CostResult {

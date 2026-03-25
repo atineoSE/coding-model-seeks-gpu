@@ -73,14 +73,6 @@ export function AdvancedSettingsDialog({
       step: "5",
       min: "0",
     },
-    {
-      key: "prefixCacheHitRate",
-      label: "Prefix cache hit rate (%)",
-      description: "Percentage of each request already cached from previous requests",
-      step: "5",
-      min: "0",
-      max: "90",
-    },
   ];
 
   const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";

@@ -37,7 +37,6 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   avgInputTokens: 40_000,
   avgOutputTokens: 1500,
   minTokPerStream: 20,
-  prefixCacheHitRate: 80,
 };
 
 interface GpuSetupStats {
@@ -69,14 +68,11 @@ export function calcGpuSetupStats(
   // Resolve KV cache precision — always auto (FP8 on supported GPUs)
   const kvPrecisionBytes = resolveKvPrecisionBytes("auto", gpuName);
 
-  // Convert prefix cache hit rate (%) to cache utilization (80% → 0.20)
-  const avgCacheUtilization = 1 - settings.prefixCacheHitRate / 100;
-
   // Max concurrent requests via shared function (physics-based VRAM budget)
   const kvMax = calcMaxConcurrentRequests(
     model, precision, totalVramGb,
     settings.avgInputTokens, settings.avgOutputTokens,
-    kvPrecisionBytes, avgCacheUtilization,
+    kvPrecisionBytes,
   );
   if (kvMax === 0) return { maxConcurrentStreams: 0, decodeThroughputTokS: decodeThroughput };
 
