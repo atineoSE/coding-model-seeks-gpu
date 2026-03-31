@@ -33,6 +33,7 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "Nemotron-3-Nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
     "Qwen3-Coder-Next": "Qwen/Qwen3-Coder-Next",
     "Qwen3.5-Flash": "Qwen/Qwen3.5-35B-A3B",
+    "Nemotron-3-Super": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
 }
 
 # Explicit license info per HF repo ID.
