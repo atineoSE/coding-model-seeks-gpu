@@ -73,7 +73,7 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
         "https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct/blob/main/LICENSE",
     ),
     "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8": (
-        "NVIDIA Open Model License",
+        "NVIDIA Nemotron Open Model License",
         "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
     ),
     "Qwen/Qwen3-Coder-Next": (
@@ -83,6 +83,10 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
     "Qwen/Qwen3.5-35B-A3B": (
         "Apache 2.0",
         "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/blob/main/LICENSE",
+    ),
+    "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4": (
+        "NVIDIA Nemotron Open Model License",
+        "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
     ),
 }
 
@@ -237,47 +241,91 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
 def fetch_all_models(
     model_map: dict[str, str] | None = None,
     delay: float = 2.0,
+    max_retries: int = 3,
+    retry_delay: float = 5.0,
 ) -> list[ModelSpec]:
-    """Fetch all models from the mapping.
+    """Fetch all models from the mapping, retrying only failed models.
 
     Args:
         model_map: Dict of model_name -> hf_id. Uses default mapping if None.
         delay: Seconds to wait between requests to avoid rate limiting.
+        max_retries: Maximum number of retry attempts for failed models.
+        retry_delay: Seconds to wait before retrying failed models.
 
     Returns:
-        List of successfully enriched ModelSpec objects.
+        Tuple of (successfully enriched ModelSpec objects, skipped models).
     """
     if model_map is None:
         model_map = MODEL_NAME_TO_HF_ID
 
     results = []
     skipped: list[UnsupportedArchitecture] = []
-    failed = []
+    pending = dict(model_map)
     total = len(model_map)
 
-    for i, (name, hf_id) in enumerate(model_map.items(), 1):
-        logger.info("Fetching model %d/%d: %s (%s)", i, total, name, hf_id)
+    for attempt in range(1, max_retries + 1):
+        failed = {}
+        for i, (name, hf_id) in enumerate(pending.items(), 1):
+            if attempt == 1:
+                logger.info("Fetching model %d/%d: %s (%s)", i, total, name, hf_id)
+            else:
+                logger.info(
+                    "Retrying model %d/%d (attempt %d/%d): %s (%s)",
+                    i,
+                    len(pending),
+                    attempt,
+                    max_retries,
+                    name,
+                    hf_id,
+                )
 
-        try:
-            spec = fetch_model(name, hf_id)
-            results.append(spec)
-            logger.info(
-                "  -> %s: learnable=%.1fB (active=%.1fB), %s, %s",
-                spec.model_name,
-                spec.learnable_params_b or 0,
-                spec.active_params_b or 0,
-                spec.architecture,
-                spec.precision or "unknown",
+            try:
+                spec = fetch_model(name, hf_id)
+                results.append(spec)
+                logger.info(
+                    "  -> %s: learnable=%.1fB (active=%.1fB), %s, %s",
+                    spec.model_name,
+                    spec.learnable_params_b or 0,
+                    spec.active_params_b or 0,
+                    spec.architecture,
+                    spec.precision or "unknown",
+                )
+            except UnsupportedArchitecture as e:
+                skipped.append(e)
+                logger.warning("  -> Skipped %s: %s", name, e)
+            except Exception as e:
+                failed[name] = hf_id
+                logger.warning("  -> Failed to enrich %s: %s", name, e)
+
+            if i < len(pending):
+                time.sleep(delay)
+
+        if not failed:
+            break
+
+        if attempt < max_retries:
+            logger.warning(
+                "Attempt %d/%d: %d model(s) failed: %s. Retrying in %ds...",
+                attempt,
+                max_retries,
+                len(failed),
+                ", ".join(failed),
+                int(retry_delay),
             )
-        except UnsupportedArchitecture as e:
-            skipped.append(e)
-            logger.warning("  -> Skipped %s: %s", name, e)
-        except Exception as e:
-            failed.append(name)
-            logger.warning("  -> Failed to enrich %s: %s", name, e)
-
-        if i < total:
-            time.sleep(delay)
+            time.sleep(retry_delay)
+            pending = failed
+        else:
+            logger.info("Successfully fetched %d/%d models", len(results), total)
+            if skipped:
+                logger.warning(
+                    "Skipped %d model(s) with unsupported architecture: %s",
+                    len(skipped),
+                    ", ".join(e.model_name for e in skipped),
+                )
+            raise RuntimeError(
+                f"Failed to enrich {len(failed)}/{total} models after {max_retries} "
+                f"attempts: {', '.join(failed)}"
+            )
 
     logger.info("Successfully fetched %d/%d models", len(results), total)
     if skipped:
@@ -286,9 +334,6 @@ def fetch_all_models(
             len(skipped),
             ", ".join(e.model_name for e in skipped),
         )
-
-    if failed:
-        raise RuntimeError(f"Failed to enrich {len(failed)}/{total} models: {', '.join(failed)}")
 
     return results, skipped
 

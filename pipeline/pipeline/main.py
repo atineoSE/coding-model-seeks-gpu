@@ -4,7 +4,6 @@ import argparse
 import json
 import logging
 import sys
-import time
 import traceback
 
 from pipeline.config import SNAPSHOTS_DIR, SUBMODULE_PATH
@@ -24,9 +23,6 @@ from pipeline.sources.gpuhunt_source import fetch_gpu_prices
 from pipeline.sources.huggingface import MODEL_NAME_TO_HF_ID, fetch_all_models
 
 logger = logging.getLogger(__name__)
-
-MAX_RETRIES = 3
-RETRY_DELAY = 5  # seconds
 
 CLOSED_SOURCE_PREFIXES = {"claude-", "gpt-", "gemini-", "GPT-", "Gemini-"}
 
@@ -148,71 +144,56 @@ def main():
         datefmt="%H:%M:%S",
     )
 
-    last_error = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            updates = []
+    try:
+        updates = []
 
-            offerings = []
-            source_metadata = None
-            gpu_specs = None
-            if args.step in ("gpu", "all"):
-                offerings, source_metadata = run_gpu_pipeline()
-                gpu_specs = run_gpu_specs_pipeline()
+        offerings = []
+        source_metadata = None
+        gpu_specs = None
+        if args.step in ("gpu", "all"):
+            offerings, source_metadata = run_gpu_pipeline()
+            gpu_specs = run_gpu_specs_pipeline()
 
-            if args.step in ("snapshots", "all"):
-                new_snapshots = run_snapshot_pipeline(force=args.force_snapshots)
-                if new_snapshots > 0:
-                    updates.append(f"New benchmark snapshots: {new_snapshots}")
+        if args.step in ("snapshots", "all"):
+            new_snapshots = run_snapshot_pipeline(force=args.force_snapshots)
+            if new_snapshots > 0:
+                updates.append(f"New benchmark snapshots: {new_snapshots}")
 
-            # Check for missing mappings between snapshot and model steps
-            if args.step in ("all",):
-                check_missing_mappings()
+        # Check for missing mappings between snapshot and model steps
+        if args.step in ("all",):
+            check_missing_mappings()
 
-            specs = []
-            if args.step in ("models", "all"):
-                specs, skipped = run_model_pipeline()
-                if specs:
-                    updates.append(f"Models enriched: {len(specs)}")
-                if skipped and is_enabled():
-                    for err in skipped:
-                        notify_unsupported_architecture(
-                            err.model_name, err.model_type, err.hf_id
-                        )
+        specs = []
+        if args.step in ("models", "all"):
+            specs, skipped = run_model_pipeline()
+            if specs:
+                updates.append(f"Models enriched: {len(specs)}")
+            if skipped and is_enabled():
+                for err in skipped:
+                    notify_unsupported_architecture(
+                        err.model_name, err.model_type, err.hf_id
+                    )
 
-            if args.step in ("export", "all"):
-                run_export(offerings, specs, source_metadata=source_metadata, gpu_specs=gpu_specs)
+        if args.step in ("export", "all"):
+            run_export(offerings, specs, source_metadata=source_metadata, gpu_specs=gpu_specs)
 
-            # Success — send data update notification if anything changed
-            if updates and is_enabled():
-                notify_data_updated(updates)
+        # Success — send data update notification if anything changed
+        if updates and is_enabled():
+            notify_data_updated(updates)
 
-            logger.info("Pipeline complete!")
-            return  # Success, exit retry loop
+        logger.info("Pipeline complete!")
 
-        except FormatBreakingChange as e:
-            # Format breaks won't fix themselves — skip retries, alert immediately
-            logger.exception("Breaking format change detected: %s", e)
-            if is_enabled():
-                notify_breaking_format_change(e.source, e.details)
-            sys.exit(1)
+    except FormatBreakingChange as e:
+        logger.exception("Breaking format change detected: %s", e)
+        if is_enabled():
+            notify_breaking_format_change(e.source, e.details)
+        sys.exit(1)
 
-        except Exception as e:
-            last_error = e
-            if attempt < MAX_RETRIES:
-                logger.warning(
-                    "Attempt %d/%d failed: %s. Retrying in %ds...",
-                    attempt,
-                    MAX_RETRIES,
-                    e,
-                    RETRY_DELAY,
-                )
-                time.sleep(RETRY_DELAY)
-            else:
-                logger.exception("Pipeline failed after %d attempts", MAX_RETRIES)
-                if is_enabled():
-                    notify_failure(last_error, traceback.format_exc())
-                sys.exit(1)
+    except Exception as e:
+        logger.exception("Pipeline failed")
+        if is_enabled():
+            notify_failure(e, traceback.format_exc())
+        sys.exit(1)
 
 
 if __name__ == "__main__":
