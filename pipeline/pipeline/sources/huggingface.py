@@ -73,7 +73,7 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
         "https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct/blob/main/LICENSE",
     ),
     "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8": (
-        "NVIDIA Nemotron Open Model License",
+        "Nemotron License",
         "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
     ),
     "Qwen/Qwen3-Coder-Next": (
@@ -85,7 +85,7 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
         "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/blob/main/LICENSE",
     ),
     "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4": (
-        "NVIDIA Nemotron Open Model License",
+        "Nemotron License",
         "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
     ),
 }

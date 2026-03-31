@@ -148,7 +148,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
-    "license_name": "NVIDIA Open Model License",
+    "license_name": "Nemotron License",
     "license_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"
   },
   {
