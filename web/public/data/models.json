@@ -152,6 +152,25 @@
     "license_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"
   },
   {
+    "model_name": "Nemotron-3-Super",
+    "learnable_params_b": 458.3,
+    "active_params_b": 26.7,
+    "architecture": "MoE",
+    "context_length": 262144,
+    "precision": null,
+    "attention_type": "GQA",
+    "num_hidden_layers": 88,
+    "num_kv_layers": 8,
+    "num_kv_heads": 2,
+    "head_dim": 128,
+    "routed_expert_params_b": 451.0,
+    "kv_lora_rank": null,
+    "qk_rope_head_dim": null,
+    "hf_model_id": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    "license_name": "Nemotron License",
+    "license_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"
+  },
+  {
     "model_name": "Qwen3-Coder-480B",
     "learnable_params_b": 480.2,
     "active_params_b": 35.5,
