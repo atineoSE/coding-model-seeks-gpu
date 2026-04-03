@@ -402,9 +402,9 @@
     "total_vram_gb": 96.0,
     "price_per_hour": 0.98,
     "currency": "USD",
-    "provider": "runpod",
-    "instance_name": "NVIDIA RTX A6000",
-    "location": "EU-SE-1",
+    "provider": "verda",
+    "instance_name": "2A6000.20V",
+    "location": "FIN-01",
     "interconnect": null
   },
   {
