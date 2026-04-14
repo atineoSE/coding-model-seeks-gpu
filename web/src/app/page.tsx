@@ -28,29 +28,6 @@ export default function Home() {
     [data],
   );
 
-  // Derive available categories from benchmark data, with per-category model counts
-  const categories: BenchmarkCategory[] = useMemo(() => {
-    if (benchmarkGroups.length === 0) return [];
-    const group = benchmarkGroups[0];
-    if (!group) return [];
-
-    const modelCountByCategory = new Map<string, Set<string>>();
-    for (const b of data?.benchmarks ?? []) {
-      if (!modelCountByCategory.has(b.benchmark_name)) {
-        modelCountByCategory.set(b.benchmark_name, new Set());
-      }
-      modelCountByCategory.get(b.benchmark_name)!.add(b.model_name);
-    }
-
-    return group.types.map((t) => {
-      const count = modelCountByCategory.get(t.name)?.size ?? 0;
-      return {
-        name: t.name,
-        displayName: `${t.displayName} (${count})`,
-      };
-    });
-  }, [benchmarkGroups, data?.benchmarks]);
-
   const [persona, setPersona] = useState<Persona>("performance");
   const [benchmarkCategory, setBenchmarkCategory] = useState("");
   const [settings, setSettings] = useState<AdvancedSettings>(DEFAULT_ADVANCED_SETTINGS);
@@ -71,6 +48,32 @@ export default function Home() {
     if (licenseFilter === "All") return data.models;
     return data.models.filter((m) => m.license_name === licenseFilter);
   }, [data, licenseFilter]);
+
+  // Derive available categories from benchmark data, with per-category model counts
+  // Only count models that appear in the filtered list (respects license filter)
+  const categories: BenchmarkCategory[] = useMemo(() => {
+    if (benchmarkGroups.length === 0) return [];
+    const group = benchmarkGroups[0];
+    if (!group) return [];
+
+    const visibleModelNames = new Set(filteredModels.map((m) => m.model_name));
+    const modelCountByCategory = new Map<string, Set<string>>();
+    for (const b of data?.benchmarks ?? []) {
+      if (!visibleModelNames.has(b.model_name)) continue;
+      if (!modelCountByCategory.has(b.benchmark_name)) {
+        modelCountByCategory.set(b.benchmark_name, new Set());
+      }
+      modelCountByCategory.get(b.benchmark_name)!.add(b.model_name);
+    }
+
+    return group.types.map((t) => {
+      const count = modelCountByCategory.get(t.name)?.size ?? 0;
+      return {
+        name: t.name,
+        displayName: `${t.displayName} (${count})`,
+      };
+    });
+  }, [benchmarkGroups, data?.benchmarks, filteredModels]);
 
   const locations = useMemo(() => {
     if (!data) return [];
