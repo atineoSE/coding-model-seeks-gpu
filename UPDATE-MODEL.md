@@ -14,27 +14,26 @@ snapshots that pre-date the field.
 
 ### 1. Display name mapping (if the index name differs)
 
-**File:** `pipeline/pipeline/snapshots/alias_map.py`
+**File:** `pipeline/pipeline/snapshots/reader.py` — `METADATA_NAME_OVERRIDES`
 
-The OpenHands index directory name (e.g. `Minimax-2.7`) may not match the
-user-visible name (e.g. `MiniMax-M2.7`). Add a date-gated entry to `_RENAMES`,
-using the date the model first appeared in the index as the effective date:
+The `"model"` field in `metadata.json` may not match the canonical name we want
+to show users (e.g. `"Minimax-2.7"` submitted under the `MiniMax-M2.7`
+directory). Add an entry mapping the raw metadata value to the canonical name:
 
 ```python
-_RENAMES: list[tuple[str, str, date]] = [
+METADATA_NAME_OVERRIDES: dict[str, str] = {
     ...
-    # YYYY-MM-DD: Minimax-2.7 display name normalised to MiniMax-M2.7
-    ("Minimax-2.7", "MiniMax-M2.7", date(2026, 3, 30)),
-]
+    "Minimax-2.7": "MiniMax-M2.7",
+}
 ```
 
-Since the model didn't exist before that date, the rename effectively applies
-to all snapshots that contain it. Omit this step when the index name is already
-the canonical name you want to show users.
+Omit this step when the `"model"` field already matches the canonical name.
 
-If the model was previously published under a different name and then renamed
-inside the index itself, add a separate entry reflecting each rename in sequence
-— the resolver chains them automatically.
+**`alias_map.py` is different:** `_RENAMES` in `alias_map.py` is only for
+models whose results *directory* was renamed in the upstream git history (e.g.
+`jade-spark-2862` → `Minimax-2.5` → `MiniMax-M2.5`). Each entry there should
+correspond to an actual git commit that renamed the directory. Do not use it to
+correct a metadata field mismatch.
 
 ### 2. HuggingFace mapping
 

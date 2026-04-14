@@ -34,7 +34,6 @@ _RENAMES: list[tuple[str, str, date]] = [
     ("jade-spark-2862", "Minimax-2.5", date(2026, 2, 11)),
     # 2026-02-12: Minimax-2.5 → MiniMax-M2.5 (commit 86193e9)
     ("Minimax-2.5", "MiniMax-M2.5", date(2026, 2, 12)),
-    ("Minimax-2.7", "MiniMax-M2.7", date(2026, 3, 30)),
 ]
 
 

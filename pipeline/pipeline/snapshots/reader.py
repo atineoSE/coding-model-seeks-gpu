@@ -10,6 +10,14 @@ from pipeline.snapshots.git_repo import list_model_dirs, read_file_at_commit
 
 logger = logging.getLogger(__name__)
 
+# Maps the model name as written in metadata.json → the canonical display name.
+# Use when the upstream submission's "model" field doesn't match the name we
+# want to show users, and the discrepancy isn't a git-history directory rename
+# (those belong in alias_map.py).
+METADATA_NAME_OVERRIDES: dict[str, str] = {
+    "Minimax-2.7": "MiniMax-M2.7",
+}
+
 
 @dataclass
 class ScoreEntry:
@@ -54,6 +62,8 @@ def read_model_data(
     if not model_name:
         logger.warning("No model name in metadata for %s at %s", dir_name, commit[:8])
         return None
+
+    model_name = METADATA_NAME_OVERRIDES.get(model_name, model_name)
 
     openness = meta.get("openness")
 
