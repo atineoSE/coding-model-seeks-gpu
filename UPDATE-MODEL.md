@@ -45,7 +45,7 @@ Add the model's canonical name and its HuggingFace repo ID:
 ```python
 MODEL_NAME_TO_HF_ID: dict[str, str] = {
     ...
-    "MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.7",
+    "MiniMax-M2.5": "MiniMaxAI/MiniMax-M2.5",
 }
 ```
 

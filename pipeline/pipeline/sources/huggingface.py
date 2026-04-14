@@ -41,12 +41,16 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
 # Maps model_name → HF repo whose config.json to use for architecture params.
 # The model will appear in models.json with hf_model_id=None and model_url set
 # from MODEL_ALT_URL (if provided).
-MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {}
+MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {
+    "MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.5",
+}
 
 # Alternative link URL for models that have no HF page.
 # Maps model_name → URL (GitHub release page, blog post, etc.)
 # Only used when the model is in MODEL_ARCH_SOURCE_HF_ID.
-MODEL_ALT_URL: dict[str, str] = {}
+MODEL_ALT_URL: dict[str, str] = {
+    "MiniMax-M2.7": "https://github.com/MiniMax-AI/MiniMax-M2.7",
+}
 
 # Explicit license info per model name.
 # Maintained manually — the pipeline fails if a model is missing from here.
