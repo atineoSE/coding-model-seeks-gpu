@@ -3,9 +3,10 @@
 This document covers what to change when a new model appears in the OpenHands index,
 and what additional work is needed when the model introduces a new architecture.
 
-The pipeline will notify you about unmapped open-weights models automatically via
-`check_missing_mappings()` in `main.py`. Closed-source models (`openness:
-"closed_api_available"` or `"closed"` in the index metadata) are silently skipped.
+The pipeline can detect unmapped open-weights models via `check_missing_mappings()`
+in `main.py`. Note: this check relies on the `openness` field in benchmarks.json,
+which was added after earlier snapshots were generated — it may miss models in
+snapshots that pre-date the field.
 
 ---
 
@@ -16,20 +17,24 @@ The pipeline will notify you about unmapped open-weights models automatically vi
 **File:** `pipeline/pipeline/snapshots/alias_map.py`
 
 The OpenHands index directory name (e.g. `Minimax-2.7`) may not match the
-user-visible name (e.g. `MiniMax-M2.7`). Add an entry to `DISPLAY_NAME_MAP`:
+user-visible name (e.g. `MiniMax-M2.7`). Add a date-gated entry to `_RENAMES`,
+using the date the model first appeared in the index as the effective date:
 
 ```python
-DISPLAY_NAME_MAP: dict[str, str] = {
-    "Minimax-2.7": "MiniMax-M2.7",
-}
+_RENAMES: list[tuple[str, str, date]] = [
+    ...
+    # YYYY-MM-DD: Minimax-2.7 display name normalised to MiniMax-M2.7
+    ("Minimax-2.7", "MiniMax-M2.7", date(2026, 3, 30)),
+]
 ```
 
-This mapping is unconditional (no date gate). Omit it when the index name is
-already the canonical name you want to show users.
+Since the model didn't exist before that date, the rename effectively applies
+to all snapshots that contain it. Omit this step when the index name is already
+the canonical name you want to show users.
 
 If the model was previously published under a different name and then renamed
-inside the index itself, add a date-gated entry to `_RENAMES` instead (or in
-addition). See the existing entries for examples.
+inside the index itself, add a separate entry reflecting each rename in sequence
+— the resolver chains them automatically.
 
 ### 2. HuggingFace mapping
 
@@ -47,27 +52,11 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
 Only open-source/open-weight models belong here. Closed-source models (GPT,
 Claude, Gemini, etc.) are never added.
 
-**If the model has no HuggingFace page** (e.g. an incremental release that shares
-architecture with a prior version), add it to `MODEL_ARCH_SOURCE_HF_ID` instead,
-pointing to the compatible model whose config to use for calculations:
-
-```python
-MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {
-    "MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.5",  # borrow M2.5's config
-}
-```
-
-And provide an alternative URL for users to follow (GitHub, blog post, etc.)
-via `MODEL_ALT_URL`:
-
-```python
-MODEL_ALT_URL: dict[str, str] = {
-    "MiniMax-M2.7": "https://github.com/MiniMax-AI/MiniMax-M2.7",
-}
-```
-
-When `MODEL_ARCH_SOURCE_HF_ID` is set for a model, `MODEL_NAME_TO_HF_ID` is not
-required for that model.
+The pipeline fetches `config.json` from the HF repo to derive architecture
+parameters. If the model has no HF page (or a page without `config.json`),
+`fetch_model()` will raise `RuntimeError`. In that case the model cannot be
+enriched automatically — you will need to add a hand-crafted entry directly
+to `web/public/data/models.json` and skip this and the following step.
 
 ### 3. License info
 
