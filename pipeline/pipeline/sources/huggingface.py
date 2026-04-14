@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "DeepSeek-V3.2-Reasoner": "deepseek-ai/DeepSeek-V3.2-Speciale",
     "GLM-4.7": "zai-org/GLM-4.7",
-    "GLM-5": "zai-org/GLM-5",
+    "GLM-5": "zai-org/GLM-5.1",
+    "GLM-5.1": "zai-org/GLM-5",
     "Kimi-K2.5": "moonshotai/Kimi-K2.5",
     "Kimi-K2-Thinking": "moonshotai/Kimi-K2-Thinking",
     "MiniMax-M2.5": "MiniMaxAI/MiniMax-M2.5",
@@ -36,55 +37,63 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "Nemotron-3-Super": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
 }
 
-# Explicit license info per HF repo ID.
+# Explicit license info per model name.
 # Maintained manually — the pipeline fails if a model is missing from here.
-# Format: hf_id -> (license_name, license_url)
+# Format: model_name -> (license_name, license_url)
 MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
-    "deepseek-ai/DeepSeek-V3.2-Speciale": (
+    "DeepSeek-V3.2-Reasoner": (
         "MIT",
         "https://huggingface.co/deepseek-ai/DeepSeek-V3.2-Speciale/blob/main/LICENSE",
     ),
-    "zai-org/GLM-4.7": (
+    "GLM-4.7": (
         "MIT",
         "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
     ),
-    "zai-org/GLM-5": (
+    "GLM-5": (
         "MIT",
         "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
     ),
-    "moonshotai/Kimi-K2.5": (
+    "GLM-5.1": (
+        "MIT",
+        "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
+    ),
+    "Kimi-K2.5": (
         "Modified MIT",
         "https://huggingface.co/moonshotai/Kimi-K2.5/blob/main/LICENSE",
     ),
-    "moonshotai/Kimi-K2-Thinking": (
+    "Kimi-K2-Thinking": (
         "Modified MIT",
         "https://huggingface.co/moonshotai/Kimi-K2-Thinking/blob/main/LICENSE",
     ),
-    "MiniMaxAI/MiniMax-M2.5": (
-        "MiniMax Model License",
-        "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL",
-    ),
-    "MiniMaxAI/MiniMax-M2.1": (
+    "MiniMax-M2.1": (
         "Modified MIT",
         "https://github.com/MiniMax-AI/MiniMax-M2.1/blob/main/LICENSE",
     ),
-    "Qwen/Qwen3-Coder-480B-A35B-Instruct": (
+    "MiniMax-M2.5": (
+        "MiniMax Model License",
+        "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL",
+    ),
+    "MiniMax-M2.7": (
+        "Non-commercial License",
+        "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE",
+    ),
+    "Qwen3-Coder-480B": (
         "Apache 2.0",
         "https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct/blob/main/LICENSE",
     ),
-    "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8": (
+    "Nemotron-3-Nano": (
         "Nemotron License",
         "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
     ),
-    "Qwen/Qwen3-Coder-Next": (
+    "Qwen3-Coder-Next": (
         "Apache 2.0",
         "https://choosealicense.com/licenses/apache-2.0/",
     ),
-    "Qwen/Qwen3.5-35B-A3B": (
+    "Qwen3.5-Flash": (
         "Apache 2.0",
         "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/blob/main/LICENSE",
     ),
-    "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4": (
+    "Nemotron-3-Super": (
         "Nemotron License",
         "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
     ),
@@ -124,12 +133,12 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
     if not config:
         raise RuntimeError(f"No config.json available for {hf_id}")
 
-    if hf_id not in MODEL_LICENSE_INFO:
+    if model_name not in MODEL_LICENSE_INFO:
         raise ValueError(
-            f"Missing license info for {hf_id}. "
+            f"Missing license info for {model_name}. "
             f"Add an entry to MODEL_LICENSE_INFO in huggingface.py."
         )
-    license_name, license_url = MODEL_LICENSE_INFO[hf_id]
+    license_name, license_url = MODEL_LICENSE_INFO[model_name]
 
     # 2. Check architecture support early — fail fast before expensive work
     effective_config = resolve_text_config(config)

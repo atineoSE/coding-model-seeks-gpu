@@ -34,30 +34,30 @@ class TestModelLicenseInfo:
 
     def test_all_models_have_license_info(self):
         """Every model in MODEL_NAME_TO_HF_ID must have a license entry."""
-        for model_name, hf_id in MODEL_NAME_TO_HF_ID.items():
-            assert hf_id in MODEL_LICENSE_INFO, (
-                f"Missing license info for {model_name} ({hf_id}). "
+        for model_name in MODEL_NAME_TO_HF_ID:
+            assert model_name in MODEL_LICENSE_INFO, (
+                f"Missing license info for {model_name}. "
                 f"Add an entry to MODEL_LICENSE_INFO."
             )
 
     def test_license_entries_have_name_and_url(self):
         """Each license entry must have a non-empty name and URL."""
-        for hf_id, (name, url) in MODEL_LICENSE_INFO.items():
-            assert name, f"Empty license_name for {hf_id}"
-            assert url, f"Empty license_url for {hf_id}"
+        for model_name, (name, url) in MODEL_LICENSE_INFO.items():
+            assert name, f"Empty license_name for {model_name}"
+            assert url, f"Empty license_url for {model_name}"
 
     def test_minimax_m25_license(self):
-        name, url = MODEL_LICENSE_INFO["MiniMaxAI/MiniMax-M2.5"]
+        name, url = MODEL_LICENSE_INFO["MiniMax-M2.5"]
         assert name == "MiniMax Model License"
         assert "LICENSE-MODEL" in url
 
     def test_deepseek_mit_license(self):
-        name, url = MODEL_LICENSE_INFO["deepseek-ai/DeepSeek-V3.2-Speciale"]
+        name, url = MODEL_LICENSE_INFO["DeepSeek-V3.2-Reasoner"]
         assert name == "MIT"
         assert "deepseek-ai/DeepSeek-V3.2-Speciale" in url
 
     def test_qwen_apache_license(self):
-        name, url = MODEL_LICENSE_INFO["Qwen/Qwen3-Coder-480B-A35B-Instruct"]
+        name, url = MODEL_LICENSE_INFO["Qwen3-Coder-480B"]
         assert name == "Apache 2.0"
 
 
@@ -77,30 +77,30 @@ class TestFetchModelLicenseIntegration:
 
     def test_mit_license_from_mapping(self):
         spec = _mock_fetch(
-            "DS", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG
+            "DeepSeek-V3.2-Reasoner", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG
         )
         assert spec.license_name == "MIT"
         assert "deepseek-ai/DeepSeek-V3.2-Speciale" in spec.license_url
 
     def test_apache_license_from_mapping(self):
         spec = _mock_fetch(
-            "Q3", "Qwen/Qwen3-Coder-480B-A35B-Instruct", QWEN3_CODER_CONFIG
+            "Qwen3-Coder-480B", "Qwen/Qwen3-Coder-480B-A35B-Instruct", QWEN3_CODER_CONFIG
         )
         assert spec.license_name == "Apache 2.0"
         assert "Qwen3-Coder-480B-A35B-Instruct" in spec.license_url
 
     def test_missing_license_raises(self):
-        """fetch_model should fail if hf_id is not in MODEL_LICENSE_INFO."""
+        """fetch_model should fail if model_name is not in MODEL_LICENSE_INFO."""
         with pytest.raises(ValueError, match="Missing license info"):
             _mock_fetch("Unknown", "org/unknown-model", GLM_47_CONFIG)
 
     def test_license_fields_coexist_with_existing_fields(self):
         """License fields should not break existing ModelSpec fields."""
         spec = _mock_fetch(
-            "DS", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG
+            "DeepSeek-V3.2-Reasoner", "deepseek-ai/DeepSeek-V3.2-Speciale", DEEPSEEK_V32_CONFIG
         )
         # Existing fields still work
-        assert spec.model_name == "DS"
+        assert spec.model_name == "DeepSeek-V3.2-Reasoner"
         assert spec.attention_type == "MLA"
         assert spec.kv_lora_rank == 512
         # License fields present

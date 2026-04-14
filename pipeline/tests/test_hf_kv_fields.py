@@ -35,7 +35,7 @@ def _mock_fetch(model_name: str, hf_id: str, config: dict):
         patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config),
         patch.dict(
             "pipeline.sources.huggingface.MODEL_LICENSE_INFO",
-            {hf_id: _TEST_LICENSE},
+            {model_name: _TEST_LICENSE},
         ),
     ):
         return fetch_model(model_name, hf_id)
