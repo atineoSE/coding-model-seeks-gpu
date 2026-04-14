@@ -15,6 +15,7 @@
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
     "hf_model_id": "deepseek-ai/DeepSeek-V3.2-Speciale",
+    "model_url": null,
     "license_name": "MIT",
     "license_url": "https://huggingface.co/deepseek-ai/DeepSeek-V3.2-Speciale/blob/main/LICENSE"
   },
@@ -34,6 +35,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "zai-org/GLM-4.7",
+    "model_url": null,
     "license_name": "MIT",
     "license_url": "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md"
   },
@@ -53,6 +55,7 @@
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
     "hf_model_id": "zai-org/GLM-5.1",
+    "model_url": null,
     "license_name": "MIT",
     "license_url": "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md"
   },
@@ -72,6 +75,7 @@
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
     "hf_model_id": "zai-org/GLM-5",
+    "model_url": null,
     "license_name": "MIT",
     "license_url": "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md"
   },
@@ -91,6 +95,7 @@
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
     "hf_model_id": "moonshotai/Kimi-K2-Thinking",
+    "model_url": null,
     "license_name": "Modified MIT",
     "license_url": "https://huggingface.co/moonshotai/Kimi-K2-Thinking/blob/main/LICENSE"
   },
@@ -110,6 +115,7 @@
     "kv_lora_rank": 512,
     "qk_rope_head_dim": 64,
     "hf_model_id": "moonshotai/Kimi-K2.5",
+    "model_url": null,
     "license_name": "Modified MIT",
     "license_url": "https://huggingface.co/moonshotai/Kimi-K2.5/blob/main/LICENSE"
   },
@@ -129,6 +135,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "MiniMaxAI/MiniMax-M2.1",
+    "model_url": null,
     "license_name": "Modified MIT",
     "license_url": "https://github.com/MiniMax-AI/MiniMax-M2.1/blob/main/LICENSE"
   },
@@ -148,8 +155,29 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "MiniMaxAI/MiniMax-M2.5",
+    "model_url": null,
     "license_name": "MiniMax Model License",
     "license_url": "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL"
+  },
+  {
+    "model_name": "MiniMax-M2.7",
+    "learnable_params_b": 228.7,
+    "active_params_b": 11.1,
+    "architecture": "MoE",
+    "context_length": 196608,
+    "precision": "FP8",
+    "attention_type": "GQA",
+    "num_hidden_layers": 62,
+    "num_kv_layers": null,
+    "num_kv_heads": 8,
+    "head_dim": 128,
+    "routed_expert_params_b": 224.7,
+    "kv_lora_rank": null,
+    "qk_rope_head_dim": null,
+    "hf_model_id": null,
+    "model_url": "https://github.com/MiniMax-AI/MiniMax-M2.7",
+    "license_name": "Non-commercial License",
+    "license_url": "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -167,6 +195,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
+    "model_url": null,
     "license_name": "Nemotron License",
     "license_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"
   },
@@ -186,6 +215,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    "model_url": null,
     "license_name": "Nemotron License",
     "license_url": "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"
   },
@@ -205,6 +235,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+    "model_url": null,
     "license_name": "Apache 2.0",
     "license_url": "https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct/blob/main/LICENSE"
   },
@@ -224,6 +255,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "Qwen/Qwen3-Coder-Next",
+    "model_url": null,
     "license_name": "Apache 2.0",
     "license_url": "https://choosealicense.com/licenses/apache-2.0/"
   },
@@ -243,6 +275,7 @@
     "kv_lora_rank": null,
     "qk_rope_head_dim": null,
     "hf_model_id": "Qwen/Qwen3.5-35B-A3B",
+    "model_url": null,
     "license_name": "Apache 2.0",
     "license_url": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/blob/main/LICENSE"
   }
