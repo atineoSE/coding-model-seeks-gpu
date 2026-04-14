@@ -49,6 +49,80 @@ function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+/**
+ * Maps percentOfSota (0–1) to a color anchored at the extremes:
+ * - 100% → vibrant green (hue 120°, full saturation)
+ * - 0%   → vibrant red  (hue 0°,   full saturation)
+ * - midpoint → desaturated, so the "washed out" effect is in saturation,
+ *   not hue — an 80% model stays recognizably green, just slightly muted.
+ */
+function sotaColor(percent: number): string {
+  const p = Math.max(0, Math.min(1, percent));
+  const hue = Math.round(p * 120); // 0=red … 120=green
+  // Full saturation at the extremes, drained toward the midpoint
+  const saturation = Math.round(30 + 45 * Math.abs(2 * p - 1)); // 30% at 50%, 75% at 0/100%
+  return `hsl(${hue}, ${saturation}%, 42%)`;
+}
+
+function SotaBarCell({
+  percentOfSota,
+  prevPercentOfSota,
+  nextPercentOfSota,
+  isFirst,
+  isLast,
+}: {
+  percentOfSota: number;
+  prevPercentOfSota: number | null;
+  nextPercentOfSota: number | null;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
+  const color = sotaColor(percentOfSota);
+  // Midpoint colors at each row boundary — used as the shared meeting point so
+  // the bottom of row N and the top of row N+1 start/end at the exact same color.
+  const midFromPrev = prevPercentOfSota !== null
+    ? sotaColor((prevPercentOfSota + percentOfSota) / 2)
+    : color;
+  const midToNext = nextPercentOfSota !== null
+    ? sotaColor((percentOfSota + nextPercentOfSota) / 2)
+    : color;
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      {/* top half: from shared mid-boundary above up to this dot */}
+      {!isFirst && (
+        <div
+          className="absolute w-[4px] left-1/2 -translate-x-1/2 top-0"
+          style={{
+            height: "50%",
+            background: `linear-gradient(to bottom, ${midFromPrev}, ${color})`,
+          }}
+        />
+      )}
+      {/* bottom half: from this dot down to shared mid-boundary below */}
+      {!isLast && (
+        <div
+          className="absolute w-[4px] left-1/2 -translate-x-1/2 bottom-0"
+          style={{
+            height: "50%",
+            background: `linear-gradient(to bottom, ${color}, ${midToNext})`,
+          }}
+        />
+      )}
+      {/* dot */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className="relative z-10 w-2 h-2 rounded-full cursor-help shrink-0"
+            style={{ backgroundColor: color }}
+          />
+        </TooltipTrigger>
+        <TooltipContent>{formatPercent(percentOfSota)} of SOTA</TooltipContent>
+      </Tooltip>
+    </div>
+  );
+}
+
 function isMixedPrecision(model: Model): boolean {
   return model.routed_expert_params_b !== null;
 }
@@ -401,12 +475,21 @@ function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax,
             return (
               <div
                 key={rowIdx}
-                className={`rounded-lg border p-3 ${cell.exceedsCapacity ? "bg-muted/20" : heatmap}`}
+                className={`rounded-lg border overflow-hidden ${cell.exceedsCapacity ? "bg-muted/20" : heatmap}`}
               >
-                <ModelInfo cell={cell0} rowIdx={rowIdx} />
-                <hr className="my-2 border-border" />
-                <div className="tabular-nums">
-                  <CellContent cell={cell} persona={persona} currencySymbol={currencySymbol} />
+                <div className="flex">
+                  {/* SOTA gradient left strip */}
+                  <div
+                    className="w-[4px] shrink-0"
+                    style={{ backgroundColor: sotaColor(cell0.percentOfSota) }}
+                  />
+                  <div className="flex-1 p-3">
+                    <ModelInfo cell={cell0} rowIdx={rowIdx} />
+                    <hr className="my-2 border-border" />
+                    <div className="tabular-nums">
+                      <CellContent cell={cell} persona={persona} currencySymbol={currencySymbol} />
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -482,6 +565,7 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-border">
+              <th className="w-8 p-0" />
               <th className="text-left p-3 text-sm font-medium text-muted-foreground w-[200px]">
                 <div>Model</div>
                 {sotaScore && (
@@ -543,6 +627,17 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
                   key={rowIdx}
                   className="border-t border-border hover:bg-muted/30 transition-colors"
                 >
+                  {/* SOTA gradient bar column */}
+                  <td className="w-8 p-0 relative">
+                    <SotaBarCell
+                      percentOfSota={cell0.percentOfSota}
+                      prevPercentOfSota={rows[rowIdx - 1]?.[0]?.percentOfSota ?? null}
+                      nextPercentOfSota={rows[rowIdx + 1]?.[0]?.percentOfSota ?? null}
+                      isFirst={rowIdx === 0}
+                      isLast={rowIdx === rows.length - 1}
+                    />
+                  </td>
+
                   {/* Model info column */}
                   <td className="p-3">
                     <ModelInfo cell={cell0} rowIdx={rowIdx} />

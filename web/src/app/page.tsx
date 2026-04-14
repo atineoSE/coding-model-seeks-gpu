@@ -28,16 +28,28 @@ export default function Home() {
     [data],
   );
 
-  // Derive available categories from benchmark data
+  // Derive available categories from benchmark data, with per-category model counts
   const categories: BenchmarkCategory[] = useMemo(() => {
     if (benchmarkGroups.length === 0) return [];
     const group = benchmarkGroups[0];
     if (!group) return [];
-    return group.types.map((t) => ({
-      name: t.name,
-      displayName: t.displayName,
-    }));
-  }, [benchmarkGroups]);
+
+    const modelCountByCategory = new Map<string, Set<string>>();
+    for (const b of data?.benchmarks ?? []) {
+      if (!modelCountByCategory.has(b.benchmark_name)) {
+        modelCountByCategory.set(b.benchmark_name, new Set());
+      }
+      modelCountByCategory.get(b.benchmark_name)!.add(b.model_name);
+    }
+
+    return group.types.map((t) => {
+      const count = modelCountByCategory.get(t.name)?.size ?? 0;
+      return {
+        name: t.name,
+        displayName: `${t.displayName} (${count})`,
+      };
+    });
+  }, [benchmarkGroups, data?.benchmarks]);
 
   const [persona, setPersona] = useState<Persona>("performance");
   const [benchmarkCategory, setBenchmarkCategory] = useState("");
