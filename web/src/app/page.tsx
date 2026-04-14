@@ -167,7 +167,7 @@ export default function Home() {
         </div>
 
         {/* Sticky filters */}
-        <div className="sticky top-0 z-10 bg-background py-3">
+        <div className="sticky top-0 z-20 bg-background py-3">
           <div className="flex flex-col sm:flex-row items-start gap-4">
             {ENABLE_LOCATION_FILTER && (
               <RegionFilter
