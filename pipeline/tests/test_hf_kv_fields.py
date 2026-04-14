@@ -29,7 +29,7 @@ from tests.test_param_counter import (
 _TEST_LICENSE = ("Test License", "https://example.com/LICENSE")
 
 
-def _mock_fetch(model_name: str, hf_id: str, config: dict):
+def _mock_fetch(model_name: str, hf_id: str, config: dict, **kwargs):
     """Call fetch_model with mocked HTTP and license info, returning a ModelSpec."""
     with (
         patch("pipeline.sources.huggingface.fetch_hf_config", return_value=config),
@@ -38,7 +38,53 @@ def _mock_fetch(model_name: str, hf_id: str, config: dict):
             {model_name: _TEST_LICENSE},
         ),
     ):
-        return fetch_model(model_name, hf_id)
+        return fetch_model(model_name, hf_id, **kwargs)
+
+
+# ===================================================================
+# Arch-source path — model_url overrides hf_model_id
+# ===================================================================
+
+
+class TestArchSourcePath:
+    """When model_url is set, hf_model_id should be None in the output."""
+
+    def test_hf_model_id_is_none_when_model_url_set(self):
+        spec = _mock_fetch(
+            "FakeModel",
+            "MiniMaxAI/MiniMax-M2.5",  # arch source — not the model's own page
+            MINIMAX_M25_CONFIG,
+            model_url="https://github.com/FakeOrg/FakeModel",
+        )
+        assert spec.hf_model_id is None
+
+    def test_model_url_is_set(self):
+        url = "https://github.com/FakeOrg/FakeModel"
+        spec = _mock_fetch(
+            "FakeModel",
+            "MiniMaxAI/MiniMax-M2.5",
+            MINIMAX_M25_CONFIG,
+            model_url=url,
+        )
+        assert spec.model_url == url
+
+    def test_model_url_none_by_default(self):
+        spec = _mock_fetch("MM", "MiniMaxAI/MiniMax-M2.5", MINIMAX_M25_CONFIG)
+        assert spec.model_url is None
+        assert spec.hf_model_id == "MiniMaxAI/MiniMax-M2.5"
+
+    def test_arch_params_still_extracted(self):
+        """Architecture params from the borrowed config should be correct."""
+        spec = _mock_fetch(
+            "FakeModel",
+            "MiniMaxAI/MiniMax-M2.5",
+            MINIMAX_M25_CONFIG,
+            model_url="https://example.com",
+        )
+        assert spec.attention_type == "GQA"
+        assert spec.num_hidden_layers == 62
+        assert spec.num_kv_heads == 8
+        assert spec.head_dim == 128
 
 
 # ===================================================================

@@ -130,6 +130,7 @@ TYPESCRIPT_MODEL_FIELDS = {
     "kv_lora_rank",
     "qk_rope_head_dim",
     "hf_model_id",
+    "model_url",
     "license_name",
     "license_url",
 }

@@ -27,6 +27,7 @@ const GLM_47: Model = {
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
+  model_url: null,
 };
 
 const MINIMAX_M25: Model = {
@@ -45,6 +46,7 @@ const MINIMAX_M25: Model = {
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
+  model_url: null,
 };
 
 const BENCHMARK_GLM: BenchmarkScore = {

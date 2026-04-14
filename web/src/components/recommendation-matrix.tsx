@@ -186,21 +186,26 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
         #{rowIdx + 1}
       </Badge>
       <div className="min-w-0">
-        {/* Model name — HF link or plain text */}
+        {/* Model name — HF link, fallback URL, or plain text */}
         <div className="font-semibold text-sm truncate">
-          {model.hf_model_id ? (
-            <a
-              href={`https://huggingface.co/${model.hf_model_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline inline-flex items-center gap-1"
-            >
-              {model.model_name}
-              <ExternalLink className="size-3 text-muted-foreground" />
-            </a>
-          ) : (
-            model.model_name
-          )}
+          {(() => {
+            const url = model.hf_model_id
+              ? `https://huggingface.co/${model.hf_model_id}`
+              : model.model_url ?? null;
+            return url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline inline-flex items-center gap-1"
+              >
+                {model.model_name}
+                <ExternalLink className="size-3 text-muted-foreground" />
+              </a>
+            ) : (
+              model.model_name
+            );
+          })()}
         </div>
 
         {/* Params + min VRAM */}

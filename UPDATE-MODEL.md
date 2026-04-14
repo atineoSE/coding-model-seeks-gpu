@@ -53,10 +53,31 @@ Only open-source/open-weight models belong here. Closed-source models (GPT,
 Claude, Gemini, etc.) are never added.
 
 The pipeline fetches `config.json` from the HF repo to derive architecture
-parameters. If the model has no HF page (or a page without `config.json`),
-`fetch_model()` will raise `RuntimeError`. In that case the model cannot be
-enriched automatically — you will need to add a hand-crafted entry directly
-to `web/public/data/models.json` and skip this and the following step.
+parameters.
+
+**If the model has no HuggingFace page** (or its page lacks `config.json`),
+add it to `MODEL_ARCH_SOURCE_HF_ID` instead, pointing to a compatible model
+whose config to use for calculations:
+
+```python
+MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {
+    "MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.5",  # borrow M2.5's config
+}
+```
+
+And provide a link URL for users (GitHub release, blog post, etc.)
+via `MODEL_ALT_URL`:
+
+```python
+MODEL_ALT_URL: dict[str, str] = {
+    "MiniMax-M2.7": "https://github.com/MiniMax-AI/MiniMax-M2.7",
+}
+```
+
+When `MODEL_ARCH_SOURCE_HF_ID` is set for a model, `MODEL_NAME_TO_HF_ID` is not
+required — `fetch_all_models()` will process it automatically. The output
+`ModelSpec` will have `hf_model_id=None` and `model_url` set to the alt URL,
+which the frontend uses as the link target instead of the HF page.
 
 ### 3. License info
 

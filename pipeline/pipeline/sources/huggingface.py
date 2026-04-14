@@ -37,6 +37,17 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "Nemotron-3-Super": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
 }
 
+# Models with no HuggingFace page of their own.
+# Maps model_name → HF repo whose config.json to use for architecture params.
+# The model will appear in models.json with hf_model_id=None and model_url set
+# from MODEL_ALT_URL (if provided).
+MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {}
+
+# Alternative link URL for models that have no HF page.
+# Maps model_name → URL (GitHub release page, blog post, etc.)
+# Only used when the model is in MODEL_ARCH_SOURCE_HF_ID.
+MODEL_ALT_URL: dict[str, str] = {}
+
 # Explicit license info per model name.
 # Maintained manually — the pipeline fails if a model is missing from here.
 # Format: model_name -> (license_name, license_url)
@@ -114,7 +125,7 @@ def fetch_hf_config(hf_id: str) -> dict | None:
         return None
 
 
-def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
+def fetch_model(model_name: str, hf_id: str, *, model_url: str | None = None) -> ModelSpec:
     """Build a ModelSpec from the HF API and config.json.
 
     Uses config-based parameter counting to derive the true logical
@@ -122,7 +133,11 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
 
     Args:
         model_name: Display name of the model.
-        hf_id: HuggingFace repo ID (e.g., "deepseek-ai/DeepSeek-V3.2").
+        hf_id: HuggingFace repo ID to fetch config.json from. When model_url is
+            set this is an architecture-source repo (the model has no HF page of
+            its own), so hf_model_id in the output will be None.
+        model_url: Optional fallback URL for models with no HF page (GitHub,
+            blog post, etc.). When set, hf_model_id in the output is None.
 
     Raises:
         RuntimeError: If config.json is unavailable.
@@ -241,7 +256,8 @@ def fetch_model(model_name: str, hf_id: str) -> ModelSpec:
         head_dim=head_dim_val,
         kv_lora_rank=kv_lora_rank,
         qk_rope_head_dim=qk_rope_head_dim,
-        hf_model_id=hf_id,
+        hf_model_id=None if model_url else hf_id,
+        model_url=model_url,
         license_name=license_name,
         license_url=license_url,
     )
@@ -255,8 +271,14 @@ def fetch_all_models(
 ) -> list[ModelSpec]:
     """Fetch all models from the mapping, retrying only failed models.
 
+    Processes both MODEL_NAME_TO_HF_ID (models with their own HF page) and
+    MODEL_ARCH_SOURCE_HF_ID (models that borrow architecture config from another
+    HF repo). For the latter, hf_model_id is set to None and model_url is taken
+    from MODEL_ALT_URL.
+
     Args:
         model_map: Dict of model_name -> hf_id. Uses default mapping if None.
+            Arch-source models are always appended from MODEL_ARCH_SOURCE_HF_ID.
         delay: Seconds to wait between requests to avoid rate limiting.
         max_retries: Maximum number of retry attempts for failed models.
         retry_delay: Seconds to wait before retrying failed models.
@@ -267,14 +289,23 @@ def fetch_all_models(
     if model_map is None:
         model_map = MODEL_NAME_TO_HF_ID
 
+    # Build the full set: normal models + arch-source models not already covered
+    # Each entry: (model_name, hf_id_for_config, model_url_override)
+    work: list[tuple[str, str, str | None]] = [
+        (name, hf_id, None) for name, hf_id in model_map.items()
+    ]
+    for name, arch_hf_id in MODEL_ARCH_SOURCE_HF_ID.items():
+        if name not in model_map:
+            work.append((name, arch_hf_id, MODEL_ALT_URL.get(name)))
+
     results = []
     skipped: list[UnsupportedArchitecture] = []
-    pending = dict(model_map)
-    total = len(model_map)
+    pending: list[tuple[str, str, str | None]] = list(work)
+    total = len(work)
 
     for attempt in range(1, max_retries + 1):
-        failed = {}
-        for i, (name, hf_id) in enumerate(pending.items(), 1):
+        failed: list[tuple[str, str, str | None]] = []
+        for i, (name, hf_id, model_url) in enumerate(pending, 1):
             if attempt == 1:
                 logger.info("Fetching model %d/%d: %s (%s)", i, total, name, hf_id)
             else:
@@ -289,7 +320,7 @@ def fetch_all_models(
                 )
 
             try:
-                spec = fetch_model(name, hf_id)
+                spec = fetch_model(name, hf_id, model_url=model_url)
                 results.append(spec)
                 logger.info(
                     "  -> %s: learnable=%.1fB (active=%.1fB), %s, %s",
@@ -303,7 +334,7 @@ def fetch_all_models(
                 skipped.append(e)
                 logger.warning("  -> Skipped %s: %s", name, e)
             except Exception as e:
-                failed[name] = hf_id
+                failed.append((name, hf_id, model_url))
                 logger.warning("  -> Failed to enrich %s: %s", name, e)
 
             if i < len(pending):
@@ -318,7 +349,7 @@ def fetch_all_models(
                 attempt,
                 max_retries,
                 len(failed),
-                ", ".join(failed),
+                ", ".join(name for name, _, _ in failed),
                 int(retry_delay),
             )
             time.sleep(retry_delay)
@@ -333,7 +364,7 @@ def fetch_all_models(
                 )
             raise RuntimeError(
                 f"Failed to enrich {len(failed)}/{total} models after {max_retries} "
-                f"attempts: {', '.join(failed)}"
+                f"attempts: {', '.join(name for name, _, _ in failed)}"
             )
 
     logger.info("Successfully fetched %d/%d models", len(results), total)

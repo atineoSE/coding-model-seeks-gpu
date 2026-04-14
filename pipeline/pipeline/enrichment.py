@@ -27,6 +27,9 @@ class ModelSpec(BaseModel):
     kv_lora_rank: int | None = Field(None, description="KV LoRA rank (MLA only)")
     qk_rope_head_dim: int | None = Field(None, description="RoPE head dimension (MLA only)")
     hf_model_id: str | None = Field(None, description="HuggingFace repo ID for linking")
+    model_url: str | None = Field(
+        None, description="Fallback URL (GitHub, blog, etc.) for models with no HF page"
+    )
     license_name: str | None = Field(
         None, description="Human-readable license name (e.g., 'MIT', 'Apache 2.0')"
     )

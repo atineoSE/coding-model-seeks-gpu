@@ -37,6 +37,7 @@ const DEEPSEEK_V32: Model = {
   kv_lora_rank: 512,
   qk_rope_head_dim: 64,
   hf_model_id: null,
+  model_url: null,
 };
 
 const GLM_47: Model = {
@@ -55,6 +56,7 @@ const GLM_47: Model = {
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
+  model_url: null,
 };
 
 const KIMI_K2: Model = {
@@ -73,6 +75,7 @@ const KIMI_K2: Model = {
   kv_lora_rank: 512,
   qk_rope_head_dim: 64,
   hf_model_id: null,
+  model_url: null,
 };
 
 const QWEN3_CODER: Model = {
@@ -91,6 +94,7 @@ const QWEN3_CODER: Model = {
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
+  model_url: null,
 };
 
 /** Model with null KV cache fields — should return 0 for all KV functions. */
@@ -110,6 +114,7 @@ const INCOMPLETE_MODEL: Model = {
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
+  model_url: null,
 };
 
 // ---------------------------------------------------------------------------

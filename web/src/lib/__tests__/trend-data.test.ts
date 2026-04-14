@@ -297,6 +297,7 @@ describe("computeCostTrend", () => {
     kv_lora_rank: null,
     qk_rope_head_dim: null,
     hf_model_id: null,
+    model_url: null,
   };
 
   const TEST_GPU: GpuOffering = {
