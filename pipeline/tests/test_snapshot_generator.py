@@ -7,10 +7,15 @@ from pipeline.snapshots.generator import generate_snapshot
 from pipeline.snapshots.reader import ModelData, ScoreEntry
 
 
-def _make_model(name: str, scores: list[tuple[str, float, float | None]]) -> ModelData:
+def _make_model(
+    name: str,
+    scores: list[tuple[str, float, float | None]],
+    openness: str | None = None,
+) -> ModelData:
     """Helper to create a ModelData with score entries."""
     return ModelData(
         model_name=name,
+        openness=openness,
         scores=[
             ScoreEntry(benchmark=bench, score=score, cost_per_instance=cost)
             for bench, score, cost in scores

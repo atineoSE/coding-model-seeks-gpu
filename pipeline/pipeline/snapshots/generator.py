@@ -33,6 +33,7 @@ class BenchmarkEntry:
     cost_per_task: float | None
     benchmark_group: str = BENCHMARK_GROUP
     benchmark_group_display: str = BENCHMARK_GROUP_DISPLAY
+    openness: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -44,6 +45,7 @@ class BenchmarkEntry:
             "cost_per_task": self.cost_per_task,
             "benchmark_group": self.benchmark_group,
             "benchmark_group_display": self.benchmark_group_display,
+            "openness": self.openness,
         }
 
 
@@ -93,9 +95,11 @@ def generate_snapshot(repo_path: Path, snapshot_date: date) -> Snapshot | None:
     # Key: (resolved_model_name, benchmark_name) → (score, cost)
     # If multiple dirs resolve to the same model name, take the one with higher score
     category_scores: dict[str, list[tuple[str, float, float | None]]] = defaultdict(list)
+    model_openness: dict[str, str | None] = {}
 
     for model_data in models:
         resolved_name = resolve_model_name(model_data.model_name, snapshot_date)
+        model_openness[resolved_name] = model_data.openness
 
         for score_entry in model_data.scores:
             mapped = BENCHMARK_MAP.get(score_entry.benchmark)
@@ -184,6 +188,7 @@ def generate_snapshot(repo_path: Path, snapshot_date: date) -> Snapshot | None:
                     score=score,
                     rank=rank,
                     cost_per_task=cost,
+                    openness=model_openness.get(model),
                 )
             )
 

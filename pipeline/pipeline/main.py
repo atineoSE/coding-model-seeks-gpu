@@ -24,7 +24,6 @@ from pipeline.sources.huggingface import MODEL_NAME_TO_HF_ID, fetch_all_models
 
 logger = logging.getLogger(__name__)
 
-CLOSED_SOURCE_PREFIXES = {"claude-", "gpt-", "gemini-", "GPT-", "Gemini-"}
 
 
 def run_gpu_pipeline() -> tuple[list[dict], dict]:
@@ -74,16 +73,12 @@ def run_export(offerings, specs, source_metadata=None, gpu_specs=None):
     return paths
 
 
-def _is_closed_source(model_name: str) -> bool:
-    """Return True if the model name matches a known closed-source prefix."""
-    return any(model_name.startswith(prefix) for prefix in CLOSED_SOURCE_PREFIXES)
-
-
 def check_missing_mappings(snapshots_dir=None):
     """Check for benchmark models that have no HuggingFace mapping.
 
     Reads the latest snapshot's benchmarks.json, extracts unique model names,
-    and compares against MODEL_NAME_TO_HF_ID. Closed-source models are skipped.
+    and compares against MODEL_NAME_TO_HF_ID. Only open_weights models are checked —
+    closed-source models are skipped based on the openness field from the index.
     """
     if snapshots_dir is None:
         snapshots_dir = SNAPSHOTS_DIR
@@ -105,13 +100,19 @@ def check_missing_mappings(snapshots_dir=None):
         logger.warning("Could not read benchmarks.json for %s", latest)
         return
 
-    benchmark_models = {entry["model_name"] for entry in benchmarks if "model_name" in entry}
+    # Collect open_weights models only — one entry per model name is enough
+    open_models: dict[str, str | None] = {}
+    for entry in benchmarks:
+        name = entry.get("model_name")
+        if not name:
+            continue
+        if entry.get("openness") == "open_weights":
+            open_models[name] = entry.get("openness")
+
     known_models = set(MODEL_NAME_TO_HF_ID.keys())
 
-    for model_name in sorted(benchmark_models):
+    for model_name in sorted(open_models):
         if model_name in known_models:
-            continue
-        if _is_closed_source(model_name):
             continue
         logger.warning("Missing HF mapping for benchmark model: %s", model_name)
         if is_enabled():

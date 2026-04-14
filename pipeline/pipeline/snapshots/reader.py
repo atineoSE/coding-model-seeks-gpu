@@ -25,6 +25,7 @@ class ModelData:
     """All data for one model at one commit."""
 
     model_name: str  # from metadata.json "model" field
+    openness: str | None = None  # from metadata.json "openness" field
     scores: list[ScoreEntry] = field(default_factory=list)
 
 
@@ -54,9 +55,11 @@ def read_model_data(
         logger.warning("No model name in metadata for %s at %s", dir_name, commit[:8])
         return None
 
+    openness = meta.get("openness")
+
     scores_raw = read_file_at_commit(repo_path, commit, f"{base}/scores.json")
     if scores_raw is None:
-        return ModelData(model_name=model_name)
+        return ModelData(model_name=model_name, openness=openness)
 
     try:
         scores_list = json.loads(scores_raw)
@@ -82,7 +85,7 @@ def read_model_data(
             )
         )
 
-    return ModelData(model_name=model_name, scores=entries)
+    return ModelData(model_name=model_name, openness=openness, scores=entries)
 
 
 def read_all_models(
