@@ -3,7 +3,7 @@
     "benchmark_name": "overall",
     "benchmark_display_name": "Overall",
     "sota_model_name": "claude-opus-4-6",
-    "sota_score": 66.3
+    "sota_score": 66.7
   },
   {
     "benchmark_name": "frontend",
@@ -26,8 +26,8 @@
   {
     "benchmark_name": "issue_resolution",
     "benchmark_display_name": "Issue Resolution",
-    "sota_model_name": "claude-opus-4-5",
-    "sota_score": 76.6
+    "sota_model_name": "claude-opus-4-6",
+    "sota_score": 76.8
   },
   {
     "benchmark_name": "testing",

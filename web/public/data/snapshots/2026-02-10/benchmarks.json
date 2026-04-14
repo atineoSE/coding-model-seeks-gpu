@@ -7,7 +7,8 @@
     "rank": 1,
     "cost_per_task": 1.44,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2-Codex",
@@ -17,7 +18,8 @@
     "rank": 2,
     "cost_per_task": 1.75,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-opus-4-5",
@@ -27,7 +29,8 @@
     "rank": 3,
     "cost_per_task": 2.19,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2",
@@ -37,7 +40,8 @@
     "rank": 4,
     "cost_per_task": 1.08,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-sonnet-4-5",
@@ -47,7 +51,8 @@
     "rank": 5,
     "cost_per_task": 1.42,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Kimi-K2.5",
@@ -57,7 +62,8 @@
     "rank": 6,
     "cost_per_task": 0.76,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Gemini-3-Flash",
@@ -67,7 +73,8 @@
     "rank": 7,
     "cost_per_task": 0.54,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "DeepSeek-V3.2-Reasoner",
@@ -77,7 +84,8 @@
     "rank": 8,
     "cost_per_task": 0.13,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Gemini-3-Pro",
@@ -87,7 +95,8 @@
     "rank": 9,
     "cost_per_task": 1.52,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "MiniMax-M2.1",
@@ -97,7 +106,8 @@
     "rank": 10,
     "cost_per_task": 0.9,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "GLM-4.7",
@@ -107,7 +117,8 @@
     "rank": 11,
     "cost_per_task": 0.51,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -117,7 +128,8 @@
     "rank": 12,
     "cost_per_task": 2.63,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Qwen3-Coder-480B",
@@ -127,7 +139,8 @@
     "rank": 13,
     "cost_per_task": 1.28,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -137,7 +150,8 @@
     "rank": 14,
     "cost_per_task": 0.22,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "claude-opus-4-6",
@@ -147,7 +161,8 @@
     "rank": 1,
     "cost_per_task": 2.37,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-opus-4-5",
@@ -157,7 +172,8 @@
     "rank": 2,
     "cost_per_task": 2.54,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Gemini-3-Pro",
@@ -167,7 +183,8 @@
     "rank": 3,
     "cost_per_task": 1.46,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-sonnet-4-5",
@@ -177,7 +194,8 @@
     "rank": 4,
     "cost_per_task": 1.89,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2-Codex",
@@ -187,7 +205,8 @@
     "rank": 5,
     "cost_per_task": 2.97,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Kimi-K2.5",
@@ -197,7 +216,8 @@
     "rank": 6,
     "cost_per_task": 1.5773,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -207,7 +227,8 @@
     "rank": 7,
     "cost_per_task": 2.31,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "GPT-5.2",
@@ -217,7 +238,8 @@
     "rank": 8,
     "cost_per_task": 2.77,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "DeepSeek-V3.2-Reasoner",
@@ -227,7 +249,8 @@
     "rank": 9,
     "cost_per_task": 0.19,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Qwen3-Coder-480B",
@@ -237,7 +260,8 @@
     "rank": 10,
     "cost_per_task": 2.09,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "GLM-4.7",
@@ -247,7 +271,8 @@
     "rank": 11,
     "cost_per_task": 0.66,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Gemini-3-Flash",
@@ -257,7 +282,8 @@
     "rank": 12,
     "cost_per_task": 0.8,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -267,7 +293,8 @@
     "rank": 13,
     "cost_per_task": 0.4,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "MiniMax-M2.1",
@@ -277,7 +304,8 @@
     "rank": 14,
     "cost_per_task": 1.26,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "GPT-5.2-Codex",
@@ -287,7 +315,8 @@
     "rank": 1,
     "cost_per_task": 2.5,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-opus-4-6",
@@ -297,7 +326,8 @@
     "rank": 2,
     "cost_per_task": 2.5,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-opus-4-5",
@@ -307,7 +337,8 @@
     "rank": 3,
     "cost_per_task": 4.65,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "DeepSeek-V3.2-Reasoner",
@@ -317,7 +348,8 @@
     "rank": 4,
     "cost_per_task": 0.12,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "MiniMax-M2.1",
@@ -327,7 +359,8 @@
     "rank": 5,
     "cost_per_task": 1.24,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "GPT-5.2",
@@ -337,7 +370,8 @@
     "rank": 6,
     "cost_per_task": 0.71,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Gemini-3-Flash",
@@ -347,7 +381,8 @@
     "rank": 7,
     "cost_per_task": 0.82,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -357,7 +392,8 @@
     "rank": 8,
     "cost_per_task": 6.78,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Kimi-K2.5",
@@ -367,7 +403,8 @@
     "rank": 9,
     "cost_per_task": 0.9644,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "GLM-4.7",
@@ -377,7 +414,8 @@
     "rank": 10,
     "cost_per_task": 0.54,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Gemini-3-Pro",
@@ -387,7 +425,8 @@
     "rank": 11,
     "cost_per_task": 2.68,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-sonnet-4-5",
@@ -397,7 +436,8 @@
     "rank": 12,
     "cost_per_task": 2.65,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -407,7 +447,8 @@
     "rank": 13,
     "cost_per_task": 0.13,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Qwen3-Coder-480B",
@@ -417,7 +458,8 @@
     "rank": 14,
     "cost_per_task": 1.79,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "claude-opus-4-6",
@@ -427,7 +469,8 @@
     "rank": 1,
     "cost_per_task": 1.33,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2-Codex",
@@ -437,7 +480,8 @@
     "rank": 2,
     "cost_per_task": 1.66,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-opus-4-5",
@@ -447,7 +491,8 @@
     "rank": 3,
     "cost_per_task": 0.55,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2",
@@ -457,7 +502,8 @@
     "rank": 4,
     "cost_per_task": 0.48,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Kimi-K2.5",
@@ -467,7 +513,8 @@
     "rank": 5,
     "cost_per_task": 0.3864,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Gemini-3-Flash",
@@ -477,7 +524,8 @@
     "rank": 6,
     "cost_per_task": 0.38,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-sonnet-4-5",
@@ -487,7 +535,8 @@
     "rank": 7,
     "cost_per_task": 0.38,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GLM-4.7",
@@ -497,7 +546,8 @@
     "rank": 8,
     "cost_per_task": 0.46,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "DeepSeek-V3.2-Reasoner",
@@ -507,7 +557,8 @@
     "rank": 9,
     "cost_per_task": 0.06,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Gemini-3-Pro",
@@ -517,7 +568,8 @@
     "rank": 10,
     "cost_per_task": 1.5,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -527,7 +579,8 @@
     "rank": 11,
     "cost_per_task": 0.65,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "MiniMax-M2.1",
@@ -537,7 +590,8 @@
     "rank": 12,
     "cost_per_task": 0.74,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Qwen3-Coder-480B",
@@ -547,7 +601,8 @@
     "rank": 13,
     "cost_per_task": 0.28,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -557,7 +612,8 @@
     "rank": 14,
     "cost_per_task": 0.12,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "claude-opus-4-5",
@@ -567,7 +623,8 @@
     "rank": 1,
     "cost_per_task": 1.82,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-opus-4-6",
@@ -577,7 +634,8 @@
     "rank": 2,
     "cost_per_task": 0.56,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2",
@@ -587,7 +645,8 @@
     "rank": 3,
     "cost_per_task": 0.86,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Gemini-3-Flash",
@@ -597,7 +656,8 @@
     "rank": 4,
     "cost_per_task": 0.42,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-sonnet-4-5",
@@ -607,7 +667,8 @@
     "rank": 5,
     "cost_per_task": 1.19,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2-Codex",
@@ -617,7 +678,8 @@
     "rank": 6,
     "cost_per_task": 0.94,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GLM-4.7",
@@ -627,7 +689,8 @@
     "rank": 7,
     "cost_per_task": 0.51,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "DeepSeek-V3.2-Reasoner",
@@ -637,7 +700,8 @@
     "rank": 8,
     "cost_per_task": 0.16,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Gemini-3-Pro",
@@ -647,7 +711,8 @@
     "rank": 9,
     "cost_per_task": 0.95,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -657,7 +722,8 @@
     "rank": 10,
     "cost_per_task": 2.0,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Kimi-K2.5",
@@ -667,7 +733,8 @@
     "rank": 11,
     "cost_per_task": 0.4768,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "MiniMax-M2.1",
@@ -677,7 +744,8 @@
     "rank": 12,
     "cost_per_task": 0.71,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Qwen3-Coder-480B",
@@ -687,7 +755,8 @@
     "rank": 13,
     "cost_per_task": 1.26,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -697,7 +766,8 @@
     "rank": 14,
     "cost_per_task": 0.24,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "claude-opus-4-6",
@@ -707,7 +777,8 @@
     "rank": 1,
     "cost_per_task": 0.43,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-opus-4-5",
@@ -717,7 +788,8 @@
     "rank": 2,
     "cost_per_task": 1.38,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2",
@@ -727,7 +799,8 @@
     "rank": 3,
     "cost_per_task": 0.56,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Gemini-3-Flash",
@@ -737,7 +810,8 @@
     "rank": 4,
     "cost_per_task": 0.3,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "claude-sonnet-4-5",
@@ -747,7 +821,8 @@
     "rank": 5,
     "cost_per_task": 0.98,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Gemini-3-Pro",
@@ -757,7 +832,8 @@
     "rank": 6,
     "cost_per_task": 1.01,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "GPT-5.2-Codex",
@@ -767,7 +843,8 @@
     "rank": 7,
     "cost_per_task": 0.66,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "closed_api_available"
   },
   {
     "model_name": "Kimi-K2.5",
@@ -777,7 +854,8 @@
     "rank": 8,
     "cost_per_task": 0.42,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "MiniMax-M2.1",
@@ -787,7 +865,8 @@
     "rank": 9,
     "cost_per_task": 0.54,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "DeepSeek-V3.2-Reasoner",
@@ -797,7 +876,8 @@
     "rank": 10,
     "cost_per_task": 0.12,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "GLM-4.7",
@@ -807,7 +887,8 @@
     "rank": 11,
     "cost_per_task": 0.37,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Kimi-K2-Thinking",
@@ -817,7 +898,8 @@
     "rank": 12,
     "cost_per_task": 1.39,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Qwen3-Coder-480B",
@@ -827,7 +909,8 @@
     "rank": 13,
     "cost_per_task": 0.97,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   },
   {
     "model_name": "Nemotron-3-Nano",
@@ -837,6 +920,7 @@
     "rank": 14,
     "cost_per_task": 0.19,
     "benchmark_group": "openhands",
-    "benchmark_group_display": "OpenHands Index"
+    "benchmark_group_display": "OpenHands Index",
+    "openness": "open_weights"
   }
 ]
