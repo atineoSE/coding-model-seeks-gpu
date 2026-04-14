@@ -35,6 +35,7 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "Qwen3-Coder-Next": "Qwen/Qwen3-Coder-Next",
     "Qwen3.5-Flash": "Qwen/Qwen3.5-35B-A3B",
     "Nemotron-3-Super": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    "Trinity-Large-Thinking": "arcee-ai/Trinity-Large-Thinking",
 }
 
 # Models with no HuggingFace page of their own.
@@ -89,7 +90,7 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
         "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL",
     ),
     "MiniMax-M2.7": (
-        "Non-commercial License",
+        "MiniMax Non-Commercial License",
         "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE",
     ),
     "Qwen3-Coder-480B": (
@@ -111,6 +112,10 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
     "Nemotron-3-Super": (
         "Nemotron License",
         "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/",
+    ),
+    "Trinity-Large-Thinking": (
+        "Apache 2.0",
+        "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md",
     ),
 }
 

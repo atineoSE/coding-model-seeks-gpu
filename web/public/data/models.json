@@ -176,7 +176,7 @@
     "qk_rope_head_dim": null,
     "hf_model_id": null,
     "model_url": "https://github.com/MiniMax-AI/MiniMax-M2.7",
-    "license_name": "Non-commercial License",
+    "license_name": "MiniMax Non-Commercial License",
     "license_url": "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE"
   },
   {
@@ -278,5 +278,25 @@
     "model_url": null,
     "license_name": "Apache 2.0",
     "license_url": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B/blob/main/LICENSE"
+  },
+  {
+    "model_name": "Trinity-Large-Thinking",
+    "learnable_params_b": 398.6,
+    "active_params_b": 13.4,
+    "architecture": "MoE",
+    "context_length": 262144,
+    "precision": "BF16",
+    "attention_type": "GQA",
+    "num_hidden_layers": 60,
+    "num_kv_layers": null,
+    "num_kv_heads": 8,
+    "head_dim": 128,
+    "routed_expert_params_b": 391.4,
+    "kv_lora_rank": null,
+    "qk_rope_head_dim": null,
+    "hf_model_id": "arcee-ai/Trinity-Large-Thinking",
+    "model_url": null,
+    "license_name": "Apache 2.0",
+    "license_url": "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md"
   }
 ]

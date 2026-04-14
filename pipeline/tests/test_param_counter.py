@@ -275,11 +275,31 @@ QWEN3_NEXT_CONFIG = {
 }
 
 
+TRINITY_CONFIG = {
+    "model_type": "afmoe",
+    "hidden_size": 3072,
+    "intermediate_size": 12288,
+    "moe_intermediate_size": 3072,
+    "num_hidden_layers": 60,
+    "num_attention_heads": 48,
+    "num_key_value_heads": 8,
+    "head_dim": 128,
+    "vocab_size": 200192,
+    "num_experts": 256,
+    "num_experts_per_tok": 4,
+    "num_shared_experts": 1,
+    "num_dense_layers": 6,
+    "tie_word_embeddings": False,
+    "torch_dtype": "bfloat16",
+}
+
+
 # ===================================================================
 # Ground truth validation
 # ===================================================================
 
 MINIMAX_SAFETENSORS_TRUTH = 228_703_644_928  # from HF API
+TRINITY_SAFETENSORS_TRUTH = 398_635_299_840  # total_size/2 from safetensors index
 
 
 class TestGroundTruth:
@@ -297,6 +317,14 @@ class TestGroundTruth:
         r1 = count_params_from_config(MINIMAX_M25_CONFIG)
         r2 = count_params_from_config(MINIMAX_M21_CONFIG)
         assert r1.total_params == r2.total_params
+
+    def test_trinity_total_params(self):
+        result = count_params_from_config(TRINITY_CONFIG)
+        pct_error = abs(result.total_params - TRINITY_SAFETENSORS_TRUTH) / TRINITY_SAFETENSORS_TRUTH
+        assert pct_error < 0.01, (
+            f"Trinity-Large-Thinking total_params={result.total_params:,} vs "
+            f"truth={TRINITY_SAFETENSORS_TRUTH:,}, error={pct_error:.4%}"
+        )
 
 
 # ===================================================================
@@ -320,6 +348,7 @@ class TestAllModels:
             ("GLM-5", GLM5_CONFIG, 744, 45),
             ("Qwen3-Next", QWEN3_NEXT_CONFIG, 80, 4),
             ("Qwen3.5-Flash", QWEN35_FLASH_CONFIG, 35, 3.5),
+            ("Trinity-Large-Thinking", TRINITY_CONFIG, 399, 13),
         ],
     )
     def test_reasonable_total(self, name, config, expected_total_b, expected_active_b):
@@ -613,3 +642,36 @@ class TestQwen35Flash:
         result = count_params_from_config(QWEN35_FLASH_CONFIG)
         assert result.model_type == "qwen3_5_moe_text"
         assert result.num_layers == 40
+
+
+# ===================================================================
+# Trinity-Large-Thinking (afmoe) — GQA + MoE with attention output gate
+# ===================================================================
+
+
+class TestTrinity:
+    """Validate Trinity-Large-Thinking afmoe architecture."""
+
+    def test_layer_counts(self):
+        result = count_params_from_config(TRINITY_CONFIG)
+        assert result.num_layers == 60
+        assert result.num_dense_layers == 6
+        assert result.num_moe_layers == 54
+
+    def test_total_params(self):
+        """~399B total params, validated against safetensors ground truth (<1% error)."""
+        result = count_params_from_config(TRINITY_CONFIG)
+        pct_error = abs(result.total_params - TRINITY_SAFETENSORS_TRUTH) / TRINITY_SAFETENSORS_TRUTH
+        assert pct_error < 0.01, (
+            f"total={result.total_params:,} vs truth={TRINITY_SAFETENSORS_TRUTH:,}, error={pct_error:.4%}"
+        )
+
+    def test_active_params(self):
+        """~13B active params within 10%."""
+        result = count_params_from_config(TRINITY_CONFIG)
+        active_b = result.active_params / 1e9
+        assert abs(active_b - 13) / 13 < 0.10, f"active={active_b:.1f}B, expected ~13B"
+
+    def test_model_type(self):
+        result = count_params_from_config(TRINITY_CONFIG)
+        assert result.model_type == "afmoe"

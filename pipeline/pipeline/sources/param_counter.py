@@ -31,6 +31,7 @@ class MoEFieldMapping:
     dense_layers_key: str | None
     mtp_key: str | None
     num_mlp_projections: int = 3  # 3 = gated SwiGLU (gate+up+down), 2 = ungated (up+down)
+    has_attn_output_gate: bool = False  # True → extra gate_proj in attention (same shape as q_proj)
 
 
 @dataclass(frozen=True)
@@ -177,6 +178,18 @@ KNOWN_ARCHITECTURES: dict[str, tuple[AttentionType, MoEFieldMapping]] = {
             expert_intermediate_key="moe_intermediate_size",
             dense_layers_key=None,
             mtp_key=None,
+        ),
+    ),
+    "afmoe": (
+        AttentionType.GQA,
+        MoEFieldMapping(
+            expert_count_key="num_experts",
+            shared_expert_key="num_shared_experts",
+            shared_expert_is_count=True,
+            expert_intermediate_key="moe_intermediate_size",
+            dense_layers_key="num_dense_layers",
+            mtp_key=None,
+            has_attn_output_gate=True,
         ),
     ),
 }
@@ -577,6 +590,11 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
     # Attention params (same for every layer)
     attn_fn = _mla_attention_params if attn_type == AttentionType.MLA else _gqa_attention_params
     attn_per_layer = attn_fn(config)
+    if mapping.has_attn_output_gate:
+        # Extra gate_proj in attention: same shape as q_proj (n_heads * head_dim * hidden)
+        n_heads = _require(config, "num_attention_heads")
+        head_dim = config.get("head_dim", hidden // n_heads)
+        attn_per_layer += n_heads * head_dim * hidden
 
     # Layer norms per layer (input_layernorm + post_attention_layernorm)
     norms_per_layer = 2 * hidden
