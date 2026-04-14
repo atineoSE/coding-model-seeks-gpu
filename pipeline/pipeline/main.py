@@ -20,7 +20,11 @@ from pipeline.notify import (
 from pipeline.snapshots.exporter import load_index, run_snapshot_export
 from pipeline.sources.dbgpu_source import fetch_gpu_specs
 from pipeline.sources.gpuhunt_source import fetch_gpu_prices
-from pipeline.sources.huggingface import MODEL_NAME_TO_HF_ID, fetch_all_models
+from pipeline.sources.huggingface import (
+    MODEL_ARCH_SOURCE_HF_ID,
+    MODEL_NAME_TO_HF_ID,
+    fetch_all_models,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +113,7 @@ def check_missing_mappings(snapshots_dir=None):
         if entry.get("openness") == "open_weights":
             open_models[name] = entry.get("openness")
 
-    known_models = set(MODEL_NAME_TO_HF_ID.keys())
+    known_models = set(MODEL_NAME_TO_HF_ID.keys()) | set(MODEL_ARCH_SOURCE_HF_ID.keys())
 
     for model_name in sorted(open_models):
         if model_name in known_models:
