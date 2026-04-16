@@ -4,12 +4,16 @@ import { useMemo } from "react";
 import type { Model, GpuOffering, AdvancedSettings } from "@/types";
 import { GapChart } from "@/components/gap-chart";
 import { CostTrendChart } from "@/components/cost-trend-chart";
+import { SotaPercentChart } from "@/components/sota-percent-chart";
+import { ModelSizeChart } from "@/components/model-size-chart";
 import { EfficiencyChart } from "@/components/efficiency-chart";
 import { ScalingChart } from "@/components/scaling-chart";
 import {
   useSnapshotData,
   computeGapTrend,
   computeCostTrend,
+  computeSotaPercentTrend,
+  computeModelSizeScore,
   computeEfficiencyTrend,
   computeScalingCurve,
   computeGpuReferenceCosts,
@@ -59,7 +63,19 @@ export function TrendsSection({
     [gapData, models, gpus, settings],
   );
 
-  // Chart 3: Efficiency Trend (API cost per task for best models)
+  // Chart 3: SOTA percent trend (derived from gap trend points)
+  const sotaPercentData = useMemo(
+    () => computeSotaPercentTrend(gapData),
+    [gapData],
+  );
+
+  // Chart 4: Model size vs. score scatter (uses live benchmarks, not snapshots)
+  const modelSizeData = useMemo(
+    () => computeModelSizeScore(benchmarks, openSourceNames, models, benchmarkCategory),
+    [benchmarks, openSourceNames, models, benchmarkCategory],
+  );
+
+  // Chart 5: Efficiency Trend (API cost per task for best models)
   const efficiencyData = useMemo(
     () =>
       gapData.length > 0 && snapshots.length > 0
@@ -89,6 +105,10 @@ export function TrendsSection({
     [bestModel, gpus, settings],
   );
 
+  const categoryDisplayName =
+    benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
+      ?.benchmark_display_name ?? benchmarkCategory;
+
   if (loading) {
     return (
       <section className="mt-16">
@@ -113,21 +133,17 @@ export function TrendsSection({
       <div className="grid gap-6">
         <GapChart data={gapData} />
         <CostTrendChart data={costData} referenceCosts={referenceCosts} currencySymbol={currencySymbol} />
+        <SotaPercentChart data={sotaPercentData} />
+        <ModelSizeChart data={modelSizeData} categoryDisplayName={categoryDisplayName} />
         <EfficiencyChart
           data={efficiencyData}
-          categoryDisplayName={
-            benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
-              ?.benchmark_display_name ?? benchmarkCategory
-          }
+          categoryDisplayName={categoryDisplayName}
         />
         <ScalingChart
           data={scalingData}
           referenceCosts={referenceCosts}
           modelName={bestModel?.model_name ?? "N/A"}
-          categoryDisplayName={
-            benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
-              ?.benchmark_display_name ?? benchmarkCategory
-          }
+          categoryDisplayName={categoryDisplayName}
           currencySymbol={currencySymbol}
         />
       </div>
