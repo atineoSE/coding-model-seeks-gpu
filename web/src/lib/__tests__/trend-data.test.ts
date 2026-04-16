@@ -5,9 +5,12 @@ import {
   isOpenSourceModel,
   computeGapTrend,
   computeCostTrend,
+  computeSotaPercentTrend,
+  computeModelSizeScore,
   type SnapshotData,
   type GapTrendPoint,
 } from "../trend-data";
+import { WEIGHT_OVERHEAD_FACTOR } from "../calculations";
 
 // ---------------------------------------------------------------------------
 // resolveModelName
@@ -351,5 +354,251 @@ describe("computeCostTrend", () => {
 
     const result = computeCostTrend(gapPoints, [], [], TEST_SETTINGS);
     expect(result).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeSotaPercentTrend
+// ---------------------------------------------------------------------------
+
+describe("computeSotaPercentTrend", () => {
+  it("computes the ratio when the closed leader is ahead", () => {
+    const gapPoints: GapTrendPoint[] = [
+      {
+        date: "2026-01-28",
+        closedSourceScore: 80,
+        closedSourceModel: "ClosedA",
+        openSourceScore: 40,
+        openSourceModel: "OpenA",
+      },
+    ];
+    const result = computeSotaPercentTrend(gapPoints);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe("2026-01-28");
+    expect(result[0].openSourceModel).toBe("OpenA");
+    expect(result[0].percentOfSota).toBeCloseTo(0.5, 6);
+  });
+
+  it("caps at 1.0 when open ≥ closed", () => {
+    const gapPoints: GapTrendPoint[] = [
+      {
+        date: "2026-02-01",
+        closedSourceScore: 60,
+        closedSourceModel: "ClosedA",
+        openSourceScore: 75,
+        openSourceModel: "OpenLeads",
+      },
+      {
+        date: "2026-02-02",
+        closedSourceScore: 60,
+        closedSourceModel: "ClosedA",
+        openSourceScore: 60,
+        openSourceModel: "OpenTies",
+      },
+    ];
+    const result = computeSotaPercentTrend(gapPoints);
+    expect(result[0].percentOfSota).toBe(1);
+    expect(result[1].percentOfSota).toBe(1);
+  });
+
+  it("preserves dates and model names from each input point", () => {
+    const gapPoints: GapTrendPoint[] = [
+      {
+        date: "2026-01-28",
+        closedSourceScore: 100,
+        closedSourceModel: "ClosedA",
+        openSourceScore: 30,
+        openSourceModel: "OpenA",
+      },
+      {
+        date: "2026-02-15",
+        closedSourceScore: 100,
+        closedSourceModel: "ClosedA",
+        openSourceScore: 60,
+        openSourceModel: "OpenB",
+      },
+    ];
+    const result = computeSotaPercentTrend(gapPoints);
+    expect(result.map((p) => p.date)).toEqual(["2026-01-28", "2026-02-15"]);
+    expect(result.map((p) => p.openSourceModel)).toEqual(["OpenA", "OpenB"]);
+    expect(result[0].percentOfSota).toBeCloseTo(0.3, 6);
+    expect(result[1].percentOfSota).toBeCloseTo(0.6, 6);
+  });
+
+  it("returns empty for empty input", () => {
+    expect(computeSotaPercentTrend([])).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeModelSizeScore
+// ---------------------------------------------------------------------------
+
+describe("computeModelSizeScore", () => {
+  function makeModel(overrides: Partial<Model> & { model_name: string }): Model {
+    return {
+      learnable_params_b: 100,
+      active_params_b: null,
+      architecture: "Dense",
+      context_length: 131072,
+      precision: "BF16",
+      routed_expert_params_b: null,
+      attention_type: "GQA",
+      num_hidden_layers: null,
+      num_kv_layers: null,
+      num_kv_heads: null,
+      head_dim: null,
+      kv_lora_rank: null,
+      qk_rope_head_dim: null,
+      hf_model_id: null,
+      model_url: null,
+      license_name: null,
+      license_url: null,
+      ...overrides,
+    };
+  }
+
+  function makeBenchmark(
+    model_name: string,
+    score: number | null,
+    benchmark_name = "overall",
+  ): BenchmarkScore {
+    return {
+      model_name,
+      benchmark_name,
+      benchmark_display_name: benchmark_name === "overall" ? "Overall" : benchmark_name,
+      score,
+      rank: null,
+      cost_per_task: null,
+      benchmark_group: "openhands",
+      benchmark_group_display: "OpenHands Index",
+    };
+  }
+
+  it("filters to open-source models and applies WEIGHT_OVERHEAD_FACTOR", () => {
+    // Dense BF16 model, 100B params → 200 GB raw → 230 GB with overhead → ceil 230
+    const openModel = makeModel({
+      model_name: "OpenLarge",
+      learnable_params_b: 100,
+      precision: "BF16",
+    });
+    const closedModel = makeModel({
+      model_name: "ClosedX",
+      learnable_params_b: 50,
+      precision: "BF16",
+    });
+    const benchmarks = [
+      makeBenchmark("OpenLarge", 45),
+      makeBenchmark("ClosedX", 90),
+    ];
+    const openSourceNames = new Set(["OpenLarge"]);
+    const result = computeModelSizeScore(
+      benchmarks,
+      openSourceNames,
+      [openModel, closedModel],
+      "overall",
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].modelName).toBe("OpenLarge");
+    expect(result[0].score).toBe(45);
+    expect(result[0].params).toBe(100);
+    // 100 * 2 = 200 GB raw; 200 * 1.15 = 230 GB
+    const expected = Math.ceil(100 * 2 * WEIGHT_OVERHEAD_FACTOR);
+    expect(result[0].minVramGb).toBe(expected);
+  });
+
+  it("drops models with missing params, missing scores, or no model entry", () => {
+    const modelNoParams = makeModel({
+      model_name: "NoParams",
+      learnable_params_b: null,
+    });
+    const modelFine = makeModel({
+      model_name: "Fine",
+      learnable_params_b: 20,
+      precision: "BF16",
+    });
+    const benchmarks = [
+      makeBenchmark("NoParams", 50),
+      makeBenchmark("Fine", 40),
+      makeBenchmark("NoScore", null), // null score → ignored
+      makeBenchmark("NotInModelsList", 60), // resolved but no Model entry
+    ];
+    const openSourceNames = new Set([
+      "NoParams",
+      "Fine",
+      "NoScore",
+      "NotInModelsList",
+    ]);
+    const result = computeModelSizeScore(
+      benchmarks,
+      openSourceNames,
+      [modelNoParams, modelFine],
+      "overall",
+    );
+
+    // Only "Fine" survives
+    expect(result).toHaveLength(1);
+    expect(result[0].modelName).toBe("Fine");
+  });
+
+  it("picks the highest score per model when duplicates exist", () => {
+    const model = makeModel({
+      model_name: "Dup",
+      learnable_params_b: 10,
+      precision: "BF16",
+    });
+    const benchmarks = [
+      makeBenchmark("Dup", 30),
+      makeBenchmark("Dup", 55), // winner
+      makeBenchmark("Dup", 42),
+    ];
+    const result = computeModelSizeScore(
+      benchmarks,
+      new Set(["Dup"]),
+      [model],
+      "overall",
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].score).toBe(55);
+  });
+
+  it("resolves aliases before matching against open-source names", () => {
+    // "jade-spark-2862" → "MiniMax-M2.5" via alias chain
+    const model = makeModel({
+      model_name: "MiniMax-M2.5",
+      learnable_params_b: 228.7,
+      precision: "FP8",
+    });
+    const benchmarks = [makeBenchmark("jade-spark-2862", 44)];
+    const result = computeModelSizeScore(
+      benchmarks,
+      new Set(["MiniMax-M2.5"]),
+      [model],
+      "overall",
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].modelName).toBe("MiniMax-M2.5");
+    expect(result[0].score).toBe(44);
+  });
+
+  it("skips benchmarks in other categories", () => {
+    const model = makeModel({
+      model_name: "Fine",
+      learnable_params_b: 10,
+      precision: "BF16",
+    });
+    const benchmarks = [
+      makeBenchmark("Fine", 30, "overall"),
+      makeBenchmark("Fine", 99, "frontend"),
+    ];
+    const result = computeModelSizeScore(
+      benchmarks,
+      new Set(["Fine"]),
+      [model],
+      "overall",
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].score).toBe(30);
   });
 });

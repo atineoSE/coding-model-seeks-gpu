@@ -8,7 +8,11 @@ import type {
   GpuSetupOption,
 } from "@/types";
 import { findGpuSetups, findScaledGpuSetups } from "./matrix-calculator";
-import { getModelMemory, resolveModelPrecision } from "./calculations";
+import {
+  getModelMemory,
+  resolveModelPrecision,
+  WEIGHT_OVERHEAD_FACTOR,
+} from "./calculations";
 import { GPU_PRESETS } from "./gpu-presets";
 
 // ---------------------------------------------------------------------------
@@ -276,6 +280,37 @@ export function computeGapTrend(
 }
 
 // ---------------------------------------------------------------------------
+// Chart 3: SOTA-percent Trend (open source as fraction of best closed)
+// ---------------------------------------------------------------------------
+
+export interface SotaPercentTrendPoint {
+  date: string;
+  openSourceModel: string;
+  percentOfSota: number; // 0–1; capped at 1 when open ≥ closed
+}
+
+/**
+ * Derive the open-source leader's percent-of-SOTA at each gap-trend point.
+ * When the open leader matches or exceeds the closed leader, the value is
+ * capped at 1.0 (the open model would itself be SOTA at that moment).
+ */
+export function computeSotaPercentTrend(
+  gapPoints: GapTrendPoint[],
+): SotaPercentTrendPoint[] {
+  return gapPoints.map((gp) => {
+    const ratio =
+      gp.closedSourceScore > 0
+        ? gp.openSourceScore / gp.closedSourceScore
+        : 1;
+    return {
+      date: gp.date,
+      openSourceModel: gp.openSourceModel,
+      percentOfSota: Math.min(1, ratio),
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Chart 2b: Efficiency Trend (API cost per task for the best models)
 // ---------------------------------------------------------------------------
 
@@ -485,6 +520,58 @@ export function computeGpuReferenceCosts(
   }
 
   return costs;
+}
+
+// ---------------------------------------------------------------------------
+// Chart 4: Model size vs. score (open source scatter plot)
+// ---------------------------------------------------------------------------
+
+export interface ModelSizeScorePoint {
+  modelName: string;
+  score: number;
+  minVramGb: number;
+  params: number;
+}
+
+/**
+ * Latest-snapshot cross section of open-source models: min VRAM needed to
+ * serve each model (including WEIGHT_OVERHEAD_FACTOR) paired with its score
+ * on the selected benchmark category. Deduplicated to the highest score per
+ * model. Skips models without a score, params, or computable memory.
+ */
+export function computeModelSizeScore(
+  benchmarks: BenchmarkScore[],
+  openSourceNames: Set<string>,
+  models: Model[],
+  category: string,
+): ModelSizeScorePoint[] {
+  const bestScores = new Map<string, number>();
+  for (const b of benchmarks) {
+    if (b.benchmark_name !== category || b.score === null) continue;
+    const resolved = resolveModelName(b.model_name);
+    if (!openSourceNames.has(resolved)) continue;
+    const existing = bestScores.get(resolved);
+    if (existing === undefined || b.score > existing) {
+      bestScores.set(resolved, b.score);
+    }
+  }
+
+  const points: ModelSizeScorePoint[] = [];
+  for (const [modelName, score] of bestScores) {
+    const model = models.find((m) => m.model_name === modelName);
+    if (!model) continue;
+    if (model.learnable_params_b === null) continue;
+    const memGb = getModelMemory(model, resolveModelPrecision(model));
+    if (memGb === null) continue;
+    points.push({
+      modelName,
+      score,
+      minVramGb: Math.ceil(memGb * WEIGHT_OVERHEAD_FACTOR),
+      params: model.learnable_params_b,
+    });
+  }
+
+  return points;
 }
 
 // ---------------------------------------------------------------------------
