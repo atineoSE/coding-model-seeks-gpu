@@ -136,7 +136,7 @@ export default function Home() {
             <h1 className="text-3xl font-bold tracking-tight">
               Coding Model Seeks GPU
               <span className="ml-2 text-sm font-normal text-muted-foreground align-middle">
-                v0.1
+                v0.2
               </span>
             </h1>
             <div className="flex items-center gap-2 shrink-0">
