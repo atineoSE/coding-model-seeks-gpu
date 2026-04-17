@@ -8,6 +8,7 @@ import { SotaPercentChart } from "@/components/sota-percent-chart";
 import { ModelSizeChart } from "@/components/model-size-chart";
 import { EfficiencyChart } from "@/components/efficiency-chart";
 import { ScalingChart } from "@/components/scaling-chart";
+import { ChartSelector, type ChartTab } from "@/components/chart-selector";
 import {
   useSnapshotData,
   computeGapTrend,
@@ -130,23 +131,16 @@ export function TrendsSection({
         </p>
       </div>
 
-      <div className="grid gap-6">
-        <GapChart data={gapData} />
-        <CostTrendChart data={costData} referenceCosts={referenceCosts} currencySymbol={currencySymbol} />
-        <SotaPercentChart data={sotaPercentData} />
-        <ModelSizeChart data={modelSizeData} categoryDisplayName={categoryDisplayName} />
-        <EfficiencyChart
-          data={efficiencyData}
-          categoryDisplayName={categoryDisplayName}
-        />
-        <ScalingChart
-          data={scalingData}
-          referenceCosts={referenceCosts}
-          modelName={bestModel?.model_name ?? "N/A"}
-          categoryDisplayName={categoryDisplayName}
-          currencySymbol={currencySymbol}
-        />
-      </div>
+      <ChartSelector
+        tabs={[
+          { value: "gap", label: "Open vs Closed Gap", content: <GapChart data={gapData} /> },
+          { value: "cost", label: "Cost Trend", content: <CostTrendChart data={costData} referenceCosts={referenceCosts} currencySymbol={currencySymbol} /> },
+          { value: "sota", label: "% of SOTA", content: <SotaPercentChart data={sotaPercentData} /> },
+          { value: "size", label: "Model Size", content: <ModelSizeChart data={modelSizeData} categoryDisplayName={categoryDisplayName} /> },
+          { value: "efficiency", label: "Efficiency", content: <EfficiencyChart data={efficiencyData} categoryDisplayName={categoryDisplayName} /> },
+          { value: "scaling", label: "Scaling Cost", content: <ScalingChart data={scalingData} referenceCosts={referenceCosts} modelName={bestModel?.model_name ?? "N/A"} categoryDisplayName={categoryDisplayName} currencySymbol={currencySymbol} /> },
+        ] satisfies ChartTab[]}
+      />
     </section>
   );
 }
