@@ -64,17 +64,61 @@ function CustomTooltip({ active, payload }: {
   );
 }
 
+/**
+ * Given an array of label positions ({x, y} in pixel space), compute
+ * y-offsets so that overlapping labels are nudged apart vertically.
+ * Labels that are within `minDx` horizontally and `minDy` vertically
+ * of each other are considered overlapping.
+ */
+export function computeLabelOffsets(
+  positions: Array<{ x: number; y: number; key: string }>,
+  minDx = 40,
+  minDy = 12,
+): Map<string, number> {
+  const offsets = new Map<string, number>();
+  for (const p of positions) offsets.set(p.key, 0);
+
+  // Sort by x so we compare nearby labels
+  const sorted = [...positions].sort((a, b) => a.x - b.x || a.y - b.y);
+
+  for (let i = 0; i < sorted.length; i++) {
+    for (let j = i + 1; j < sorted.length; j++) {
+      const dx = Math.abs(sorted[j].x - sorted[i].x);
+      if (dx > minDx) break; // sorted by x, no further overlap possible
+
+      const yI = sorted[i].y + (offsets.get(sorted[i].key) ?? 0);
+      const yJ = sorted[j].y + (offsets.get(sorted[j].key) ?? 0);
+      const dy = Math.abs(yJ - yI);
+
+      if (dy < minDy) {
+        // Nudge the second label down (away from the dot, further negative in SVG = up)
+        offsets.set(sorted[j].key, (offsets.get(sorted[j].key) ?? 0) - (minDy - dy));
+      }
+    }
+  }
+
+  return offsets;
+}
+
 function ModelLabel(props: Record<string, unknown>) {
-  const { x, y, value } = props as { x: number; y: number; value: string };
+  const { x, y, value } = props as {
+    x: number;
+    y: number;
+    value: string;
+    labelOffsets?: Map<string, number>;
+  };
+  const labelOffsets = (props as { labelOffsets?: Map<string, number> }).labelOffsets;
   if (!value) return null;
+  const offset = labelOffsets?.get(value) ?? 0;
   return (
     <text
       x={x}
-      y={y - 10}
+      y={y - 10 + offset}
       textAnchor="middle"
       fontSize={10}
       fill="var(--chart-2)"
       className="select-none"
+      pointerEvents="none"
     >
       {value}
     </text>
@@ -93,6 +137,21 @@ export function ModelSizeChart({ data, categoryDisplayName }: ModelSizeChartProp
     const maxVram = Math.max(...data.map((p) => p.minVramGb));
     return [0, Math.ceil(maxVram * 1.1)];
   }, [data]);
+
+  // Approximate pixel positions from data coords and compute label offsets.
+  // We use rough chart dimensions; the collision logic is tolerant of small errors.
+  const labelOffsets = useMemo(() => {
+    if (data.length === 0) return new Map<string, number>();
+    const chartW = 500; // approximate plot area width
+    const chartH = 300; // approximate plot area height
+    const positions = data.map((p) => ({
+      x: (p.minVramGb / xDomain[1]) * chartW,
+      // SVG y is inverted: higher score → lower y
+      y: (1 - p.score / yDomain[1]) * chartH,
+      key: p.modelName,
+    }));
+    return computeLabelOffsets(positions);
+  }, [data, xDomain, yDomain]);
 
   if (data.length === 0) {
     return (
@@ -166,7 +225,12 @@ export function ModelSizeChart({ data, categoryDisplayName }: ModelSizeChartProp
               data={data}
               fill="var(--chart-2)"
             >
-              <LabelList dataKey="modelName" content={<ModelLabel />} />
+              <LabelList
+                dataKey="modelName"
+                content={((props: Record<string, unknown>) => (
+                  <ModelLabel {...props} labelOffsets={labelOffsets} />
+                )) as unknown as React.ReactElement}
+              />
             </Scatter>
           </ScatterChart>
         </ChartContainer>
