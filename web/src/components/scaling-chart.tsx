@@ -113,7 +113,7 @@ export function ScalingChart({ data, referenceCosts, modelName, categoryDisplayN
       <CardHeader>
         <CardTitle>What Does It Cost to Scale Agents?</CardTitle>
         <CardDescription>
-          Monthly cloud cost as you add concurrent coding streams. Showing the best open source {categoryDisplayName} model, {modelName}.
+          Monthly cloud cost as you add concurrent coding streams for {modelName}.
         </CardDescription>
       </CardHeader>
       <CardContent>
