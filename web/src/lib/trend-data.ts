@@ -286,6 +286,7 @@ export function computeGapTrend(
 export interface SotaPercentTrendPoint {
   date: string;
   openSourceModel: string;
+  closedSourceModel: string;
   percentOfSota: number; // 0–1; capped at 1 when open ≥ closed
 }
 
@@ -305,6 +306,7 @@ export function computeSotaPercentTrend(
     return {
       date: gp.date,
       openSourceModel: gp.openSourceModel,
+      closedSourceModel: gp.closedSourceModel,
       percentOfSota: Math.min(1, ratio),
     };
   });

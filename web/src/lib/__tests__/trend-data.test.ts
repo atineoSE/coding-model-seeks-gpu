@@ -376,6 +376,7 @@ describe("computeSotaPercentTrend", () => {
     expect(result).toHaveLength(1);
     expect(result[0].date).toBe("2026-01-28");
     expect(result[0].openSourceModel).toBe("OpenA");
+    expect(result[0].closedSourceModel).toBe("ClosedA");
     expect(result[0].percentOfSota).toBeCloseTo(0.5, 6);
   });
 

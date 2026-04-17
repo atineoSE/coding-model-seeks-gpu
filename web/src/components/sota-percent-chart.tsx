@@ -60,6 +60,11 @@ function CustomTooltip({ active, payload, label }: {
           </span>
         </div>
         <p className="text-muted-foreground">{point.openSourceModel}</p>
+        {point.percentDisplay < 100 && (
+          <p className="text-muted-foreground text-xs">
+            of {point.closedSourceModel}
+          </p>
+        )}
       </div>
     </div>
   );
