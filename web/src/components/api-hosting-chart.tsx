@@ -68,14 +68,6 @@ export function ApiHostingChart({
 }: ApiHostingChartProps) {
   const [turnsPerConversation, setTurnsPerConversation] = useState(DEFAULT_TURNS);
   const [cacheHitRate, setCacheHitRate] = useState(DEFAULT_CACHE_HIT_RATE);
-  const [cacheTtls, setCacheTtls] = useState<Record<string, number>>(() => {
-    const initial: Record<string, number> = {};
-    for (const entry of closedPricing) {
-      const ttls = getProviderCacheTtls(entry);
-      if (ttls.length > 0) initial[entry.lab] = ttls[0];
-    }
-    return initial;
-  });
 
   const chartConfig = useMemo(() => {
     const cfg: Record<string, { label: string; color: string }> = {};
@@ -95,7 +87,7 @@ export function ApiHostingChart({
     const configs: CostConfig[] = closedPricing.map((entry) => ({
       turnsPerConversation,
       cacheHitRate,
-      cacheTtlMin: cacheTtls[entry.lab] ?? null,
+      cacheTtlMin: getProviderCacheTtls(entry).length > 0 ? Math.min(...getProviderCacheTtls(entry)) : null,
       avgInputTokens: settings.avgInputTokens,
       avgOutputTokens: settings.avgOutputTokens,
     }));
@@ -150,7 +142,7 @@ export function ApiHostingChart({
     });
 
     return { chartData, openCosts, intersections, maxX };
-  }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate, cacheTtls]);
+  }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate]);
 
   const sortedIntersections = useMemo(
     () => [...intersections].sort((a, b) => a.x - b.x),
@@ -174,15 +166,6 @@ export function ApiHostingChart({
     return `${currencySymbol}${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   }
 
-  function formatTtl(minutes: number) {
-    if (minutes < 60) return `${minutes} min`;
-    if (minutes === 60) return "1 hr";
-    return `${minutes / 60} hr`;
-  }
-
-  const providersWithTtl = closedPricing.filter(
-    (e) => getProviderCacheTtls(e).length > 0,
-  );
 
   if (closedPricing.length === 0) {
     return (
@@ -248,30 +231,6 @@ export function ApiHostingChart({
             </Select>
           </div>
 
-          {providersWithTtl.map((entry) => (
-            <div key={entry.lab} className="flex items-center gap-2">
-              <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                Cache TTL ({entry.lab.charAt(0).toUpperCase() + entry.lab.slice(1)})
-              </label>
-              <Select
-                value={String(cacheTtls[entry.lab] ?? getProviderCacheTtls(entry)[0])}
-                onValueChange={(v) =>
-                  setCacheTtls((prev) => ({ ...prev, [entry.lab]: Number(v) }))
-                }
-              >
-                <SelectTrigger className="w-[90px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {getProviderCacheTtls(entry).map((ttl) => (
-                    <SelectItem key={ttl} value={String(ttl)}>
-                      {formatTtl(ttl)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
         </div>
 
         <ChartContainer
