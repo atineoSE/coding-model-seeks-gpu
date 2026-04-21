@@ -124,7 +124,7 @@ export function ApiHostingChart({
     return { fixedMaxX, fixedMaxY: fixedMaxX * maxAvgCostPerTurn };
   }, [closedPricing, openModels, gpus, settings]);
 
-  const { chartData, openCosts, intersections } = useMemo(() => {
+  const { chartData, openCosts, intersections, avgCosts } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
       turnsPerConversation,
       cacheHitRate,
@@ -178,7 +178,7 @@ export function ApiHostingChart({
       return point;
     });
 
-    return { chartData, openCosts, intersections };
+    return { chartData, openCosts, intersections, avgCosts };
   }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate, fixedMaxX]);
 
   const sortedIntersections = useMemo(
@@ -338,6 +338,21 @@ export function ApiHostingChart({
                 strokeWidth={2}
                 dot={false}
                 name={entry.model_name}
+              />
+            ))}
+
+            {closedPricing.map((entry, ci) => (
+              <ReferenceDot
+                key={`label-${entry.lab}`}
+                x={fixedMaxX}
+                y={fixedMaxX * avgCosts[ci]}
+                r={0}
+                label={{
+                  value: entry.model_name,
+                  position: "insideTopRight",
+                  fontSize: 10,
+                  fill: CLOSED_MODEL_COLORS[entry.lab] ?? "#888",
+                }}
               />
             ))}
 
