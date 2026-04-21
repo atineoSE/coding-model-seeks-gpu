@@ -8,12 +8,13 @@ import traceback
 
 from pipeline.config import SNAPSHOTS_DIR, SUBMODULE_PATH
 from pipeline.errors import FormatBreakingChange
-from pipeline.exporters.json_export import export_all
+from pipeline.exporters.json_export import export_all, export_api_pricing
 from pipeline.notify import (
     is_enabled,
     notify_breaking_format_change,
     notify_data_updated,
     notify_failure,
+    notify_missing_api_pricing,
     notify_missing_mapping,
     notify_unsupported_architecture,
 )
@@ -25,6 +26,7 @@ from pipeline.sources.huggingface import (
     MODEL_NAME_TO_HF_ID,
     fetch_all_models,
 )
+from pipeline.sources.litellm_source import fetch_api_pricing, find_best_models_per_lab
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +77,65 @@ def run_export(offerings, specs, source_metadata=None, gpu_specs=None):
     for name, path in paths.items():
         logger.info("Exported %s -> %s", name, path)
     return paths
+
+
+def run_api_pricing_pipeline(snapshots_dir=None) -> list[str]:
+    """Fetch API pricing for the best closed model per American lab.
+
+    Reads the latest snapshot to determine which model is best-in-lab, then
+    fetches LiteLLM pricing for those models and exports api_pricing.json.
+
+    Returns a list of update strings for the success notification, e.g.:
+        ["API pricing updated: anthropic/claude-opus-4-6, openai/GPT-5.4"]
+
+    Skips gracefully if no snapshot is available.
+    """
+    logger.info("=== API Pricing Pipeline ===")
+
+    if snapshots_dir is None:
+        snapshots_dir = SNAPSHOTS_DIR
+
+    index = load_index(snapshots_dir)
+    if index is None or not index.get("latest"):
+        logger.info("No snapshot index found, skipping API pricing pipeline")
+        return []
+
+    latest = index["latest"]
+    benchmarks_path = snapshots_dir / latest / "benchmarks.json"
+    if not benchmarks_path.exists():
+        logger.info("No benchmarks.json for latest snapshot %s, skipping", latest)
+        return []
+
+    benchmarks = json.loads(benchmarks_path.read_text())
+
+    best_models = find_best_models_per_lab(benchmarks)
+    if not best_models:
+        logger.warning("No best-per-lab models found in benchmarks, skipping API pricing")
+        return []
+
+    logger.info("Best models per lab: %s", best_models)
+
+    pricing = fetch_api_pricing(best_models)
+
+    # Notify for any model that couldn't be resolved
+    for lab, model_name in best_models.items():
+        if model_name not in pricing:
+            logger.warning("Missing pricing for %s/%s", lab, model_name)
+            if is_enabled():
+                notify_missing_api_pricing(model_name)
+
+    if not pricing:
+        logger.warning("No API pricing data fetched, skipping export")
+        return []
+
+    export_api_pricing(pricing)
+
+    pairs = ", ".join(
+        f"{pricing[m]['lab']}/{m}" for m in sorted(pricing)
+    )
+    update_msg = f"API pricing updated: {pairs}"
+    logger.info(update_msg)
+    return [update_msg]
 
 
 def check_missing_mappings(snapshots_dir=None):
@@ -181,6 +242,9 @@ def main():
 
         if args.step in ("export", "all"):
             run_export(offerings, specs, source_metadata=source_metadata, gpu_specs=gpu_specs)
+
+        if args.step in ("all",):
+            updates.extend(run_api_pricing_pipeline())
 
         # Success — send data update notification if anything changed
         if updates and is_enabled():

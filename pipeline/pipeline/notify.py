@@ -97,6 +97,23 @@ def notify_breaking_format_change(source: str, details: str) -> None:
     )
 
 
+def notify_missing_api_pricing(model_name: str) -> None:
+    """Alert that a model's LiteLLM pricing key could not be found."""
+    send_email(
+        subject=f"Missing LiteLLM pricing entry for {model_name}",
+        body=(
+            f"The model '{model_name}' is the current best-in-lab but has no matching "
+            f"entry in the LiteLLM model_prices_and_context_window.json.\n\n"
+            f"To fix this:\n"
+            f"1. Find the model's key in https://raw.githubusercontent.com/BerriAI/litellm/"
+            f"main/model_prices_and_context_window.json (look for direct-access, "
+            f"non-cloud-routed entries).\n"
+            f"2. Add/update LITELLM_ID_MAP in pipeline/sources/litellm_source.py.\n"
+            f"3. See UPDATE-MODEL.md → 'Updating API Pricing Mapping' for details."
+        ),
+    )
+
+
 def notify_data_updated(updates: list[str]) -> None:
     """Summarize what changed in a successful pipeline run."""
     body = "The pipeline completed successfully. Updates:\n\n"
