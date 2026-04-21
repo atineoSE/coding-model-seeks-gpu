@@ -160,13 +160,6 @@ export function ApiHostingChart({
     [intersections],
   );
 
-  // Fall back to legend table when labels would crowd the chart
-  const overlapThreshold = fixedMaxX * 0.05;
-  const hasOverlaps = intersections.some((a, i) =>
-    intersections.some((b, j) => i < j && Math.abs(a.x - b.x) < overlapThreshold),
-  );
-  const showInlineLabels = !hasOverlaps && intersections.length <= 4;
-
   function formatTurns(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
@@ -348,26 +341,32 @@ export function ApiHostingChart({
               ) : null,
             )}
 
-            {sortedIntersections.map((ix, i) => (
+            {sortedIntersections.map((ix) => (
+              <ReferenceLine
+                key={`vline-${ix.closedModel.lab}-${ix.openModel.model_name}`}
+                x={ix.x}
+                stroke={OPEN_MODEL_COLORS[ix.openIndex] ?? "#888"}
+                strokeWidth={1}
+                strokeDasharray="4 3"
+                label={{
+                  value: formatTurns(ix.x),
+                  position: "insideBottomLeft",
+                  fontSize: 10,
+                  fill: OPEN_MODEL_COLORS[ix.openIndex] ?? "#888",
+                  offset: 4,
+                }}
+              />
+            ))}
+
+            {sortedIntersections.map((ix) => (
               <ReferenceDot
-                key={`${ix.closedModel.lab}-${ix.openModel.model_name}`}
+                key={`dot-${ix.closedModel.lab}-${ix.openModel.model_name}`}
                 x={ix.x}
                 y={ix.y}
                 r={5}
                 fill="white"
                 stroke={OPEN_MODEL_COLORS[ix.openIndex] ?? "#888"}
                 strokeWidth={2}
-                label={
-                  showInlineLabels
-                    ? {
-                        value: `${formatTurns(ix.x)}/mo`,
-                        position: i % 2 === 0 ? "top" : "bottom",
-                        fontSize: 10,
-                        fill: "var(--foreground)",
-                        offset: 8,
-                      }
-                    : undefined
-                }
               />
             ))}
           </LineChart>
