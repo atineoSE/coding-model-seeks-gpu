@@ -83,7 +83,48 @@ export function ApiHostingChart({
     return cfg as ChartConfig;
   }, [closedPricing, openModels]);
 
-  const { chartData, openCosts, intersections, maxX } = useMemo(() => {
+  const { fixedMaxX, fixedMaxY } = useMemo(() => {
+    const openCosts = openModels.map((model) => ({
+      cost: computeSelfHostingMonthlyCost(model, gpus, settings),
+    }));
+
+    let maxIntersection = 0;
+    let maxAvgCostPerTurn = 0;
+
+    for (const turns of TURNS_OPTIONS) {
+      for (const hitRate of CACHE_HIT_RATE_OPTIONS) {
+        const avgCosts = closedPricing.map((entry) => {
+          const ttls = getProviderCacheTtls(entry);
+          const cacheTtlMin = ttls.length > 0 ? Math.min(...ttls) : null;
+          return computeAvgCostPerTurn(entry, {
+            turnsPerConversation: turns,
+            cacheHitRate: hitRate,
+            cacheTtlMin,
+            avgInputTokens: settings.avgInputTokens,
+            avgOutputTokens: settings.avgOutputTokens,
+          });
+        });
+
+        for (const avgCost of avgCosts) {
+          maxAvgCostPerTurn = Math.max(maxAvgCostPerTurn, avgCost);
+        }
+
+        for (let ci = 0; ci < closedPricing.length; ci++) {
+          for (const { cost } of openCosts) {
+            if (cost == null) continue;
+            const ix = findIntersection(avgCosts[ci], cost);
+            if (ix == null) continue;
+            maxIntersection = Math.max(maxIntersection, ix);
+          }
+        }
+      }
+    }
+
+    const fixedMaxX = Math.max(maxIntersection * 1.05, 10_000);
+    return { fixedMaxX, fixedMaxY: fixedMaxX * maxAvgCostPerTurn };
+  }, [closedPricing, openModels, gpus, settings]);
+
+  const { chartData, openCosts, intersections } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
       turnsPerConversation,
       cacheHitRate,
@@ -127,13 +168,9 @@ export function ApiHostingChart({
       }
     }
 
-    const maxIntersectionX =
-      intersections.length > 0 ? Math.max(...intersections.map((p) => p.x)) : 0;
-    const maxX = Math.max(maxIntersectionX * 1.5, 10_000);
-
     const STEPS = 100;
     const chartData = Array.from({ length: STEPS + 1 }, (_, i) => {
-      const x = (maxX / STEPS) * i;
+      const x = (fixedMaxX / STEPS) * i;
       const point: Record<string, number> = { x };
       for (let ci = 0; ci < closedPricing.length; ci++) {
         point[closedPricing[ci].lab] = x * avgCosts[ci];
@@ -141,8 +178,8 @@ export function ApiHostingChart({
       return point;
     });
 
-    return { chartData, openCosts, intersections, maxX };
-  }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate]);
+    return { chartData, openCosts, intersections };
+  }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate, fixedMaxX]);
 
   const sortedIntersections = useMemo(
     () => [...intersections].sort((a, b) => a.x - b.x),
@@ -150,7 +187,7 @@ export function ApiHostingChart({
   );
 
   // Fall back to legend table when labels would crowd the chart
-  const overlapThreshold = maxX * 0.05;
+  const overlapThreshold = fixedMaxX * 0.05;
   const hasOverlaps = intersections.some((a, i) =>
     intersections.some((b, j) => i < j && Math.abs(a.x - b.x) < overlapThreshold),
   );
@@ -245,7 +282,7 @@ export function ApiHostingChart({
             <XAxis
               dataKey="x"
               type="number"
-              domain={[0, maxX]}
+              domain={[0, fixedMaxX]}
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -259,6 +296,7 @@ export function ApiHostingChart({
               }}
             />
             <YAxis
+              domain={[0, fixedMaxY]}
               tickLine={false}
               axisLine={false}
               tickMargin={8}
