@@ -93,48 +93,7 @@ export function ApiHostingChart({
     return cfg as ChartConfig;
   }, [closedPricing, openModels]);
 
-  const { fixedMaxX, fixedMaxY } = useMemo(() => {
-    const openCosts = openModels.map((model) => ({
-      cost: computeSelfHostingMonthlyCost(model, gpus, settings),
-    }));
-
-    let maxIntersection = 0;
-    let maxAvgCostPerTurn = 0;
-
-    for (const turns of TURNS_OPTIONS) {
-      for (const hitRate of CACHE_HIT_RATE_OPTIONS) {
-        const avgCosts = closedPricing.map((entry) => {
-          const ttls = getProviderCacheTtls(entry);
-          const cacheTtlMin = ttls.length > 0 ? Math.min(...ttls) : null;
-          return computeAvgCostPerTurn(entry, {
-            turnsPerConversation: turns,
-            cacheHitRate: hitRate,
-            cacheTtlMin,
-            avgInputTokens: settings.avgInputTokens,
-            avgOutputTokens: settings.avgOutputTokens,
-          });
-        });
-
-        for (const avgCost of avgCosts) {
-          maxAvgCostPerTurn = Math.max(maxAvgCostPerTurn, avgCost);
-        }
-
-        for (let ci = 0; ci < closedPricing.length; ci++) {
-          for (const { cost } of openCosts) {
-            if (cost == null) continue;
-            const ix = findIntersection(avgCosts[ci], cost);
-            if (ix == null) continue;
-            maxIntersection = Math.max(maxIntersection, ix);
-          }
-        }
-      }
-    }
-
-    const fixedMaxX = Math.max(maxIntersection * 1.05, 10_000);
-    return { fixedMaxX, fixedMaxY: fixedMaxX * maxAvgCostPerTurn };
-  }, [closedPricing, openModels, gpus, settings]);
-
-  const { chartData, openCosts, intersections, avgCosts } = useMemo(() => {
+  const { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
       turnsPerConversation,
       cacheHitRate,
@@ -178,6 +137,11 @@ export function ApiHostingChart({
       }
     }
 
+    const maxIntersection = intersections.reduce((max, ix) => Math.max(max, ix.x), 0);
+    const fixedMaxX = Math.max(maxIntersection * 1.05, 10_000);
+    const maxAvgCostPerTurn = avgCosts.reduce((max, c) => Math.max(max, c), 0);
+    const fixedMaxY = fixedMaxX * maxAvgCostPerTurn;
+
     const STEPS = 100;
     const chartData = Array.from({ length: STEPS + 1 }, (_, i) => {
       const x = (fixedMaxX / STEPS) * i;
@@ -188,8 +152,8 @@ export function ApiHostingChart({
       return point;
     });
 
-    return { chartData, openCosts, intersections, avgCosts };
-  }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate, fixedMaxX]);
+    return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY };
+  }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate]);
 
   const sortedIntersections = useMemo(
     () => [...intersections].sort((a, b) => a.x - b.x),
