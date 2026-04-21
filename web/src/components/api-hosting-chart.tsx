@@ -288,7 +288,7 @@ export function ApiHostingChart({
               tickMargin={8}
               tickFormatter={formatTurns}
               label={{
-                value: "Turns per month",
+                value: "Agent turns per month",
                 position: "insideBottom",
                 offset: -16,
                 fontSize: 12,
