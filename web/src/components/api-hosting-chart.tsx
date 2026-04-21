@@ -218,7 +218,7 @@ export function ApiHostingChart({
               value={String(cacheHitRate)}
               onValueChange={(v) => setCacheHitRate(Number(v))}
             >
-              <SelectTrigger className="w-[75px]">
+              <SelectTrigger className="w-[90px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
