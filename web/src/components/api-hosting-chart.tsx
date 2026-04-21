@@ -38,9 +38,9 @@ import {
   type CostConfig,
 } from "@/lib/api-hosting-cost";
 
-const TURNS_OPTIONS = [10, 60, 110, 160, 210, 260, 310, 360, 410, 460, 510];
+const TURNS_OPTIONS = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
 const CACHE_HIT_RATE_OPTIONS = [0.8, 0.85, 0.9, 0.95, 0.99];
-const DEFAULT_TURNS = 160;
+const DEFAULT_TURNS = 150;
 const DEFAULT_CACHE_HIT_RATE = 0.9;
 
 const CLOSED_MODEL_COLORS: Record<string, string> = {
