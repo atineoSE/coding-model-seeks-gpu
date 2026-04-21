@@ -312,7 +312,7 @@ export function ApiHostingChart({
                 return (
                   <div className="rounded-lg border bg-background p-3 shadow-sm text-sm space-y-1">
                     <p className="font-medium">{formatTurns(x)} turns/mo</p>
-                    {payload.map((p) => (
+                    {[...payload].sort((a, b) => (b.value as number) - (a.value as number)).map((p) => (
                       <div key={String(p.dataKey)} className="flex items-center gap-2">
                         <span
                           className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
