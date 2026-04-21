@@ -49,6 +49,16 @@ const CLOSED_MODEL_COLORS: Record<string, string> = {
   google: "#8b5cf6",
 };
 
+const LAB_DISPLAY_NAMES: Record<string, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  google: "Google",
+};
+
+function labToDisplayName(lab: string): string {
+  return LAB_DISPLAY_NAMES[lab] ?? lab.charAt(0).toUpperCase() + lab.slice(1);
+}
+
 const OPEN_MODEL_COLORS = ["#22c55e", "#14b8a6", "#84cc16"];
 
 interface ApiHostingChartProps {
