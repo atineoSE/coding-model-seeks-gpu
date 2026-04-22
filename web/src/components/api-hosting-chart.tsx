@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings } from "@/types";
+import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings, BenchmarkScore } from "@/types";
 import {
   computeAvgCostPerTurn,
   computeSelfHostingMonthlyCost,
@@ -66,6 +66,8 @@ interface ApiHostingChartProps {
   availableModels: Model[];
   gpus: GpuOffering[];
   settings: AdvancedSettings;
+  benchmarks: BenchmarkScore[];
+  benchmarkCategory: string;
   currencySymbol?: string;
 }
 
@@ -74,6 +76,8 @@ export function ApiHostingChart({
   availableModels,
   gpus,
   settings,
+  benchmarks,
+  benchmarkCategory,
   currencySymbol = "$",
 }: ApiHostingChartProps) {
   const [turnsPerConversation, setTurnsPerConversation] = useState(DEFAULT_TURNS);
@@ -107,6 +111,22 @@ export function ApiHostingChart({
     return cfg as ChartConfig;
   }, [closedPricing, openModels]);
 
+  const benchmarkScoreMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of benchmarks) {
+      if (b.benchmark_name === benchmarkCategory && b.score !== null) {
+        const existing = map.get(b.model_name);
+        if (existing === undefined || b.score > existing) map.set(b.model_name, b.score);
+      }
+    }
+    return map;
+  }, [benchmarks, benchmarkCategory]);
+
+  const benchmarkDisplayName = useMemo(
+    () => benchmarks.find((b) => b.benchmark_name === benchmarkCategory)?.benchmark_display_name ?? benchmarkCategory,
+    [benchmarks, benchmarkCategory],
+  );
+
   const { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, minX } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
       turnsPerConversation,
@@ -132,6 +152,7 @@ export function ApiHostingChart({
       openModel: Model;
       closedIndex: number;
       openIndex: number;
+      performanceNote: string | null;
     }[] = [];
 
     for (let ci = 0; ci < closedPricing.length; ci++) {
@@ -140,6 +161,18 @@ export function ApiHostingChart({
         if (flatCost == null) continue;
         const ix = findIntersection(avgCosts[ci], flatCost);
         if (ix == null) continue;
+
+        const closedScore = benchmarkScoreMap.get(closedPricing[ci].model_name) ?? null;
+        const openScore = benchmarkScoreMap.get(openCosts[oi].model.model_name) ?? null;
+        let performanceNote: string | null = null;
+        if (closedScore !== null && openScore !== null && openScore > 0 && closedScore > 0) {
+          const [source, reference, pct] =
+            openScore <= closedScore
+              ? [openCosts[oi].model.model_name, closedPricing[ci].model_name, (openScore / closedScore) * 100]
+              : [closedPricing[ci].model_name, openCosts[oi].model.model_name, (closedScore / openScore) * 100];
+          performanceNote = `${source} has ${pct.toFixed(1)}% performance of ${reference} (${benchmarkDisplayName})`;
+        }
+
         intersections.push({
           x: ix,
           y: flatCost,
@@ -147,6 +180,7 @@ export function ApiHostingChart({
           openModel: openCosts[oi].model,
           closedIndex: ci,
           openIndex: oi,
+          performanceNote,
         });
       }
     }
@@ -440,6 +474,11 @@ export function ApiHostingChart({
                   <span className="text-muted-foreground text-xs">
                     ({formatCost(ix.y)}/mo self-hosting)
                   </span>
+                  {ix.performanceNote && (
+                    <span className="text-muted-foreground text-xs italic">
+                      — {ix.performanceNote}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

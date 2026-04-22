@@ -186,6 +186,8 @@ export function TrendsSection({
                 availableModels={availableScalingModels}
                 gpus={gpus}
                 settings={settings}
+                benchmarks={benchmarks}
+                benchmarkCategory={benchmarkCategory}
                 currencySymbol={currencySymbol}
               />
             ),
