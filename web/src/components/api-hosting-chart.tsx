@@ -61,6 +61,22 @@ function labToDisplayName(lab: string): string {
 
 const OPEN_MODEL_COLORS = ["#22c55e", "#14b8a6", "#84cc16"];
 
+function niceYTicks(maxY: number, extra: number | null): number[] {
+  // Generate ~5 evenly-spaced round ticks from 0 to maxY
+  const rawStep = maxY / 4;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const step = Math.ceil(rawStep / magnitude) * magnitude;
+  const ticks: number[] = [];
+  for (let v = 0; v <= maxY * 1.01; v += step) ticks.push(Math.round(v));
+  // Inject the self-hosting cost, dropping any auto tick within 8% of it
+  if (extra !== null && extra > 0) {
+    const threshold = extra * 0.08;
+    const filtered = ticks.filter((t) => Math.abs(t - extra) > threshold);
+    return [...filtered, extra].sort((a, b) => a - b);
+  }
+  return ticks;
+}
+
 interface ApiHostingChartProps {
   closedPricing: ApiPricingEntry[];
   availableModels: Model[];
@@ -207,6 +223,13 @@ export function ApiHostingChart({
     return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, minX };
   }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate]);
 
+  const selfHostingCost = openCosts[0]?.cost ?? null;
+
+  const yAxisTicks = useMemo(
+    () => niceYTicks(fixedMaxY, selfHostingCost),
+    [fixedMaxY, selfHostingCost],
+  );
+
   const sortedIntersections = useMemo(
     () => [...intersections].sort((a, b) => a.x - b.x),
     [intersections],
@@ -343,9 +366,25 @@ export function ApiHostingChart({
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(v: number) =>
-                `${currencySymbol}${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}`
-              }
+              ticks={yAxisTicks}
+              tick={(props: { x: number; y: number; payload: { value: number } }) => {
+                const { x, y, payload } = props;
+                const isSelfHosting = selfHostingCost !== null && payload.value === selfHostingCost;
+                const label = `${currencySymbol}${payload.value >= 1000 ? `${(payload.value / 1000).toFixed(0)}k` : payload.value.toFixed(0)}`;
+                return (
+                  <text
+                    x={x}
+                    y={y}
+                    dy={4}
+                    textAnchor="end"
+                    fontSize={isSelfHosting ? 11 : 11}
+                    fontWeight={isSelfHosting ? 700 : 400}
+                    fill={isSelfHosting ? (OPEN_MODEL_COLORS[0] ?? "#22c55e") : "var(--muted-foreground)"}
+                  >
+                    {label}
+                  </text>
+                );
+              }}
             />
             <ChartTooltip
               content={({ active, payload }) => {
