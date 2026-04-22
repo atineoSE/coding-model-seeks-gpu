@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { GpuOffering, GpuSource, Model, BenchmarkScore, SotaScore } from "@/types";
+import type { GpuOffering, GpuSource, Model, BenchmarkScore, SotaScore, ApiPricingEntry } from "@/types";
 
 const DEFAULT_GPU_SOURCE: GpuSource = {
   service_name: "gpuhunt",
@@ -155,4 +155,20 @@ export function filterBenchmarksByType(
   benchmarkName: string,
 ): BenchmarkScore[] {
   return benchmarks.filter((b) => b.benchmark_name === benchmarkName);
+}
+
+/** Load API pricing data from the pipeline-generated api_pricing.json. */
+export function useApiPricing(): { pricing: ApiPricingEntry[]; loading: boolean } {
+  const [pricing, setPricing] = useState<ApiPricingEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/data/api_pricing.json")
+      .then((r) => r.json() as Promise<ApiPricingEntry[]>)
+      .then(setPricing)
+      .catch(() => setPricing([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { pricing, loading };
 }

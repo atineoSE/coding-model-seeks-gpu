@@ -120,6 +120,27 @@ def export_metadata(output_dir: Path | None = None) -> Path:
     return path
 
 
+def export_api_pricing(
+    pricing: dict[str, dict],
+    output_dir: Path | None = None,
+) -> Path:
+    """Export API pricing data to api_pricing.json.
+
+    Each entry preserves all LiteLLM fields plus model_name, lab, and litellm_id.
+    Sorted by lab name for determinism.
+    """
+    if output_dir is None:
+        output_dir = EXPORT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    rows = sorted(pricing.values(), key=lambda r: (r.get("lab", ""), r.get("model_name", "")))
+
+    path = output_dir / "api_pricing.json"
+    path.write_text(json.dumps(rows, indent=2) + "\n")
+    logger.info("Exported API pricing for %d models to %s", len(rows), path)
+    return path
+
+
 def export_all(
     offerings: list[dict],
     specs: list[ModelSpec],

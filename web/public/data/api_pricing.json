@@ -1,0 +1,41 @@
+[
+  {
+    "model_name": "claude-opus-4-6",
+    "lab": "anthropic",
+    "litellm_id": "claude-opus-4-6-20250901",
+    "input_cost_per_token": 0.000015,
+    "output_cost_per_token": 0.000075,
+    "cache_creation_input_token_cost": 0.00001875,
+    "cache_read_input_token_cost": 0.0000015,
+    "context_window": 200000,
+    "max_output_tokens": 32000,
+    "supports_prompt_caching": true,
+    "supports_vision": true
+  },
+  {
+    "model_name": "Gemini-3.1-Pro",
+    "lab": "google",
+    "litellm_id": "gemini/gemini-3.1-pro",
+    "input_cost_per_token": 0.00000125,
+    "output_cost_per_token": 0.000005,
+    "cache_creation_input_token_cost": null,
+    "cache_read_input_token_cost": null,
+    "context_window": 1000000,
+    "max_output_tokens": 8192,
+    "supports_prompt_caching": false,
+    "supports_vision": true
+  },
+  {
+    "model_name": "GPT-5.4",
+    "lab": "openai",
+    "litellm_id": "gpt-5.4",
+    "input_cost_per_token": 0.00001,
+    "output_cost_per_token": 0.00003,
+    "cache_creation_input_token_cost": null,
+    "cache_read_input_token_cost": 0.0000025,
+    "context_window": 128000,
+    "max_output_tokens": 16384,
+    "supports_prompt_caching": true,
+    "supports_vision": true
+  }
+]

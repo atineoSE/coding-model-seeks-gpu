@@ -157,6 +157,71 @@ source of truth for test configs — other test files import from here.
 
 ---
 
+---
+
+## Updating API Pricing Mapping
+
+When a new model becomes the best-scoring model for its lab (Anthropic, OpenAI, or Google),
+the API pricing pipeline needs to know its LiteLLM key so it can fetch pricing data.
+
+### 1. Find the model's LiteLLM key
+
+Open the LiteLLM pricing JSON:
+```
+https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json
+```
+
+Search for the model name. Look for the **direct-access** entry — not cloud-routed variants.
+Skip any key that starts with `bedrock/`, `vertex_ai/`, `azure/`, or `sagemaker/`.
+
+Examples of valid (direct-access) keys:
+- `"claude-opus-4-6-20250901"` ← Anthropic direct
+- `"gpt-5.4"` ← OpenAI direct
+- `"gemini/gemini-3.1-pro"` ← Google direct
+
+### 2. Update `LITELLM_ID_MAP`
+
+**File:** `pipeline/pipeline/sources/litellm_source.py` — `LITELLM_ID_MAP`
+
+Add or update the mapping from the OpenHands canonical model name to the LiteLLM key:
+
+```python
+LITELLM_ID_MAP: dict[str, str] = {
+    "claude-opus-4-6": "claude-opus-4-6-20250901",
+    "GPT-5.4": "gpt-5.4",
+    "Gemini-3.1-Pro": "gemini/gemini-3.1-pro",
+    # Add new entry here:
+    "NewModel-X": "new-model-x-litellm-key",
+}
+```
+
+### 3. Update `MODEL_LAB_MAP` (if new model is not already present)
+
+**File:** `pipeline/pipeline/sources/litellm_source.py` — `MODEL_LAB_MAP`
+
+If the new best-in-lab model is not already in `MODEL_LAB_MAP`, add it:
+
+```python
+MODEL_LAB_MAP: dict[str, str] = {
+    ...
+    "NewModel-X": "anthropic",   # or "openai" / "google"
+}
+```
+
+Only models from the three American labs (Anthropic, OpenAI, Google) belong here.
+
+### 4. Verify
+
+Run the pipeline locally to confirm pricing is fetched successfully:
+
+```bash
+cd pipeline && python -m pipeline.main --step all --log-level DEBUG
+```
+
+Check that `web/public/data/api_pricing.json` is updated with the new model's pricing data.
+
+---
+
 ## Verification
 
 After making changes, run the full test suite:

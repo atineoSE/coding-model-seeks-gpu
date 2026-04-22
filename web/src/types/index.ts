@@ -128,3 +128,17 @@ export interface CostResult {
   monthlyCost: number | null;
 }
 
+export interface ApiPricingEntry {
+  model_name: string;
+  lab: string;
+  litellm_id: string;
+  input_cost_per_token: number | null;
+  output_cost_per_token: number | null;
+  cache_creation_input_token_cost: number | null;
+  cache_read_input_token_cost: number | null;
+  context_window: number | null;
+  max_output_tokens: number | null;
+  // Additional LiteLLM fields preserved as passthrough
+  [key: string]: unknown;
+}
+
