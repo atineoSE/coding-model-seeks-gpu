@@ -32,9 +32,9 @@ MODEL_LAB_MAP: dict[str, str] = {
 # When a model's key cannot be found, a warning is logged and a notification is sent.
 # See UPDATE-MODEL.md → "Updating API Pricing Mapping" for instructions.
 LITELLM_ID_MAP: dict[str, str] = {
-    "claude-opus-4-6": "claude-opus-4-6-20250901",
+    "claude-opus-4-6": "claude-opus-4-6",
     "GPT-5.4": "gpt-5.4",
-    "Gemini-3.1-Pro": "gemini/gemini-3.1-pro",
+    "Gemini-3.1-Pro": "gemini/gemini-3.1-pro-preview",
 }
 
 PROVIDER_EXCLUDE_PREFIXES = ["bedrock/", "vertex_ai/", "azure/", "sagemaker/"]

@@ -6,7 +6,7 @@ export const COMPACTION_THRESHOLD_TOKENS = 20_000;
 export const PROVIDER_CACHE_TTLS: Record<string, number[]> = {
   anthropic: [5, 60, 1440],
   openai: [60],
-  google: [],
+  google: [60],
 };
 
 export interface CostConfig {
