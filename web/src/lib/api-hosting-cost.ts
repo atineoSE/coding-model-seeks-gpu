@@ -29,9 +29,7 @@ export function computeAvgCostPerTurn(
   if (!entry.input_cost_per_token || !entry.output_cost_per_token) return 0;
 
   const contextWindow = entry.context_window ?? Infinity;
-  const hasCaching =
-    entry.cache_read_input_token_cost != null &&
-    entry.cache_creation_input_token_cost != null;
+  const hasCaching = entry.cache_read_input_token_cost != null;
 
   const inputCost = entry.input_cost_per_token;
   const outputCost = entry.output_cost_per_token;
