@@ -149,9 +149,6 @@ export function TrendsSection({
     benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
       ?.benchmark_display_name ?? benchmarkCategory;
 
-  // Top 3 open-weight models by score (for API vs Self-Hosting chart)
-  const topOpenModels = useMemo(() => availableScalingModels.slice(0, 3), [availableScalingModels]);
-
   if (loading) {
     return (
       <section className="mt-16">
@@ -186,7 +183,7 @@ export function TrendsSection({
             ) : (
               <ApiHostingChart
                 closedPricing={apiPricing}
-                openModels={topOpenModels}
+                availableModels={availableScalingModels}
                 gpus={gpus}
                 settings={settings}
                 currencySymbol={currencySymbol}

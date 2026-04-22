@@ -63,7 +63,7 @@ const OPEN_MODEL_COLORS = ["#22c55e", "#14b8a6", "#84cc16"];
 
 interface ApiHostingChartProps {
   closedPricing: ApiPricingEntry[];
-  openModels: Model[];
+  availableModels: Model[];
   gpus: GpuOffering[];
   settings: AdvancedSettings;
   currencySymbol?: string;
@@ -71,13 +71,27 @@ interface ApiHostingChartProps {
 
 export function ApiHostingChart({
   closedPricing,
-  openModels,
+  availableModels,
   gpus,
   settings,
   currencySymbol = "$",
 }: ApiHostingChartProps) {
   const [turnsPerConversation, setTurnsPerConversation] = useState(DEFAULT_TURNS);
   const [cacheHitRate, setCacheHitRate] = useState(DEFAULT_CACHE_HIT_RATE);
+  const [selectedModelName, setSelectedModelName] = useState<string | null>(null);
+
+  const selectedModel = useMemo(() => {
+    if (selectedModelName) {
+      const found = availableModels.find((m) => m.model_name === selectedModelName);
+      if (found) return found;
+    }
+    return availableModels[0] ?? null;
+  }, [selectedModelName, availableModels]);
+
+  const openModels = useMemo(
+    () => (selectedModel ? [selectedModel] : []),
+    [selectedModel],
+  );
 
   const chartConfig = useMemo(() => {
     const cfg: Record<string, { label: string; color: string }> = {};
@@ -197,6 +211,27 @@ export function ApiHostingChart({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-x-6 gap-y-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+              Open model
+            </label>
+            <Select
+              value={selectedModel?.model_name ?? ""}
+              onValueChange={(v) => setSelectedModelName(v)}
+            >
+              <SelectTrigger className="w-full sm:w-[280px]">
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModels.map((m, i) => (
+                  <SelectItem key={m.model_name} value={m.model_name}>
+                    {m.model_name}{i === 0 ? " (best)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
               Turns / conversation
