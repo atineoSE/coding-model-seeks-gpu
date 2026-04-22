@@ -15,6 +15,7 @@ from pipeline.notify import (
     notify_data_updated,
     notify_failure,
     notify_missing_api_pricing,
+    notify_missing_required_api_pricing,
     notify_missing_mapping,
     notify_unsupported_architecture,
 )
@@ -115,14 +116,28 @@ def run_api_pricing_pipeline(snapshots_dir=None) -> list[str]:
 
     logger.info("Best models per lab: %s", best_models)
 
+    REQUIRED_LABS = {"anthropic", "openai", "google"}
+
     pricing = fetch_api_pricing(best_models)
 
-    # Notify for any model that couldn't be resolved
+    # Collect missing models, separating required labs from optional ones
+    missing_required: list[tuple[str, str]] = []
     for lab, model_name in best_models.items():
         if model_name not in pricing:
             logger.warning("Missing pricing for %s/%s", lab, model_name)
-            if is_enabled():
+            if lab in REQUIRED_LABS:
+                missing_required.append((lab, model_name))
+            elif is_enabled():
                 notify_missing_api_pricing(model_name)
+
+    if missing_required:
+        if is_enabled():
+            notify_missing_required_api_pricing(missing_required)
+        labs = ", ".join(f"{lab}/{model}" for lab, model in missing_required)
+        raise RuntimeError(
+            f"Missing required API pricing for: {labs}. "
+            f"Update LITELLM_ID_MAP in litellm_source.py."
+        )
 
     if not pricing:
         logger.warning("No API pricing data fetched, skipping export")

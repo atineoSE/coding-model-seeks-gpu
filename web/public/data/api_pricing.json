@@ -32,7 +32,8 @@
     "supports_max_reasoning_effort": true,
     "model_name": "claude-opus-4-6",
     "lab": "anthropic",
-    "litellm_id": "claude-opus-4-6"
+    "litellm_id": "claude-opus-4-6",
+    "context_window": 1000000
   },
   {
     "cache_read_input_token_cost": 2e-07,
@@ -93,7 +94,8 @@
     "supports_service_tier": true,
     "model_name": "Gemini-3.1-Pro",
     "lab": "google",
-    "litellm_id": "gemini/gemini-3.1-pro-preview"
+    "litellm_id": "gemini/gemini-3.1-pro-preview",
+    "context_window": 1048576
   },
   {
     "cache_read_input_token_cost": 2.5e-07,
@@ -143,6 +145,7 @@
     "supports_minimal_reasoning_effort": true,
     "model_name": "GPT-5.4",
     "lab": "openai",
-    "litellm_id": "gpt-5.4"
+    "litellm_id": "gpt-5.4",
+    "context_window": 1050000
   }
 ]

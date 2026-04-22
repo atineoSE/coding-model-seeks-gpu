@@ -9,6 +9,7 @@ from pipeline.notify import (
     notify_data_updated,
     notify_failure,
     notify_missing_mapping,
+    notify_missing_required_api_pricing,
     send_email,
 )
 
@@ -141,6 +142,44 @@ class TestNotifyBreakingFormatChange:
         body = sent_msg.get_payload()
         assert "gpuhunt" in body
         assert "Missing attributes" in body
+
+
+class TestNotifyMissingRequiredApiPricing:
+    def _smtp_mocks(self, monkeypatch):
+        monkeypatch.setattr("pipeline.notify.SMTP_USER", "user@gmail.com")
+        monkeypatch.setattr("pipeline.notify.SMTP_PASSWORD", "secret")
+        monkeypatch.setattr("pipeline.notify.NOTIFY_TO", "dest@example.com")
+        mock_instance = MagicMock()
+        mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+        mock_instance.__exit__ = MagicMock(return_value=False)
+        mock_cls = MagicMock(return_value=mock_instance)
+        return mock_cls, mock_instance
+
+    def test_subject_signals_failure(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_missing_required_api_pricing([("anthropic", "claude-opus-4-6")])
+        sent = mock_instance.send_message.call_args[0][0]
+        assert "Pipeline failed" in sent["Subject"]
+        assert SUBJECT_PREFIX in sent["Subject"]
+
+    def test_body_lists_all_missing_labs(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+        missing = [("anthropic", "claude-opus-4-6"), ("google", "Gemini-3.1-Pro")]
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_missing_required_api_pricing(missing)
+        body = mock_instance.send_message.call_args[0][0].get_payload()
+        assert "anthropic" in body
+        assert "claude-opus-4-6" in body
+        assert "google" in body
+        assert "Gemini-3.1-Pro" in body
+
+    def test_body_includes_fix_instructions(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_missing_required_api_pricing([("openai", "GPT-5.4")])
+        body = mock_instance.send_message.call_args[0][0].get_payload()
+        assert "LITELLM_ID_MAP" in body
 
 
 class TestNotifyDataUpdated:

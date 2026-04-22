@@ -60,38 +60,38 @@ SAMPLE_BENCHMARKS = [
 ]
 
 SAMPLE_LITELLM_JSON = {
-    "claude-opus-4-6-20250901": {
-        "input_cost_per_token": 0.000015,
-        "output_cost_per_token": 0.000075,
-        "cache_creation_input_token_cost": 0.00001875,
-        "cache_read_input_token_cost": 0.0000015,
-        "context_window": 200000,
+    "claude-opus-4-6": {
+        "input_cost_per_token": 0.000005,
+        "output_cost_per_token": 0.000025,
+        "cache_creation_input_token_cost": 0.000006,
+        "cache_read_input_token_cost": 0.0000005,
+        "context_window": 1000000,
         "max_output_tokens": 32000,
     },
     "gpt-5.4": {
-        "input_cost_per_token": 0.00001,
-        "output_cost_per_token": 0.00003,
+        "input_cost_per_token": 0.0000025,
+        "output_cost_per_token": 0.000015,
         "cache_creation_input_token_cost": None,
-        "cache_read_input_token_cost": None,
-        "context_window": 128000,
-        "max_output_tokens": 16384,
+        "cache_read_input_token_cost": 0.00000025,
+        "max_input_tokens": 1050000,  # LiteLLM uses max_input_tokens, not context_window
+        "max_output_tokens": 128000,
     },
-    "gemini/gemini-3.1-pro": {
-        "input_cost_per_token": 0.0000015,
-        "output_cost_per_token": 0.000006,
+    "gemini/gemini-3.1-pro-preview": {
+        "input_cost_per_token": 0.000002,
+        "output_cost_per_token": 0.000008,
         "cache_creation_input_token_cost": None,
-        "cache_read_input_token_cost": None,
-        "context_window": 1000000,
+        "cache_read_input_token_cost": 0.0000002,
+        "max_input_tokens": 1048576,
         "max_output_tokens": 8192,
     },
     # Cloud-routed variants that should be excluded
-    "bedrock/claude-opus-4-6-20250901": {
-        "input_cost_per_token": 0.000015,
-        "output_cost_per_token": 0.000075,
+    "bedrock/claude-opus-4-6": {
+        "input_cost_per_token": 0.000005,
+        "output_cost_per_token": 0.000025,
     },
-    "vertex_ai/gemini/gemini-3.1-pro": {
-        "input_cost_per_token": 0.0000015,
-        "output_cost_per_token": 0.000006,
+    "vertex_ai/gemini/gemini-3.1-pro-preview": {
+        "input_cost_per_token": 0.000002,
+        "output_cost_per_token": 0.000008,
     },
 }
 
@@ -161,8 +161,8 @@ class TestFetchApiPricing:
         entry = result["claude-opus-4-6"]
         assert entry["model_name"] == "claude-opus-4-6"
         assert entry["lab"] == "anthropic"
-        assert entry["litellm_id"] == "claude-opus-4-6-20250901"
-        assert entry["input_cost_per_token"] == 0.000015
+        assert entry["litellm_id"] == "claude-opus-4-6"
+        assert entry["input_cost_per_token"] == 0.000005
 
     def test_excludes_cloud_routed_variants(self):
         best_models = {"anthropic": "claude-opus-4-6"}
@@ -173,7 +173,7 @@ class TestFetchApiPricing:
 
         # Should use the direct key, not bedrock/
         assert "claude-opus-4-6" in result
-        assert result["claude-opus-4-6"]["litellm_id"] == "claude-opus-4-6-20250901"
+        assert result["claude-opus-4-6"]["litellm_id"] == "claude-opus-4-6"
 
     def test_warns_on_missing_key(self, caplog):
         best_models = {"anthropic": "claude-opus-4-99"}  # not in LITELLM_ID_MAP or raw data
@@ -195,6 +195,38 @@ class TestFetchApiPricing:
         assert len(result) == 3
         labs = {v["lab"] for v in result.values()}
         assert labs == {"anthropic", "openai", "google"}
+
+    def test_context_window_normalised_from_max_input_tokens(self):
+        """LiteLLM uses max_input_tokens; pipeline must expose it as context_window."""
+        best_models = {"openai": "GPT-5.4"}
+        response = self._make_response(SAMPLE_LITELLM_JSON)
+
+        with patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
+            result = fetch_api_pricing(best_models)
+
+        assert result["GPT-5.4"]["context_window"] == 1050000
+
+    def test_context_window_preserved_when_already_present(self):
+        """Entries that already have context_window are not overwritten."""
+        best_models = {"anthropic": "claude-opus-4-6"}
+        response = self._make_response(SAMPLE_LITELLM_JSON)
+
+        with patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
+            result = fetch_api_pricing(best_models)
+
+        assert result["claude-opus-4-6"]["context_window"] == 1000000
+
+    def test_partial_caching_openai_style(self):
+        """cache_creation_input_token_cost=None with cache_read set should be preserved."""
+        best_models = {"openai": "GPT-5.4"}
+        response = self._make_response(SAMPLE_LITELLM_JSON)
+
+        with patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
+            result = fetch_api_pricing(best_models)
+
+        entry = result["GPT-5.4"]
+        assert entry["cache_read_input_token_cost"] == 0.00000025
+        assert entry["cache_creation_input_token_cost"] is None
 
 
 class TestModelLabMap:

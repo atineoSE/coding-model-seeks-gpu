@@ -114,6 +114,25 @@ def notify_missing_api_pricing(model_name: str) -> None:
     )
 
 
+def notify_missing_required_api_pricing(missing: list[tuple[str, str]]) -> None:
+    """Alert that one or more required labs are missing from API pricing. Pipeline will fail."""
+    lines = "\n".join(f"  - {lab}: {model_name}" for lab, model_name in missing)
+    send_email(
+        subject="Pipeline failed: missing required API pricing",
+        body=(
+            f"The following required labs could not be resolved to a LiteLLM pricing entry.\n"
+            f"The pipeline has been aborted and api_pricing.json was NOT updated.\n\n"
+            f"Missing:\n{lines}\n\n"
+            f"To fix this:\n"
+            f"1. Find the model's key in https://raw.githubusercontent.com/BerriAI/litellm/"
+            f"main/model_prices_and_context_window.json (look for direct-access, "
+            f"non-cloud-routed entries).\n"
+            f"2. Add/update LITELLM_ID_MAP in pipeline/sources/litellm_source.py.\n"
+            f"3. See UPDATE-MODEL.md → 'Updating API Pricing Mapping' for details."
+        ),
+    )
+
+
 def notify_data_updated(updates: list[str]) -> None:
     """Summarize what changed in a successful pipeline run."""
     body = "The pipeline completed successfully. Updates:\n\n"

@@ -118,6 +118,8 @@ def fetch_api_pricing(
             "model_name": model_name,
             "lab": lab,
             "litellm_id": litellm_key,
+            # Normalise: LiteLLM uses max_input_tokens; frontend expects context_window
+            "context_window": entry.get("context_window") or entry.get("max_input_tokens"),
         }
 
     logger.info("Fetched pricing for %d/%d models", len(result), len(best_models))
