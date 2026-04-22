@@ -93,7 +93,7 @@ export function ApiHostingChart({
     return cfg as ChartConfig;
   }, [closedPricing, openModels]);
 
-  const { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY } = useMemo(() => {
+  const { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, minX } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
       turnsPerConversation,
       cacheHitRate,
@@ -139,12 +139,16 @@ export function ApiHostingChart({
 
     const maxIntersection = intersections.reduce((max, ix) => Math.max(max, ix.x), 0);
     const fixedMaxX = Math.max(maxIntersection * 1.05, 10_000);
-    const maxAvgCostPerTurn = avgCosts.reduce((max, c) => Math.max(max, c), 0);
-    const fixedMaxY = fixedMaxX * maxAvgCostPerTurn;
+    const minX = 100;
+    const top3Intersections = intersections.filter((ix) => ix.openIndex < 3);
+    const maxIntersectionY = top3Intersections.reduce((max, ix) => Math.max(max, ix.y), 0);
+    const fallbackMaxY = openCosts.slice(0, 3).reduce((max, { cost }) => (cost != null ? Math.min(max, cost) : max), Infinity);
+    const fixedMaxY = (maxIntersectionY > 0 ? maxIntersectionY : fallbackMaxY) * 1.2;
 
-    const STEPS = 100;
+    // Log-spaced points so curves render smoothly on the log X axis
+    const STEPS = 200;
     const chartData = Array.from({ length: STEPS + 1 }, (_, i) => {
-      const x = (fixedMaxX / STEPS) * i;
+      const x = minX * Math.pow(fixedMaxX / minX, i / STEPS);
       const point: Record<string, number> = { x };
       for (let ci = 0; ci < closedPricing.length; ci++) {
         point[closedPricing[ci].lab] = x * avgCosts[ci];
@@ -152,7 +156,7 @@ export function ApiHostingChart({
       return point;
     });
 
-    return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY };
+    return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, minX };
   }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate]);
 
   const sortedIntersections = useMemo(
@@ -249,7 +253,9 @@ export function ApiHostingChart({
             <XAxis
               dataKey="x"
               type="number"
-              domain={[0, fixedMaxX]}
+              scale="log"
+              domain={[minX, fixedMaxX]}
+              allowDataOverflow
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -264,6 +270,7 @@ export function ApiHostingChart({
             />
             <YAxis
               domain={[0, fixedMaxY]}
+              allowDataOverflow
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -305,6 +312,7 @@ export function ApiHostingChart({
                 strokeWidth={2}
                 dot={false}
                 name={entry.model_name}
+                allowDataOverflow
               />
             ))}
 
