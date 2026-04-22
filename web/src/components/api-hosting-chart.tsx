@@ -225,6 +225,31 @@ export function ApiHostingChart({
 
   const selfHostingCost = openCosts[0]?.cost ?? null;
 
+  // Place each closed-model label near the last visible point on that curve.
+  // For lines that exit the chart top before fixedMaxX, anchor at 90% of
+  // the exit x so the label sits on the curve, not clustered at the right edge.
+  const closedLabelPositions = useMemo(() => {
+    const ANCHOR = 0.65;
+    const minGap = fixedMaxY * 0.06;
+
+    const entries = closedPricing.map((_, ci) => {
+      const exitX = avgCosts[ci] > 0 ? fixedMaxY / avgCosts[ci] : fixedMaxX;
+      const anchorX = Math.min(fixedMaxX, exitX) * ANCHOR;
+      const anchorY = anchorX * avgCosts[ci];
+      return { ci, x: anchorX, y: anchorY };
+    });
+
+    // Sort descending by y and stagger labels that would otherwise overlap
+    entries.sort((a, b) => b.y - a.y);
+    for (let i = 1; i < entries.length; i++) {
+      if (entries[i - 1].y - entries[i].y < minGap) {
+        entries[i].y = Math.max(entries[i - 1].y - minGap, minGap);
+      }
+    }
+
+    return new Map(entries.map(({ ci, x, y }) => [ci, { x, y }]));
+  }, [closedPricing, fixedMaxX, fixedMaxY, avgCosts]);
+
   const yAxisTicks = useMemo(
     () => niceYTicks(fixedMaxY, selfHostingCost),
     [fixedMaxY, selfHostingCost],
@@ -424,20 +449,29 @@ export function ApiHostingChart({
               />
             ))}
 
-            {closedPricing.map((entry, ci) => (
-              <ReferenceDot
-                key={`label-${entry.lab}`}
-                x={fixedMaxX}
-                y={fixedMaxX * avgCosts[ci]}
-                r={0}
-                label={{
-                  value: entry.model_name,
-                  position: "insideTopRight",
-                  fontSize: 10,
-                  fill: CLOSED_MODEL_COLORS[entry.lab] ?? "#888",
-                }}
-              />
-            ))}
+            {closedPricing.map((entry, ci) => {
+              const pos = closedLabelPositions.get(ci);
+              if (!pos) return null;
+              return (
+                <ReferenceDot
+                  key={`label-${entry.lab}`}
+                  x={pos.x}
+                  y={pos.y}
+                  r={0}
+                  label={(props: { viewBox?: { x?: number; y?: number } }) => (
+                    <text
+                      x={props.viewBox?.x ?? 0}
+                      y={(props.viewBox?.y ?? 0) - 6}
+                      textAnchor="middle"
+                      fontSize={10}
+                      fill={CLOSED_MODEL_COLORS[entry.lab] ?? "#888"}
+                    >
+                      {entry.model_name}
+                    </text>
+                  )}
+                />
+              );
+            })}
 
             {openCosts.map(({ model, cost }, i) =>
               cost != null ? (
@@ -449,7 +483,7 @@ export function ApiHostingChart({
                   strokeDasharray="6 3"
                   label={{
                     value: model.model_name,
-                    position: "insideTopRight",
+                    position: "insideTopLeft",
                     fontSize: 10,
                     fill: OPEN_MODEL_COLORS[i] ?? "#888",
                   }}
