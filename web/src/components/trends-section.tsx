@@ -172,7 +172,6 @@ export function TrendsSection({
 
       <ChartSelector
         tabs={[
-          { value: "gap", label: "Open vs Closed Gap", content: <GapChart data={gapData} /> },
           {
             value: "api-vs-self-hosting",
             label: "API vs Self-hosting",
@@ -192,6 +191,7 @@ export function TrendsSection({
               />
             ),
           },
+          { value: "gap", label: "Open vs Closed Gap", content: <GapChart data={gapData} /> },
           { value: "cost", label: "Cost Trend", content: <CostTrendChart data={costData} referenceCosts={referenceCosts} currencySymbol={currencySymbol} /> },
           { value: "sota", label: "% of SOTA", content: <SotaPercentChart data={sotaPercentData} /> },
           { value: "size", label: "Model Size", content: <ModelSizeChart data={modelSizeData} categoryDisplayName={categoryDisplayName} /> },
