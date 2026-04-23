@@ -33,9 +33,10 @@ export interface GpuThroughputSpec {
  * Built from pipeline-generated gpu_specs.json at module load time.
  */
 export const GPU_THROUGHPUT_SPECS: Record<string, GpuThroughputSpec> = {};
+const GPU_THROUGHPUT_SPECS_LOWER: Record<string, GpuThroughputSpec> = {};
 
 for (const entry of gpuSpecsData) {
-  GPU_THROUGHPUT_SPECS[entry.gpu_name] = {
+  const spec = {
     memory_size_gb: entry.memory_size_gb,
     fp16_tflops: entry.fp16_tflops,
     memory_bandwidth_tb_s: entry.memory_bandwidth_tb_s,
@@ -43,6 +44,8 @@ for (const entry of gpuSpecsData) {
     fp8_multiplier: entry.fp8_multiplier,
     architecture: entry.architecture,
   };
+  GPU_THROUGHPUT_SPECS[entry.gpu_name] = spec;
+  GPU_THROUGHPUT_SPECS_LOWER[entry.gpu_name.toLowerCase()] = spec;
 }
 
 /**
@@ -50,7 +53,7 @@ for (const entry of gpuSpecsData) {
  * Returns null if GPU not found in specs.
  */
 export function getGpuThroughputSpec(gpuName: string): GpuThroughputSpec | null {
-  return GPU_THROUGHPUT_SPECS[gpuName] || null;
+  return GPU_THROUGHPUT_SPECS[gpuName] ?? GPU_THROUGHPUT_SPECS_LOWER[gpuName.toLowerCase()] ?? null;
 }
 
 /**
