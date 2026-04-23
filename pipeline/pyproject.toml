@@ -12,7 +12,7 @@ dependencies = [
 pipeline = [
     "beautifulsoup4>=4.12",
     "dbgpu>=2025.12",
-    "gpuhunt>=0.1",
+    "gpuhunt>=0.1.21",
     "httpx>=0.27",
     "pydantic>=2.7",
 ]
