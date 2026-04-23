@@ -445,7 +445,6 @@ export function ApiHostingChart({
                 strokeWidth={2}
                 dot={false}
                 name={entry.model_name}
-                allowDataOverflow
               />
             ))}
 
