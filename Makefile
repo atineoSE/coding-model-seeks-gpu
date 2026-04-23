@@ -10,11 +10,11 @@ pipeline-gpu:
 
 # Install minimal Python dependencies
 install-pipeline:
-	cd pipeline && pip install -e .
+	cd pipeline && uv sync
 
 # Install full pipeline dependencies (includes model enrichment and GPU pricing)
 install-pipeline-full:
-	cd pipeline && pip install -e ".[pipeline,dev]"
+	cd pipeline && uv sync --extra pipeline --extra dev
 
 # Install frontend dependencies
 install-web:
