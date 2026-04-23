@@ -8,7 +8,6 @@ import { SotaPercentChart } from "@/components/sota-percent-chart";
 import { ModelSizeChart } from "@/components/model-size-chart";
 import { EfficiencyChart } from "@/components/efficiency-chart";
 import { ScalingChart } from "@/components/scaling-chart";
-import { ApiHostingChart } from "@/components/api-hosting-chart";
 import { ChartSelector, type ChartTab } from "@/components/chart-selector";
 import {
   Select,
@@ -29,7 +28,6 @@ import {
   findBestOpenSourceModel,
   resolveModelName,
 } from "@/lib/trend-data";
-import { useApiPricing } from "@/lib/data";
 
 interface TrendsSectionProps {
   models: Model[];
@@ -49,7 +47,6 @@ export function TrendsSection({
   currencySymbol = "$",
 }: TrendsSectionProps) {
   const { snapshots, loading } = useSnapshotData();
-  const { pricing: apiPricing, loading: apiPricingLoading } = useApiPricing();
 
   // Set of open-source model names (from models.json)
   const openSourceNames = useMemo(
@@ -172,25 +169,6 @@ export function TrendsSection({
 
       <ChartSelector
         tabs={[
-          {
-            value: "api-vs-self-hosting",
-            label: "API vs Self-hosting",
-            content: apiPricingLoading ? (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
-                Loading API pricing data...
-              </div>
-            ) : (
-              <ApiHostingChart
-                closedPricing={apiPricing}
-                availableModels={availableScalingModels}
-                gpus={gpus}
-                settings={settings}
-                benchmarks={benchmarks}
-                benchmarkCategory={benchmarkCategory}
-                currencySymbol={currencySymbol}
-              />
-            ),
-          },
           { value: "gap", label: "Open vs Closed Gap", content: <GapChart data={gapData} /> },
           { value: "cost", label: "Cost Trend", content: <CostTrendChart data={costData} referenceCosts={referenceCosts} currencySymbol={currencySymbol} /> },
           { value: "sota", label: "% of SOTA", content: <SotaPercentChart data={sotaPercentData} /> },
