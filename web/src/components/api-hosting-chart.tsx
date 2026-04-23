@@ -266,7 +266,7 @@ export function ApiHostingChart({
     }
 
     const maxIntersectionX = allIntersections.reduce((max, ix) => Math.max(max, ix.x), 0);
-    const fixedMaxX = Math.max(maxIntersectionX * 1.05, 10_000);
+    const fixedMaxX = Math.max(maxIntersectionX * 1.20, 10_000);
     const minX = 100;
 
     const intersections = allIntersections.filter((ix) => ix.x <= fixedMaxX);
@@ -538,7 +538,7 @@ export function ApiHostingChart({
                   <div className="rounded-lg border bg-background p-3 shadow-sm text-sm space-y-1">
                     <p className="font-medium">{formatTurns(x)} turns/mo</p>
                     {[...payload]
-                      .sort((a, b) => (b.value as number) - (a.value as number))
+                      .sort((a, b) => (a.value as number) - (b.value as number))
                       .map((p) => (
                         <div key={String(p.dataKey)} className="flex items-center gap-2">
                           <span
