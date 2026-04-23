@@ -29,11 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings, BenchmarkScore } from "@/types";
+import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings, BenchmarkScore, PresetGpuConfig } from "@/types";
 import {
   computeAvgCostPerTurn,
-  computeSelfHostingMonthlyCost,
-  findIntersection,
+  computeSelfHostingCostForConfig,
+  selfHostingStepCost,
   getProviderCacheTtls,
   type CostConfig,
 } from "@/lib/api-hosting-cost";
@@ -61,26 +61,26 @@ function labToDisplayName(lab: string): string {
 
 const OPEN_MODEL_COLORS = ["#22c55e", "#14b8a6", "#84cc16"];
 
-function niceYTicks(maxY: number, extra: number | null): number[] {
-  // Generate ~5 evenly-spaced round ticks from 0 to maxY
+function niceYTicks(maxY: number, extras: number[]): number[] {
   const rawStep = maxY / 4;
   const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
   const step = Math.ceil(rawStep / magnitude) * magnitude;
   const ticks: number[] = [];
   for (let v = 0; v <= maxY * 1.01; v += step) ticks.push(Math.round(v));
-  // Inject the self-hosting cost, dropping any auto tick within 8% of it
-  if (extra !== null && extra > 0) {
-    const threshold = extra * 0.08;
-    const filtered = ticks.filter((t) => Math.abs(t - extra) > threshold);
-    return [...filtered, extra].sort((a, b) => a - b);
-  }
-  return ticks;
+  const validExtras = extras.filter((e) => e > 0);
+  if (validExtras.length === 0) return ticks;
+  const filtered = ticks.filter(
+    (t) => !validExtras.some((e) => Math.abs(t - e) <= e * 0.08),
+  );
+  return [...filtered, ...validExtras].sort((a, b) => a - b);
 }
 
 interface ApiHostingChartProps {
   closedPricing: ApiPricingEntry[];
-  availableModels: Model[];
+  availableModels: Array<{ model: Model; sotaPercent: number | null }>;
+  gpuConfig: PresetGpuConfig;
   gpus: GpuOffering[];
+  memoryUtilization: number;
   settings: AdvancedSettings;
   benchmarks: BenchmarkScore[];
   benchmarkCategory: string;
@@ -90,7 +90,9 @@ interface ApiHostingChartProps {
 export function ApiHostingChart({
   closedPricing,
   availableModels,
+  gpuConfig,
   gpus,
+  memoryUtilization,
   settings,
   benchmarks,
   benchmarkCategory,
@@ -102,10 +104,10 @@ export function ApiHostingChart({
 
   const selectedModel = useMemo(() => {
     if (selectedModelName) {
-      const found = availableModels.find((m) => m.model_name === selectedModelName);
-      if (found) return found;
+      const found = availableModels.find((m) => m.model.model_name === selectedModelName);
+      if (found) return found.model;
     }
-    return availableModels[0] ?? null;
+    return availableModels[0]?.model ?? null;
   }, [selectedModelName, availableModels]);
 
   const openModels = useMemo(
@@ -121,8 +123,11 @@ export function ApiHostingChart({
         color: CLOSED_MODEL_COLORS[entry.lab] ?? "#888",
       };
     }
-    for (let i = 0; i < openModels.length; i++) {
-      cfg[`open_${i}`] = { label: openModels[i].model_name, color: OPEN_MODEL_COLORS[i] ?? "#888" };
+    if (openModels.length > 0) {
+      cfg["selfHosting"] = {
+        label: openModels[0].model_name,
+        color: OPEN_MODEL_COLORS[0] ?? "#22c55e",
+      };
     }
     return cfg as ChartConfig;
   }, [closedPricing, openModels]);
@@ -139,15 +144,30 @@ export function ApiHostingChart({
   }, [benchmarks, benchmarkCategory]);
 
   const benchmarkDisplayName = useMemo(
-    () => benchmarks.find((b) => b.benchmark_name === benchmarkCategory)?.benchmark_display_name ?? benchmarkCategory,
+    () =>
+      benchmarks.find((b) => b.benchmark_name === benchmarkCategory)?.benchmark_display_name ??
+      benchmarkCategory,
     [benchmarks, benchmarkCategory],
   );
 
-  const { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, minX } = useMemo(() => {
+  const {
+    chartData,
+    openCosts,
+    intersections,
+    avgCosts,
+    fixedMaxX,
+    fixedMaxY,
+    minX,
+    stepBoundaries,
+    visibleStepCosts,
+  } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
       turnsPerConversation,
       cacheHitRate,
-      cacheTtlMin: getProviderCacheTtls(entry).length > 0 ? Math.min(...getProviderCacheTtls(entry)) : null,
+      cacheTtlMin:
+        getProviderCacheTtls(entry).length > 0
+          ? Math.min(...getProviderCacheTtls(entry))
+          : null,
       avgInputTokens: settings.avgInputTokens,
       avgOutputTokens: settings.avgOutputTokens,
     }));
@@ -158,12 +178,19 @@ export function ApiHostingChart({
 
     const openCosts = openModels.map((model) => ({
       model,
-      cost: computeSelfHostingMonthlyCost(model, gpus, settings),
+      costConfig: computeSelfHostingCostForConfig(
+        model,
+        gpuConfig,
+        gpus,
+        settings,
+        memoryUtilization,
+      ),
     }));
 
-    const intersections: {
+    const allIntersections: {
       x: number;
       y: number;
+      replicaCount: number;
       closedModel: ApiPricingEntry;
       openModel: Model;
       closedIndex: number;
@@ -172,62 +199,178 @@ export function ApiHostingChart({
     }[] = [];
 
     for (let ci = 0; ci < closedPricing.length; ci++) {
+      const avgCostPerTurn = avgCosts[ci];
+      if (avgCostPerTurn <= 0) continue;
+
       for (let oi = 0; oi < openCosts.length; oi++) {
-        const flatCost = openCosts[oi].cost;
-        if (flatCost == null) continue;
-        const ix = findIntersection(avgCosts[ci], flatCost);
-        if (ix == null) continue;
+        const { model, costConfig } = openCosts[oi];
+        if (!costConfig) continue;
+
+        const { baseMonthlyCost, maxTurnsPerMonth } = costConfig;
 
         const closedScore = benchmarkScoreMap.get(closedPricing[ci].model_name) ?? null;
-        const openScore = benchmarkScoreMap.get(openCosts[oi].model.model_name) ?? null;
+        const openScore = benchmarkScoreMap.get(model.model_name) ?? null;
         let performanceNote: string | null = null;
-        if (closedScore !== null && openScore !== null && openScore > 0 && closedScore > 0) {
+        if (
+          closedScore !== null &&
+          openScore !== null &&
+          openScore > 0 &&
+          closedScore > 0
+        ) {
           const [source, reference, pct] =
             openScore <= closedScore
-              ? [openCosts[oi].model.model_name, closedPricing[ci].model_name, (openScore / closedScore) * 100]
-              : [closedPricing[ci].model_name, openCosts[oi].model.model_name, (closedScore / openScore) * 100];
+              ? [
+                  model.model_name,
+                  closedPricing[ci].model_name,
+                  (openScore / closedScore) * 100,
+                ]
+              : [
+                  closedPricing[ci].model_name,
+                  model.model_name,
+                  (closedScore / openScore) * 100,
+                ];
           performanceNote = `${source} has ${pct.toFixed(1)}% performance of ${reference} (${benchmarkDisplayName})`;
         }
 
-        intersections.push({
-          x: ix,
-          y: flatCost,
-          closedModel: closedPricing[ci],
-          openModel: openCosts[oi].model,
-          closedIndex: ci,
-          openIndex: oi,
-          performanceNote,
-        });
+        if (maxTurnsPerMonth === null) {
+          // No capacity info: flat cost, single intersection
+          const x = baseMonthlyCost / avgCostPerTurn;
+          allIntersections.push({
+            x,
+            y: baseMonthlyCost,
+            replicaCount: 1,
+            closedModel: closedPricing[ci],
+            openModel: model,
+            closedIndex: ci,
+            openIndex: oi,
+            performanceNote,
+          });
+        } else {
+          // Self-hosting always more expensive at full capacity — no crossover possible
+          if (baseMonthlyCost > maxTurnsPerMonth * avgCostPerTurn) continue;
+
+          // Step function: find the unique valid replica count k
+          for (let k = 1; ; k++) {
+            const stepCost = k * baseMonthlyCost;
+            const candidateX = stepCost / avgCostPerTurn;
+            if (candidateX > 10_000_000) break;
+            const lowerBound = (k - 1) * maxTurnsPerMonth;
+            const upperBound = k * maxTurnsPerMonth;
+            if (candidateX > lowerBound && candidateX <= upperBound) {
+              allIntersections.push({
+                x: candidateX,
+                y: stepCost,
+                replicaCount: k,
+                closedModel: closedPricing[ci],
+                openModel: model,
+                closedIndex: ci,
+                openIndex: oi,
+                performanceNote,
+              });
+              break;
+            }
+          }
+        }
       }
     }
 
-    const maxIntersection = intersections.reduce((max, ix) => Math.max(max, ix.x), 0);
-    const fixedMaxX = Math.max(maxIntersection * 1.05, 10_000);
+    const maxIntersectionX = allIntersections.reduce((max, ix) => Math.max(max, ix.x), 0);
+    const fixedMaxX = Math.max(maxIntersectionX * 1.05, 10_000);
     const minX = 100;
-    const top3Intersections = intersections.filter((ix) => ix.openIndex < 3);
-    const maxIntersectionY = top3Intersections.reduce((max, ix) => Math.max(max, ix.y), 0);
-    const fallbackMaxY = openCosts.slice(0, 3).reduce((max, { cost }) => (cost != null ? Math.min(max, cost) : max), Infinity);
-    const fixedMaxY = (maxIntersectionY > 0 ? maxIntersectionY : fallbackMaxY) * 1.2;
 
-    // Log-spaced points so curves render smoothly on the log X axis
+    const intersections = allIntersections.filter((ix) => ix.x <= fixedMaxX);
+
+    const openCostConfig = openCosts[0]?.costConfig ?? null;
+
+    // Step boundaries at n × maxTurnsPerMonth within [minX, fixedMaxX]
+    const stepBoundaries: number[] = [];
+    if (openCostConfig?.maxTurnsPerMonth != null) {
+      const T = openCostConfig.maxTurnsPerMonth;
+      for (let n = 1; n * T <= fixedMaxX; n++) {
+        const boundary = n * T;
+        if (boundary >= minX) stepBoundaries.push(boundary);
+      }
+    }
+
+    // Highest step cost visible in the chart range for fixedMaxY
+    let maxVisibleStepCost = 0;
+    if (openCostConfig?.maxTurnsPerMonth != null) {
+      const T = openCostConfig.maxTurnsPerMonth;
+      const maxReplicas = Math.max(1, Math.ceil(fixedMaxX / T));
+      maxVisibleStepCost = maxReplicas * openCostConfig.baseMonthlyCost;
+    } else if (openCostConfig) {
+      maxVisibleStepCost = openCostConfig.baseMonthlyCost;
+    }
+
+    const top3Intersections = intersections.filter((ix) => ix.openIndex < 3);
+    const maxIntersectionY = top3Intersections.reduce(
+      (max, ix) => Math.max(max, ix.y),
+      0,
+    );
+    const fixedMaxY =
+      Math.max(
+        maxIntersectionY > 0 ? maxIntersectionY * 1.2 : 0,
+        maxVisibleStepCost * 1.1,
+      ) || 10_000;
+
+    // Step-level costs visible within the y range (for axis tick injection)
+    const visibleStepCosts: number[] = [];
+    if (openCostConfig?.maxTurnsPerMonth != null) {
+      for (let n = 1; n * openCostConfig.baseMonthlyCost <= fixedMaxY * 1.1; n++) {
+        visibleStepCosts.push(n * openCostConfig.baseMonthlyCost);
+      }
+    } else if (openCostConfig) {
+      visibleStepCosts.push(openCostConfig.baseMonthlyCost);
+    }
+
+    // 200 log-spaced points plus boundary pairs for clean step transitions
     const STEPS = 200;
-    const chartData = Array.from({ length: STEPS + 1 }, (_, i) => {
-      const x = minX * Math.pow(fixedMaxX / minX, i / STEPS);
+    const baseXPoints = Array.from(
+      { length: STEPS + 1 },
+      (_, i) => minX * Math.pow(fixedMaxX / minX, i / STEPS),
+    );
+    const extraXPoints: number[] = [];
+    for (const t of stepBoundaries) {
+      extraXPoints.push(t, t * 1.0001);
+    }
+    const allXPoints = [...baseXPoints, ...extraXPoints].sort((a, b) => a - b);
+
+    const chartData = allXPoints.map((x) => {
       const point: Record<string, number> = { x };
       for (let ci = 0; ci < closedPricing.length; ci++) {
         point[closedPricing[ci].lab] = x * avgCosts[ci];
       }
+      if (openCostConfig) {
+        point["selfHosting"] = selfHostingStepCost(x, openCostConfig);
+      }
       return point;
     });
 
-    return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, minX };
-  }, [closedPricing, openModels, gpus, settings, turnsPerConversation, cacheHitRate]);
-
-  const selfHostingCost = openCosts[0]?.cost ?? null;
+    return {
+      chartData,
+      openCosts,
+      intersections,
+      avgCosts,
+      fixedMaxX,
+      fixedMaxY,
+      minX,
+      stepBoundaries,
+      visibleStepCosts,
+    };
+  }, [
+    closedPricing,
+    openModels,
+    gpuConfig,
+    gpus,
+    memoryUtilization,
+    settings,
+    turnsPerConversation,
+    cacheHitRate,
+    benchmarkScoreMap,
+    benchmarkDisplayName,
+  ]);
 
   // Place each closed-model label near the last visible point on that curve.
-  // For lines that exit the chart top before fixedMaxX, anchor at 90% of
-  // the exit x so the label sits on the curve, not clustered at the right edge.
   const closedLabelPositions = useMemo(() => {
     const ANCHOR = 0.65;
     const minGap = fixedMaxY * 0.06;
@@ -239,7 +382,6 @@ export function ApiHostingChart({
       return { ci, x: anchorX, y: anchorY };
     });
 
-    // Sort descending by y and stagger labels that would otherwise overlap
     entries.sort((a, b) => b.y - a.y);
     for (let i = 1; i < entries.length; i++) {
       if (entries[i - 1].y - entries[i].y < minGap) {
@@ -251,8 +393,8 @@ export function ApiHostingChart({
   }, [closedPricing, fixedMaxX, fixedMaxY, avgCosts]);
 
   const yAxisTicks = useMemo(
-    () => niceYTicks(fixedMaxY, selfHostingCost),
-    [fixedMaxY, selfHostingCost],
+    () => niceYTicks(fixedMaxY, visibleStepCosts),
+    [fixedMaxY, visibleStepCosts],
   );
 
   const sortedIntersections = useMemo(
@@ -270,7 +412,6 @@ export function ApiHostingChart({
     return `${currencySymbol}${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   }
 
-
   if (closedPricing.length === 0) {
     return (
       <Card>
@@ -287,8 +428,8 @@ export function ApiHostingChart({
       <CardHeader>
         <CardTitle>API vs. Self-Hosting Cost</CardTitle>
         <CardDescription>
-          Monthly cost at a given turns/month volume. Solid lines = API; dashed lines = self-hosting.
-          Dots mark the break-even point per pair.
+          Monthly cost at a given turns/month volume. Solid lines = API; dashed line = self-hosting
+          (steps up when a new replica is needed). Dots mark the break-even point per pair.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -301,13 +442,17 @@ export function ApiHostingChart({
               value={selectedModel?.model_name ?? ""}
               onValueChange={(v) => setSelectedModelName(v)}
             >
-              <SelectTrigger className="w-full sm:w-[280px]">
+              <SelectTrigger className="w-full sm:w-[300px]">
                 <SelectValue placeholder="Select model" />
               </SelectTrigger>
               <SelectContent>
-                {availableModels.map((m, i) => (
-                  <SelectItem key={m.model_name} value={m.model_name}>
-                    {m.model_name}{i === 0 ? " (best)" : ""}
+                {availableModels.map((entry, i) => (
+                  <SelectItem key={entry.model.model_name} value={entry.model.model_name}>
+                    {entry.model.model_name}
+                    {entry.sotaPercent !== null
+                      ? ` (${Math.round(entry.sotaPercent)}% of SOTA)`
+                      : ""}
+                    {i === 0 ? " (best)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -355,7 +500,6 @@ export function ApiHostingChart({
               </SelectContent>
             </Select>
           </div>
-
         </div>
 
         <ChartContainer
@@ -394,17 +538,25 @@ export function ApiHostingChart({
               ticks={yAxisTicks}
               tick={(props: { x: number; y: number; payload: { value: number } }) => {
                 const { x, y, payload } = props;
-                const isSelfHosting = selfHostingCost !== null && payload.value === selfHostingCost;
-                const label = `${currencySymbol}${payload.value >= 1000 ? `${(payload.value / 1000).toFixed(0)}k` : payload.value.toFixed(0)}`;
+                const isStepCost = visibleStepCosts.includes(payload.value);
+                const label = `${currencySymbol}${
+                  payload.value >= 1000
+                    ? `${(payload.value / 1000).toFixed(0)}k`
+                    : payload.value.toFixed(0)
+                }`;
                 return (
                   <text
                     x={x}
                     y={y}
                     dy={4}
                     textAnchor="end"
-                    fontSize={isSelfHosting ? 11 : 11}
-                    fontWeight={isSelfHosting ? 700 : 400}
-                    fill={isSelfHosting ? (OPEN_MODEL_COLORS[0] ?? "#22c55e") : "var(--muted-foreground)"}
+                    fontSize={11}
+                    fontWeight={isStepCost ? 700 : 400}
+                    fill={
+                      isStepCost
+                        ? (OPEN_MODEL_COLORS[0] ?? "#22c55e")
+                        : "var(--muted-foreground)"
+                    }
                   >
                     {label}
                   </text>
@@ -419,18 +571,20 @@ export function ApiHostingChart({
                 return (
                   <div className="rounded-lg border bg-background p-3 shadow-sm text-sm space-y-1">
                     <p className="font-medium">{formatTurns(x)} turns/mo</p>
-                    {[...payload].sort((a, b) => (b.value as number) - (a.value as number)).map((p) => (
-                      <div key={String(p.dataKey)} className="flex items-center gap-2">
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: p.color }}
-                        />
-                        <span className="text-muted-foreground">{p.name}:</span>
-                        <span className="font-medium">
-                          {formatCost(p.value as number)}/mo
-                        </span>
-                      </div>
-                    ))}
+                    {[...payload]
+                      .sort((a, b) => (b.value as number) - (a.value as number))
+                      .map((p) => (
+                        <div key={String(p.dataKey)} className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: p.color }}
+                          />
+                          <span className="text-muted-foreground">{p.name}:</span>
+                          <span className="font-medium">
+                            {formatCost(p.value as number)}/mo
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 );
               }}
@@ -447,6 +601,18 @@ export function ApiHostingChart({
                 name={entry.model_name}
               />
             ))}
+
+            {openCosts[0]?.costConfig && (
+              <Line
+                type="linear"
+                dataKey="selfHosting"
+                stroke={OPEN_MODEL_COLORS[0] ?? "#22c55e"}
+                strokeWidth={1.5}
+                strokeDasharray="6 3"
+                dot={false}
+                name={openCosts[0].model.model_name}
+              />
+            )}
 
             {closedPricing.map((entry, ci) => {
               const pos = closedLabelPositions.get(ci);
@@ -472,23 +638,22 @@ export function ApiHostingChart({
               );
             })}
 
-            {openCosts.map(({ model, cost }, i) =>
-              cost != null ? (
-                <ReferenceLine
-                  key={model.model_name}
-                  y={cost}
-                  stroke={OPEN_MODEL_COLORS[i] ?? "#888"}
-                  strokeWidth={1.5}
-                  strokeDasharray="6 3"
-                  label={{
-                    value: model.model_name,
-                    position: "insideTopLeft",
-                    fontSize: 10,
-                    fill: OPEN_MODEL_COLORS[i] ?? "#888",
-                  }}
-                />
-              ) : null,
-            )}
+            {stepBoundaries.map((boundary, i) => (
+              <ReferenceLine
+                key={`step-boundary-${boundary}`}
+                x={boundary}
+                stroke={OPEN_MODEL_COLORS[0] ?? "#22c55e"}
+                strokeWidth={0.5}
+                strokeOpacity={0.5}
+                label={{
+                  value: `×${i + 2}`,
+                  position: "insideTop",
+                  fontSize: 9,
+                  fill: OPEN_MODEL_COLORS[0] ?? "#22c55e",
+                  offset: 4,
+                }}
+              />
+            ))}
 
             {sortedIntersections.map((ix) => (
               <ReferenceLine
@@ -538,13 +703,13 @@ export function ApiHostingChart({
                     }}
                   />
                   <span className="text-muted-foreground">
-                    {ix.closedModel.model_name} / {ix.openModel.model_name}:
+                    {labToDisplayName(ix.closedModel.lab)} / {ix.openModel.model_name} (×{ix.replicaCount} replica):
                   </span>
                   <span className="font-medium tabular-nums">
                     {ix.x.toLocaleString("en-US", { maximumFractionDigits: 0 })} turns/mo
                   </span>
                   <span className="text-muted-foreground text-xs">
-                    ({formatCost(ix.y)}/mo self-hosting)
+                    ({formatCost(ix.y)}/mo)
                   </span>
                   {ix.performanceNote && (
                     <span className="text-muted-foreground text-xs italic">
@@ -557,9 +722,9 @@ export function ApiHostingChart({
           </div>
         )}
 
-        {openModels.length > 0 && openCosts.every(({ cost }) => cost == null) && (
+        {openModels.length > 0 && openCosts.every(({ costConfig }) => costConfig == null) && (
           <p className="text-sm text-muted-foreground">
-            No GPU setup data available for the selected open-weight models.
+            No GPU offering found for the selected GPU configuration.
           </p>
         )}
       </CardContent>
