@@ -85,63 +85,63 @@ export function BudgetFlow({
   const interconnectLabel = isNvLink(gpuConfig.interconnect) ? " NVLink" : "";
 
   const teamCapacityContent = (
-    <>
-      {/* IDE/CLI controls — moved inside Team Capacity tab */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <Label>IDE requests/hour</Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Average LLM requests per hour for IDE-workflow developers (e.g. Cursor completions, inline edits).
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <StepperInput
-            value={ideRequestsPerHour}
-            onChange={setIdeRequestsPerHour}
-            min={10}
-            max={200}
-            step={10}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <Label>CLI requests/hour</Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Average LLM requests per hour for CLI-workflow developers (e.g. Claude Code agentic tasks).
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <StepperInput
-            value={cliRequestsPerHour}
-            onChange={setCliRequestsPerHour}
-            min={50}
-            max={500}
-            step={50}
-          />
-        </div>
-      </div>
-
-      <Card>
+    <Card>
         <CardHeader>
-          <CardTitle>Development Team Capacity</CardTitle>
-          <CardDescription>
-            Number of developers each model can serve on {gpuConfig.label}{interconnectLabel}, at {memoryUtilization}% GPU memory utilization.
-            Bar shows average capacity; whiskers indicate CLI (lower) and IDE (upper) workflow range.
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Development Team Capacity</CardTitle>
+              <CardDescription>
+                Number of developers each model can serve on {gpuConfig.label}{interconnectLabel}, at {memoryUtilization}% GPU memory utilization.
+                Bar shows average capacity; whiskers indicate CLI (lower) and IDE (upper) workflow range.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-4 shrink-0">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs">IDE req/hr</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Average LLM requests per hour for IDE-workflow developers (e.g. Cursor completions, inline edits).
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <StepperInput
+                  value={ideRequestsPerHour}
+                  onChange={setIdeRequestsPerHour}
+                  min={10}
+                  max={200}
+                  step={10}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs">CLI req/hr</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Average LLM requests per hour for CLI-workflow developers (e.g. Claude Code agentic tasks).
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <StepperInput
+                  value={cliRequestsPerHour}
+                  onChange={setCliRequestsPerHour}
+                  min={50}
+                  max={500}
+                  step={50}
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {chartData.length > 0 ? (
@@ -153,7 +153,6 @@ export function BudgetFlow({
           )}
         </CardContent>
       </Card>
-    </>
   );
 
   const apiVsSelfHostingContent = apiPricingLoading ? (

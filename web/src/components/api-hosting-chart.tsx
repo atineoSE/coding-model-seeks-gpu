@@ -100,19 +100,10 @@ export function ApiHostingChart({
 }: ApiHostingChartProps) {
   const [turnsPerConversation, setTurnsPerConversation] = useState(DEFAULT_TURNS);
   const [cacheHitRate, setCacheHitRate] = useState(DEFAULT_CACHE_HIT_RATE);
-  const [selectedModelName, setSelectedModelName] = useState<string | null>(null);
-
-  const selectedModel = useMemo(() => {
-    if (selectedModelName) {
-      const found = availableModels.find((m) => m.model.model_name === selectedModelName);
-      if (found) return found.model;
-    }
-    return availableModels[0]?.model ?? null;
-  }, [selectedModelName, availableModels]);
 
   const openModels = useMemo(
-    () => (selectedModel ? [selectedModel] : []),
-    [selectedModel],
+    () => (availableModels[0] ? [availableModels[0].model] : []),
+    [availableModels],
   );
 
   const chartConfig = useMemo(() => {
@@ -436,31 +427,6 @@ export function ApiHostingChart({
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-              Open model
-            </label>
-            <Select
-              value={selectedModel?.model_name ?? ""}
-              onValueChange={(v) => setSelectedModelName(v)}
-            >
-              <SelectTrigger className="w-full sm:w-[300px]">
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableModels.map((entry, i) => (
-                  <SelectItem key={entry.model.model_name} value={entry.model.model_name}>
-                    {entry.model.model_name}
-                    {entry.sotaPercent !== null
-                      ? ` (${Math.round(entry.sotaPercent)}% of SOTA)`
-                      : ""}
-                    {i === 0 ? " (best)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
               Turns / conversation
             </label>
             <Select
@@ -726,6 +692,26 @@ export function ApiHostingChart({
           <p className="text-sm text-muted-foreground">
             No GPU offering found for the selected GPU configuration.
           </p>
+        )}
+
+        {availableModels.length > 0 && (
+          <div className="text-sm space-y-1.5 pt-1 border-t">
+            <p className="font-medium text-muted-foreground">Models served by this GPU config</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {availableModels.map((entry, i) => (
+                <span key={entry.model.model_name} className="text-muted-foreground">
+                  <span className={i === 0 ? "font-medium text-foreground" : ""}>
+                    {entry.model.model_name}
+                  </span>
+                  {entry.sotaPercent !== null && (
+                    <span className="text-xs ml-1">
+                      ({Math.round(entry.sotaPercent)}% of SOTA)
+                    </span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
