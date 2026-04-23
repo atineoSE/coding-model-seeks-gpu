@@ -1,5 +1,5 @@
 import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings } from "@/types";
-import { findGpuSetups } from "./matrix-calculator";
+import { findGpuSetups, findScaledGpuSetups } from "./matrix-calculator";
 
 export const COMPACTION_THRESHOLD_TOKENS = 20_000;
 
@@ -81,7 +81,9 @@ export function computeSelfHostingMonthlyCost(
   settings: AdvancedSettings,
 ): number | null {
   const setups = findGpuSetups(model, gpus, 1, settings);
-  return setups.length > 0 ? setups[0].monthlyCost : null;
+  if (setups.length > 0) return setups[0].monthlyCost;
+  const scaled = findScaledGpuSetups(model, gpus, 1, settings);
+  return scaled.length > 0 ? scaled[0].monthlyCost : null;
 }
 
 export function findIntersection(

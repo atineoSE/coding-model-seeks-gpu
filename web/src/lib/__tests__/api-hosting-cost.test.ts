@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { ApiPricingEntry } from "@/types";
-import { computeAvgCostPerTurn, type CostConfig } from "../api-hosting-cost";
+import type { ApiPricingEntry, Model, GpuOffering } from "@/types";
+import { computeAvgCostPerTurn, computeSelfHostingMonthlyCost, type CostConfig } from "../api-hosting-cost";
+import { DEFAULT_ADVANCED_SETTINGS } from "../matrix-calculator";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -151,5 +152,57 @@ describe("computeAvgCostPerTurn — context compaction", () => {
 
     // With tiny context, compaction fires often and keeps avg input small
     expect(costTiny).toBeLessThan(costBig);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeSelfHostingMonthlyCost — scaled GPU fallback
+// ---------------------------------------------------------------------------
+
+// Kimi K-2.5: 1026.4B MoE INT4, needs ~683 GB with overhead.
+// Only a x1 B300 (288 GB) is available — no real SKU fits, but 3× scaled does.
+const KIMI_K25: Model = {
+  model_name: "Kimi-K2.5",
+  learnable_params_b: 1026.4,
+  active_params_b: 32.9,
+  architecture: "MoE",
+  context_length: 262144,
+  precision: "INT4",
+  routed_expert_params_b: 1014.7,
+  attention_type: "MLA",
+  num_hidden_layers: 61,
+  num_kv_layers: null,
+  num_kv_heads: null,
+  head_dim: null,
+  kv_lora_rank: 512,
+  qk_rope_head_dim: 64,
+  hf_model_id: null,
+  model_url: null,
+};
+
+const B300_X1: GpuOffering = {
+  gpu_name: "B300",
+  vram_gb: 288,
+  gpu_count: 1,
+  total_vram_gb: 288,
+  price_per_hour: 6.09,
+  currency: "EUR",
+  provider: "substrate",
+  instance_name: "substrate-B300-1x",
+  location: "Europe",
+  interconnect: "NVLink",
+};
+
+describe("computeSelfHostingMonthlyCost — scaled GPU fallback", () => {
+  it("returns a cost for Kimi-K2.5 when only a x1 B300 is available (scaled to 3×)", () => {
+    const cost = computeSelfHostingMonthlyCost(KIMI_K25, [B300_X1], DEFAULT_ADVANCED_SETTINGS);
+    expect(cost).not.toBeNull();
+    expect(cost!).toBeGreaterThan(0);
+  });
+
+  it("returns null when no GPU can fit the model even after scaling", () => {
+    const tinyGpu: GpuOffering = { ...B300_X1, gpu_name: "A10", vram_gb: 24, total_vram_gb: 24 };
+    const cost = computeSelfHostingMonthlyCost(KIMI_K25, [tinyGpu], DEFAULT_ADVANCED_SETTINGS);
+    expect(cost).toBeNull();
   });
 });
