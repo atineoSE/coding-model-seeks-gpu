@@ -474,7 +474,6 @@ export function calculateBudgetChartData(
   sotaScores: SotaScore[],
   benchmarkCategory: string,
   memoryUtilization: number,
-  minTokPerSec: number,
   ideRequestsPerHour: number,
   cliRequestsPerHour: number,
   settings: AdvancedSettings,
@@ -544,20 +543,9 @@ export function calculateBudgetChartData(
       memoryUtilization,
     );
 
-    const throughputTooLow =
-      stats.decodeThroughputTokS !== null &&
-      stats.decodeThroughputTokS < minTokPerSec;
+    const fits = stats.maxConcurrentStreams > 0;
 
-    const fits = stats.maxConcurrentStreams > 0 && !throughputTooLow;
-
-    let doesntFitReason: string | null = null;
-    if (!fits) {
-      if (stats.maxConcurrentStreams === 0) {
-        doesntFitReason = "Not enough VRAM for KV cache";
-      } else if (throughputTooLow) {
-        doesntFitReason = `Throughput too low (${Math.round(stats.decodeThroughputTokS!)} tok/s < ${minTokPerSec} min)`;
-      }
-    }
+    const doesntFitReason: string | null = fits ? null : "Not enough VRAM for KV cache";
 
     // Duty-cycle team size via Little's Law:
     // Each request holds a stream for (avgOutputTokens / decodeTokS) seconds.

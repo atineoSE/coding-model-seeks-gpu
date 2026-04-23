@@ -58,12 +58,11 @@ export function BudgetFlow({
         sotaScores,
         benchmarkCategory,
         memoryUtilization / 100,
-        minTokPerSec,
         ideRequestsPerHour,
         cliRequestsPerHour,
         settings,
       ),
-    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, memoryUtilization, minTokPerSec, ideRequestsPerHour, cliRequestsPerHour, settings],
+    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, memoryUtilization, ideRequestsPerHour, cliRequestsPerHour, settings],
   );
 
   const interconnectLabel = isNvLink(gpuConfig.interconnect) ? " NVLink" : "";
