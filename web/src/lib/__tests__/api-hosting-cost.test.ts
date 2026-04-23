@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
-import type { ApiPricingEntry, Model, GpuOffering } from "@/types";
-import { computeAvgCostPerTurn, computeSelfHostingMonthlyCost, type CostConfig } from "../api-hosting-cost";
+import type { ApiPricingEntry, Model, GpuOffering, PresetGpuConfig } from "@/types";
+import {
+  computeAvgCostPerTurn,
+  computeSelfHostingMonthlyCost,
+  findGpuOfferingForConfig,
+  computeSelfHostingCostForConfig,
+  selfHostingStepCost,
+  type CostConfig,
+} from "../api-hosting-cost";
 import { DEFAULT_ADVANCED_SETTINGS } from "../matrix-calculator";
 
 // ---------------------------------------------------------------------------
@@ -204,5 +211,121 @@ describe("computeSelfHostingMonthlyCost — scaled GPU fallback", () => {
     const tinyGpu: GpuOffering = { ...B300_X1, gpu_name: "A10", vram_gb: 24, total_vram_gb: 24 };
     const cost = computeSelfHostingMonthlyCost(KIMI_K25, [tinyGpu], DEFAULT_ADVANCED_SETTINGS);
     expect(cost).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// findGpuOfferingForConfig
+// ---------------------------------------------------------------------------
+
+const B300_CONFIG: PresetGpuConfig = {
+  label: "B300 ×1",
+  gpuName: "B300",
+  gpuCount: 1,
+  vramPerGpu: 288,
+  totalVramGb: 288,
+  interconnect: "NVLink",
+};
+
+const B300_X1_CHEAP: GpuOffering = { ...B300_X1, price_per_hour: 5.00, provider: "cheap-provider" };
+
+describe("findGpuOfferingForConfig", () => {
+  it("returns the matching offering when one exists", () => {
+    const result = findGpuOfferingForConfig(B300_CONFIG, [B300_X1]);
+    expect(result).toBe(B300_X1);
+  });
+
+  it("returns the cheapest matching offering when multiple exist", () => {
+    const result = findGpuOfferingForConfig(B300_CONFIG, [B300_X1, B300_X1_CHEAP]);
+    expect(result).toBe(B300_X1_CHEAP);
+  });
+
+  it("returns null when no offering matches the config", () => {
+    const a10Config: PresetGpuConfig = { ...B300_CONFIG, gpuName: "A10", vramPerGpu: 24, totalVramGb: 24 };
+    const result = findGpuOfferingForConfig(a10Config, [B300_X1]);
+    expect(result).toBeNull();
+  });
+
+  it("returns null for an empty GPU list", () => {
+    expect(findGpuOfferingForConfig(B300_CONFIG, [])).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeSelfHostingCostForConfig
+// ---------------------------------------------------------------------------
+
+const SMALL_MODEL: Model = {
+  model_name: "Small-7B",
+  learnable_params_b: 7,
+  active_params_b: 7,
+  architecture: "Dense",
+  context_length: 32768,
+  precision: "BF16",
+  routed_expert_params_b: null,
+  attention_type: "GQA",
+  num_hidden_layers: 32,
+  num_kv_layers: null,
+  num_kv_heads: 8,
+  head_dim: 128,
+  kv_lora_rank: null,
+  qk_rope_head_dim: null,
+  hf_model_id: null,
+  model_url: null,
+};
+
+describe("computeSelfHostingCostForConfig", () => {
+  it("returns null when no offering matches the config", () => {
+    const a10Config: PresetGpuConfig = { ...B300_CONFIG, gpuName: "A10", vramPerGpu: 24, totalVramGb: 24 };
+    const result = computeSelfHostingCostForConfig(SMALL_MODEL, a10Config, [B300_X1], DEFAULT_ADVANCED_SETTINGS, 0.9);
+    expect(result).toBeNull();
+  });
+
+  it("returns baseMonthlyCost = price_per_hour * 720 when offering matches", () => {
+    const result = computeSelfHostingCostForConfig(SMALL_MODEL, B300_CONFIG, [B300_X1], DEFAULT_ADVANCED_SETTINGS, 0.9);
+    expect(result).not.toBeNull();
+    expect(result!.baseMonthlyCost).toBeCloseTo(B300_X1.price_per_hour * 720, 5);
+  });
+
+  it("returns positive maxTurnsPerMonth for a model that fits", () => {
+    const result = computeSelfHostingCostForConfig(SMALL_MODEL, B300_CONFIG, [B300_X1], DEFAULT_ADVANCED_SETTINGS, 0.9);
+    expect(result).not.toBeNull();
+    expect(result!.maxTurnsPerMonth).not.toBeNull();
+    expect(result!.maxTurnsPerMonth!).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// selfHostingStepCost
+// ---------------------------------------------------------------------------
+
+describe("selfHostingStepCost", () => {
+  it("returns baseMonthlyCost when maxTurnsPerMonth is null", () => {
+    const config = { baseMonthlyCost: 1000, maxTurnsPerMonth: null };
+    expect(selfHostingStepCost(0, config)).toBe(1000);
+    expect(selfHostingStepCost(999999, config)).toBe(1000);
+  });
+
+  it("returns baseMonthlyCost for x=0 (at least 1 replica)", () => {
+    const config = { baseMonthlyCost: 500, maxTurnsPerMonth: 10000 };
+    expect(selfHostingStepCost(0, config)).toBe(500);
+  });
+
+  it("returns 1× baseMonthlyCost for x within first tier", () => {
+    const config = { baseMonthlyCost: 500, maxTurnsPerMonth: 10000 };
+    expect(selfHostingStepCost(1, config)).toBe(500);
+    expect(selfHostingStepCost(10000, config)).toBe(500);
+  });
+
+  it("returns 2× baseMonthlyCost for x just above one tier", () => {
+    const config = { baseMonthlyCost: 500, maxTurnsPerMonth: 10000 };
+    expect(selfHostingStepCost(10001, config)).toBe(1000);
+    expect(selfHostingStepCost(20000, config)).toBe(1000);
+  });
+
+  it("scales linearly with replica count", () => {
+    const config = { baseMonthlyCost: 500, maxTurnsPerMonth: 10000 };
+    expect(selfHostingStepCost(20001, config)).toBe(1500);
+    expect(selfHostingStepCost(30000, config)).toBe(1500);
   });
 });

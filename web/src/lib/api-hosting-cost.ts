@@ -1,7 +1,8 @@
-import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings } from "@/types";
-import { findGpuSetups, findScaledGpuSetups } from "./matrix-calculator";
+import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings, PresetGpuConfig } from "@/types";
+import { findGpuSetups, findScaledGpuSetups, calcGpuSetupStats } from "./matrix-calculator";
 
 export const COMPACTION_THRESHOLD_TOKENS = 20_000;
+export const SECONDS_PER_MONTH = 30 * 24 * 3600;
 
 export const PROVIDER_CACHE_TTLS: Record<string, number[]> = {
   anthropic: [5, 60, 1440],
@@ -96,4 +97,58 @@ export function findIntersection(
 
 export function getProviderCacheTtls(entry: ApiPricingEntry): number[] {
   return PROVIDER_CACHE_TTLS[entry.lab] ?? [];
+}
+
+export function findGpuOfferingForConfig(
+  gpuConfig: PresetGpuConfig,
+  gpus: GpuOffering[],
+): GpuOffering | null {
+  const matching = gpus.filter(
+    g => g.gpu_name === gpuConfig.gpuName && g.gpu_count === gpuConfig.gpuCount,
+  );
+  if (matching.length === 0) return null;
+  return matching.reduce((a, b) => a.price_per_hour <= b.price_per_hour ? a : b);
+}
+
+export interface ConfigSelfHostingCost {
+  baseMonthlyCost: number;
+  maxTurnsPerMonth: number | null;
+}
+
+export function computeSelfHostingCostForConfig(
+  model: Model,
+  gpuConfig: PresetGpuConfig,
+  gpus: GpuOffering[],
+  settings: AdvancedSettings,
+  memoryUtilization: number,
+): ConfigSelfHostingCost | null {
+  const offering = findGpuOfferingForConfig(gpuConfig, gpus);
+  if (!offering) return null;
+
+  const baseMonthlyCost = offering.price_per_hour * 720;
+
+  const stats = calcGpuSetupStats(
+    model,
+    gpuConfig.gpuName,
+    gpuConfig.gpuCount,
+    gpuConfig.totalVramGb,
+    gpuConfig.interconnect,
+    settings,
+    memoryUtilization,
+  );
+
+  const maxTurnsPerMonth =
+    stats.maxConcurrentStreams > 0 && stats.decodeThroughputTokS !== null
+      ? stats.maxConcurrentStreams * stats.decodeThroughputTokS / settings.avgOutputTokens * SECONDS_PER_MONTH
+      : null;
+
+  return { baseMonthlyCost, maxTurnsPerMonth };
+}
+
+export function selfHostingStepCost(
+  x: number,
+  config: ConfigSelfHostingCost,
+): number {
+  if (config.maxTurnsPerMonth === null) return config.baseMonthlyCost;
+  return Math.max(1, Math.ceil(x / config.maxTurnsPerMonth)) * config.baseMonthlyCost;
 }
