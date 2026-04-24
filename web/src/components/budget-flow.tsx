@@ -19,12 +19,6 @@ import { ChartSelector, type ChartTab } from "@/components/chart-selector";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useApiPricing } from "@/lib/data";
 
 interface BudgetFlowProps {
@@ -48,8 +42,6 @@ export function BudgetFlow({
 }: BudgetFlowProps) {
   const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(GPU_PRESETS[0]);
   const [memoryUtilization, setMemoryUtilization] = useState(90);
-  const [ideRequestsPerHour, setIdeRequestsPerHour] = useState(50);
-  const [cliRequestsPerHour, setCliRequestsPerHour] = useState(200);
   const [configExpanded, setConfigExpanded] = useState(false);
 
   const { pricing: closedPricing, loading: apiPricingLoading } = useApiPricing();
@@ -63,11 +55,9 @@ export function BudgetFlow({
         sotaScores,
         benchmarkCategory,
         memoryUtilization / 100,
-        ideRequestsPerHour,
-        cliRequestsPerHour,
         settings,
       ),
-    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, memoryUtilization, ideRequestsPerHour, cliRequestsPerHour, settings],
+    [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, memoryUtilization, settings],
   );
 
   const fittingModels = useMemo(
@@ -86,73 +76,22 @@ export function BudgetFlow({
 
   const teamCapacityContent = (
     <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle>Development Team Capacity</CardTitle>
-              <CardDescription>
-                Number of developers each model can serve on {gpuConfig.label}{interconnectLabel}, at {memoryUtilization}% GPU memory utilization.
-                Bar shows average capacity; whiskers indicate CLI (lower) and IDE (upper) workflow range.
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-4 shrink-0">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-xs">IDE req/hr</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Average LLM requests per hour for IDE-workflow developers (e.g. Cursor completions, inline edits).
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <StepperInput
-                  value={ideRequestsPerHour}
-                  onChange={setIdeRequestsPerHour}
-                  min={10}
-                  max={200}
-                  step={10}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-xs">CLI req/hr</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-muted-foreground cursor-help text-xs">&#9432;</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Average LLM requests per hour for CLI-workflow developers (e.g. Claude Code agentic tasks).
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <StepperInput
-                  value={cliRequestsPerHour}
-                  onChange={setCliRequestsPerHour}
-                  min={50}
-                  max={500}
-                  step={50}
-                />
-              </div>
-            </div>
+      <CardHeader>
+        <CardTitle>Serving Capacity</CardTitle>
+        <CardDescription>
+          Request throughput and team capacity for each model on {gpuConfig.label}{interconnectLabel}, at {memoryUtilization}% GPU memory utilization.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {chartData.length > 0 ? (
+          <BudgetChart data={chartData} />
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No models available for the selected benchmark category.
           </div>
-        </CardHeader>
-        <CardContent>
-          {chartData.length > 0 ? (
-            <BudgetChart data={chartData} />
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No models available for the selected benchmark category.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </CardContent>
+    </Card>
   );
 
   const apiVsSelfHostingContent = apiPricingLoading ? (
@@ -176,6 +115,8 @@ export function BudgetFlow({
   return (
     <div className="space-y-6">
       {/* GPU setup — collapsible, shared across charts */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium text-muted-foreground">GPU configuration</Label>
       <div className="rounded-lg border">
         <button
           onClick={() => setConfigExpanded(!configExpanded)}
@@ -223,12 +164,13 @@ export function BudgetFlow({
           </div>
         )}
       </div>
+      </div>
 
       <ChartSelector
         tabs={[
           {
-            value: "team-capacity",
-            label: "Team Capacity",
+            value: "serving-capacity",
+            label: "Serving Capacity",
             content: teamCapacityContent,
           },
           {
@@ -242,42 +184,3 @@ export function BudgetFlow({
   );
 }
 
-/** Number stepper with +/- buttons */
-function StepperInput({
-  value,
-  onChange,
-  min,
-  max,
-  step,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min: number;
-  max: number;
-  step: number;
-}) {
-  const decrement = () => onChange(Math.max(min, +(value - step).toFixed(2)));
-  const increment = () => onChange(Math.min(max, +(value + step).toFixed(2)));
-
-  return (
-    <div className="flex items-center gap-1">
-      <button
-        onClick={decrement}
-        disabled={value <= min}
-        className="flex items-center justify-center h-8 w-8 rounded-md border text-sm font-medium hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-      >
-        &minus;
-      </button>
-      <span className="flex items-center justify-center h-8 w-14 rounded-md border bg-transparent text-sm font-medium tabular-nums">
-        {value % 1 === 0 ? value : value.toFixed(1)}
-      </span>
-      <button
-        onClick={increment}
-        disabled={value >= max}
-        className="flex items-center justify-center h-8 w-8 rounded-md border text-sm font-medium hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-      >
-        +
-      </button>
-    </div>
-  );
-}

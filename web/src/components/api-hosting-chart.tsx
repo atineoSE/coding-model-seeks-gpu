@@ -31,16 +31,15 @@ import {
 } from "@/components/ui/select";
 import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings, BenchmarkScore, PresetGpuConfig } from "@/types";
 import {
-  computeAvgCostPerTurn,
+  computeAvgCostPerRequest,
   computeSelfHostingCostForConfig,
-  selfHostingStepCost,
   getProviderCacheTtls,
   type CostConfig,
 } from "@/lib/api-hosting-cost";
 
-const TURNS_OPTIONS = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
+const REQUESTS_OPTIONS = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
 const CACHE_HIT_RATE_OPTIONS = [0.8, 0.85, 0.9, 0.95, 0.99];
-const DEFAULT_TURNS = 150;
+const DEFAULT_REQUESTS = 150;
 const DEFAULT_CACHE_HIT_RATE = 0.9;
 
 const CLOSED_MODEL_COLORS: Record<string, string> = {
@@ -98,8 +97,9 @@ export function ApiHostingChart({
   benchmarkCategory,
   currencySymbol = "$",
 }: ApiHostingChartProps) {
-  const [turnsPerConversation, setTurnsPerConversation] = useState(DEFAULT_TURNS);
+  const [requestsPerConversation, setRequestsPerConversation] = useState(DEFAULT_REQUESTS);
   const [cacheHitRate, setCacheHitRate] = useState(DEFAULT_CACHE_HIT_RATE);
+  const [yZoomed, setYZoomed] = useState(false);
 
   const openModels = useMemo(
     () => (availableModels[0] ? [availableModels[0].model] : []),
@@ -148,12 +148,11 @@ export function ApiHostingChart({
     avgCosts,
     fixedMaxX,
     fixedMaxY,
+    fullMaxY,
     minX,
-    stepBoundaries,
-    visibleStepCosts,
   } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
-      turnsPerConversation,
+      requestsPerConversation,
       cacheHitRate,
       cacheTtlMin:
         getProviderCacheTtls(entry).length > 0
@@ -164,7 +163,7 @@ export function ApiHostingChart({
     }));
 
     const avgCosts = closedPricing.map((entry, i) =>
-      computeAvgCostPerTurn(entry, configs[i]),
+      computeAvgCostPerRequest(entry, configs[i]),
     );
 
     const openCosts = openModels.map((model) => ({
@@ -181,7 +180,6 @@ export function ApiHostingChart({
     const allIntersections: {
       x: number;
       y: number;
-      replicaCount: number;
       closedModel: ApiPricingEntry;
       openModel: Model;
       closedIndex: number;
@@ -190,78 +188,38 @@ export function ApiHostingChart({
     }[] = [];
 
     for (let ci = 0; ci < closedPricing.length; ci++) {
-      const avgCostPerTurn = avgCosts[ci];
-      if (avgCostPerTurn <= 0) continue;
+      const avgCostPerRequest = avgCosts[ci];
+      if (avgCostPerRequest <= 0) continue;
 
       for (let oi = 0; oi < openCosts.length; oi++) {
         const { model, costConfig } = openCosts[oi];
         if (!costConfig) continue;
 
-        const { baseMonthlyCost, maxTurnsPerMonth } = costConfig;
+        const { baseMonthlyCost, maxRequestsPerMonth } = costConfig;
+
+        // Skip if self-hosting is always more expensive than API at full capacity
+        if (maxRequestsPerMonth !== null && baseMonthlyCost > maxRequestsPerMonth * avgCostPerRequest) continue;
 
         const closedScore = benchmarkScoreMap.get(closedPricing[ci].model_name) ?? null;
         const openScore = benchmarkScoreMap.get(model.model_name) ?? null;
         let performanceNote: string | null = null;
-        if (
-          closedScore !== null &&
-          openScore !== null &&
-          openScore > 0 &&
-          closedScore > 0
-        ) {
+        if (closedScore !== null && openScore !== null && openScore > 0 && closedScore > 0) {
           const [source, reference, pct] =
             openScore <= closedScore
-              ? [
-                  model.model_name,
-                  closedPricing[ci].model_name,
-                  (openScore / closedScore) * 100,
-                ]
-              : [
-                  closedPricing[ci].model_name,
-                  model.model_name,
-                  (closedScore / openScore) * 100,
-                ];
+              ? [model.model_name, closedPricing[ci].model_name, (openScore / closedScore) * 100]
+              : [closedPricing[ci].model_name, model.model_name, (closedScore / openScore) * 100];
           performanceNote = `${source} has ${pct.toFixed(1)}% performance of ${reference} (${benchmarkDisplayName})`;
         }
 
-        if (maxTurnsPerMonth === null) {
-          // No capacity info: flat cost, single intersection
-          const x = baseMonthlyCost / avgCostPerTurn;
-          allIntersections.push({
-            x,
-            y: baseMonthlyCost,
-            replicaCount: 1,
-            closedModel: closedPricing[ci],
-            openModel: model,
-            closedIndex: ci,
-            openIndex: oi,
-            performanceNote,
-          });
-        } else {
-          // Self-hosting always more expensive at full capacity — no crossover possible
-          if (baseMonthlyCost > maxTurnsPerMonth * avgCostPerTurn) continue;
-
-          // Step function: find the unique valid replica count k
-          for (let k = 1; ; k++) {
-            const stepCost = k * baseMonthlyCost;
-            const candidateX = stepCost / avgCostPerTurn;
-            if (candidateX > 10_000_000) break;
-            const lowerBound = (k - 1) * maxTurnsPerMonth;
-            const upperBound = k * maxTurnsPerMonth;
-            if (candidateX > lowerBound && candidateX <= upperBound) {
-              allIntersections.push({
-                x: candidateX,
-                y: stepCost,
-                replicaCount: k,
-                closedModel: closedPricing[ci],
-                openModel: model,
-                closedIndex: ci,
-                openIndex: oi,
-                performanceNote,
-              });
-              break;
-            }
-          }
-        }
+        allIntersections.push({
+          x: baseMonthlyCost / avgCostPerRequest,
+          y: baseMonthlyCost,
+          closedModel: closedPricing[ci],
+          openModel: model,
+          closedIndex: ci,
+          openIndex: oi,
+          performanceNote,
+        });
       }
     }
 
@@ -272,82 +230,32 @@ export function ApiHostingChart({
     const intersections = allIntersections.filter((ix) => ix.x <= fixedMaxX);
 
     const openCostConfig = openCosts[0]?.costConfig ?? null;
+    const selfHostingCost = openCostConfig?.baseMonthlyCost ?? 0;
 
-    // Step boundaries at n × maxTurnsPerMonth within [minX, fixedMaxX]
-    const stepBoundaries: number[] = [];
-    if (openCostConfig?.maxTurnsPerMonth != null) {
-      const T = openCostConfig.maxTurnsPerMonth;
-      for (let n = 1; n * T <= fixedMaxX; n++) {
-        const boundary = n * T;
-        if (boundary >= minX) stepBoundaries.push(boundary);
-      }
-    }
+    const maxIntersectionY = intersections
+      .filter((ix) => ix.openIndex < 3)
+      .reduce((max, ix) => Math.max(max, ix.y), 0);
+    const fixedMaxY = Math.max(
+      maxIntersectionY > 0 ? maxIntersectionY * 1.2 : 0,
+      selfHostingCost * 1.1,
+    ) || 10_000;
 
-    // Highest step cost visible in the chart range for fixedMaxY
-    let maxVisibleStepCost = 0;
-    if (openCostConfig?.maxTurnsPerMonth != null) {
-      const T = openCostConfig.maxTurnsPerMonth;
-      const maxReplicas = Math.max(1, Math.ceil(fixedMaxX / T));
-      maxVisibleStepCost = maxReplicas * openCostConfig.baseMonthlyCost;
-    } else if (openCostConfig) {
-      maxVisibleStepCost = openCostConfig.baseMonthlyCost;
-    }
+    const fullMaxY = Math.max(...avgCosts.filter(c => c > 0), 0) * fixedMaxX * 1.05 || fixedMaxY;
 
-    const top3Intersections = intersections.filter((ix) => ix.openIndex < 3);
-    const maxIntersectionY = top3Intersections.reduce(
-      (max, ix) => Math.max(max, ix.y),
-      0,
-    );
-    const fixedMaxY =
-      Math.max(
-        maxIntersectionY > 0 ? maxIntersectionY * 1.2 : 0,
-        maxVisibleStepCost * 1.1,
-      ) || 10_000;
-
-    // Step-level costs visible within the y range (for axis tick injection)
-    const visibleStepCosts: number[] = [];
-    if (openCostConfig?.maxTurnsPerMonth != null) {
-      for (let n = 1; n * openCostConfig.baseMonthlyCost <= fixedMaxY * 1.1; n++) {
-        visibleStepCosts.push(n * openCostConfig.baseMonthlyCost);
-      }
-    } else if (openCostConfig) {
-      visibleStepCosts.push(openCostConfig.baseMonthlyCost);
-    }
-
-    // 200 log-spaced points plus boundary pairs for clean step transitions
     const STEPS = 200;
-    const baseXPoints = Array.from(
-      { length: STEPS + 1 },
-      (_, i) => minX * Math.pow(fixedMaxX / minX, i / STEPS),
-    );
-    const extraXPoints: number[] = [];
-    for (const t of stepBoundaries) {
-      extraXPoints.push(t, t * 1.0001);
-    }
-    const allXPoints = [...baseXPoints, ...extraXPoints].sort((a, b) => a - b);
-
-    const chartData = allXPoints.map((x) => {
+    const chartData = Array.from({ length: STEPS + 1 }, (_, i) => {
+      const x = minX + (fixedMaxX - minX) * (i / STEPS);
       const point: Record<string, number> = { x };
       for (let ci = 0; ci < closedPricing.length; ci++) {
         point[closedPricing[ci].lab] = x * avgCosts[ci];
       }
       if (openCostConfig) {
-        point["selfHosting"] = selfHostingStepCost(x, openCostConfig);
+        point["selfHosting"] = openCostConfig.baseMonthlyCost;
       }
       return point;
     });
 
-    return {
-      chartData,
-      openCosts,
-      intersections,
-      avgCosts,
-      fixedMaxX,
-      fixedMaxY,
-      minX,
-      stepBoundaries,
-      visibleStepCosts,
-    };
+    return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, fullMaxY, minX };
   }, [
     closedPricing,
     openModels,
@@ -355,19 +263,21 @@ export function ApiHostingChart({
     gpus,
     memoryUtilization,
     settings,
-    turnsPerConversation,
+    requestsPerConversation,
     cacheHitRate,
     benchmarkScoreMap,
     benchmarkDisplayName,
   ]);
 
+  const activeMaxY = yZoomed ? fullMaxY : fixedMaxY;
+
   // Place each closed-model label near the last visible point on that curve.
   const closedLabelPositions = useMemo(() => {
     const ANCHOR = 0.65;
-    const minGap = fixedMaxY * 0.06;
+    const minGap = activeMaxY * 0.06;
 
     const entries = closedPricing.map((_, ci) => {
-      const exitX = avgCosts[ci] > 0 ? fixedMaxY / avgCosts[ci] : fixedMaxX;
+      const exitX = avgCosts[ci] > 0 ? activeMaxY / avgCosts[ci] : fixedMaxX;
       const anchorX = Math.min(fixedMaxX, exitX) * ANCHOR;
       const anchorY = anchorX * avgCosts[ci];
       return { ci, x: anchorX, y: anchorY };
@@ -381,11 +291,11 @@ export function ApiHostingChart({
     }
 
     return new Map(entries.map(({ ci, x, y }) => [ci, { x, y }]));
-  }, [closedPricing, fixedMaxX, fixedMaxY, avgCosts]);
+  }, [closedPricing, fixedMaxX, activeMaxY, avgCosts]);
 
   const yAxisTicks = useMemo(
-    () => niceYTicks(fixedMaxY, visibleStepCosts),
-    [fixedMaxY, visibleStepCosts],
+    () => niceYTicks(activeMaxY, []),
+    [activeMaxY],
   );
 
   const sortedIntersections = useMemo(
@@ -393,7 +303,15 @@ export function ApiHostingChart({
     [intersections],
   );
 
-  function formatTurns(n: number) {
+  const modelCapacitiesReqH = useMemo(() =>
+    availableModels.map(({ model }) => {
+      const cfg = computeSelfHostingCostForConfig(model, gpuConfig, gpus, settings, memoryUtilization);
+      return cfg?.maxRequestsPerMonth != null ? Math.round(cfg.maxRequestsPerMonth / 720) : null;
+    }),
+    [availableModels, gpuConfig, gpus, settings, memoryUtilization],
+  );
+
+  function formatRequests(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
     return String(Math.round(n));
@@ -419,25 +337,24 @@ export function ApiHostingChart({
       <CardHeader>
         <CardTitle>API vs. Self-Hosting Cost</CardTitle>
         <CardDescription>
-          Monthly cost at a given turns/month volume. Solid lines = API; dashed line = self-hosting
-          (steps up when a new replica is needed). Dots mark the break-even point per pair.
+          Monthly cost at a given requests/month volume. Solid lines = API; dashed line = self-hosting (one instance). Dots mark the break-even point per pair.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-              Turns / conversation
+              Requests / conversation
             </label>
             <Select
-              value={String(turnsPerConversation)}
-              onValueChange={(v) => setTurnsPerConversation(Number(v))}
+              value={String(requestsPerConversation)}
+              onValueChange={(v) => setRequestsPerConversation(Number(v))}
             >
               <SelectTrigger className="w-[80px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TURNS_OPTIONS.map((t) => (
+                {REQUESTS_OPTIONS.map((t) => (
                   <SelectItem key={t} value={String(t)}>
                     {t}
                   </SelectItem>
@@ -466,6 +383,25 @@ export function ApiHostingChart({
               </SelectContent>
             </Select>
           </div>
+
+          <button
+            onClick={() => setYZoomed((z) => !z)}
+            className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            title={yZoomed ? "Zoom in" : "Zoom out"}
+          >
+            {yZoomed ? (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="4" />
+                <path d="M9 9l3 3M4 6h4" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="4" />
+                <path d="M9 9l3 3M4 6h4M6 4v4" />
+              </svg>
+            )}
+            {yZoomed ? "Zoom in" : "Zoom out"}
+          </button>
         </div>
 
         <ChartContainer
@@ -480,15 +416,14 @@ export function ApiHostingChart({
             <XAxis
               dataKey="x"
               type="number"
-              scale="log"
               domain={[minX, fixedMaxX]}
               allowDataOverflow
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={formatTurns}
+              tickFormatter={formatRequests}
               label={{
-                value: "Agent turns per month",
+                value: "Requests per month",
                 position: "insideBottom",
                 offset: -16,
                 fontSize: 12,
@@ -496,38 +431,15 @@ export function ApiHostingChart({
               }}
             />
             <YAxis
-              domain={[0, fixedMaxY]}
+              domain={[0, activeMaxY]}
               allowDataOverflow
               tickLine={false}
               axisLine={false}
               tickMargin={8}
               ticks={yAxisTicks}
-              tick={(props: { x: number; y: number; payload: { value: number } }) => {
-                const { x, y, payload } = props;
-                const isStepCost = visibleStepCosts.includes(payload.value);
-                const label = `${currencySymbol}${
-                  payload.value >= 1000
-                    ? `${(payload.value / 1000).toFixed(0)}k`
-                    : payload.value.toFixed(0)
-                }`;
-                return (
-                  <text
-                    x={x}
-                    y={y}
-                    dy={4}
-                    textAnchor="end"
-                    fontSize={11}
-                    fontWeight={isStepCost ? 700 : 400}
-                    fill={
-                      isStepCost
-                        ? (OPEN_MODEL_COLORS[0] ?? "#22c55e")
-                        : "var(--muted-foreground)"
-                    }
-                  >
-                    {label}
-                  </text>
-                );
-              }}
+              tickFormatter={(v: number) =>
+                `${currencySymbol}${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}`
+              }
             />
             <ChartTooltip
               content={({ active, payload }) => {
@@ -536,7 +448,7 @@ export function ApiHostingChart({
                 if (x == null) return null;
                 return (
                   <div className="rounded-lg border bg-background p-3 shadow-sm text-sm space-y-1">
-                    <p className="font-medium">{formatTurns(x)} turns/mo</p>
+                    <p className="font-medium">{formatRequests(x)} requests/mo</p>
                     {[...payload]
                       .sort((a, b) => (a.value as number) - (b.value as number))
                       .map((p) => (
@@ -604,22 +516,24 @@ export function ApiHostingChart({
               );
             })}
 
-            {stepBoundaries.map((boundary, i) => (
-              <ReferenceLine
-                key={`step-boundary-${boundary}`}
-                x={boundary}
-                stroke={OPEN_MODEL_COLORS[0] ?? "#22c55e"}
-                strokeWidth={0.5}
-                strokeOpacity={0.5}
-                label={{
-                  value: `×${i + 2}`,
-                  position: "insideTop",
-                  fontSize: 9,
-                  fill: OPEN_MODEL_COLORS[0] ?? "#22c55e",
-                  offset: 4,
-                }}
+            {openCosts[0]?.costConfig && (
+              <ReferenceDot
+                x={(minX + fixedMaxX) / 2}
+                y={openCosts[0].costConfig.baseMonthlyCost}
+                r={0}
+                label={(props: { viewBox?: { x?: number; y?: number } }) => (
+                  <text
+                    x={props.viewBox?.x ?? 0}
+                    y={(props.viewBox?.y ?? 0) - 6}
+                    textAnchor="middle"
+                    fontSize={10}
+                    fill={OPEN_MODEL_COLORS[0] ?? "#22c55e"}
+                  >
+                    {openCosts[0].model.model_name}
+                  </text>
+                )}
               />
-            ))}
+            )}
 
             {sortedIntersections.map((ix) => (
               <ReferenceLine
@@ -629,7 +543,7 @@ export function ApiHostingChart({
                 strokeWidth={1}
                 strokeDasharray="4 3"
                 label={{
-                  value: formatTurns(ix.x),
+                  value: formatRequests(ix.x),
                   position: "insideBottomLeft",
                   fontSize: 10,
                   fill: OPEN_MODEL_COLORS[ix.openIndex] ?? "#888",
@@ -652,43 +566,7 @@ export function ApiHostingChart({
           </LineChart>
         </ChartContainer>
 
-        {intersections.length > 0 && (
-          <div className="text-sm space-y-2">
-            <p className="font-medium text-muted-foreground">Break-even points</p>
-            <div className="space-y-1">
-              {sortedIntersections.map((ix) => (
-                <div
-                  key={`${ix.closedModel.lab}-${ix.openModel.model_name}`}
-                  className="flex items-center gap-2"
-                >
-                  <span
-                    className="inline-block h-3 w-3 rounded-full flex-shrink-0 border-2"
-                    style={{
-                      backgroundColor: "white",
-                      borderColor: OPEN_MODEL_COLORS[ix.openIndex] ?? "#888",
-                    }}
-                  />
-                  <span className="text-muted-foreground">
-                    {labToDisplayName(ix.closedModel.lab)} / {ix.openModel.model_name} (×{ix.replicaCount} replica):
-                  </span>
-                  <span className="font-medium tabular-nums">
-                    {ix.x.toLocaleString("en-US", { maximumFractionDigits: 0 })} turns/mo
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    ({formatCost(ix.y)}/mo)
-                  </span>
-                  {ix.performanceNote && (
-                    <span className="text-muted-foreground text-xs italic">
-                      — {ix.performanceNote}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {openModels.length > 0 && openCosts.every(({ costConfig }) => costConfig == null) && (
+{openModels.length > 0 && openCosts.every(({ costConfig }) => costConfig == null) && (
           <p className="text-sm text-muted-foreground">
             No GPU offering found for the selected GPU configuration.
           </p>
@@ -697,19 +575,25 @@ export function ApiHostingChart({
         {availableModels.length > 0 && (
           <div className="text-sm space-y-1.5 pt-1 border-t">
             <p className="font-medium text-muted-foreground">Models served by this GPU config</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {availableModels.map((entry, i) => (
-                <span key={entry.model.model_name} className="text-muted-foreground">
-                  <span className={i === 0 ? "font-medium text-foreground" : ""}>
-                    {entry.model.model_name}
-                  </span>
-                  {entry.sotaPercent !== null && (
-                    <span className="text-xs ml-1">
-                      ({Math.round(entry.sotaPercent)}% of SOTA)
+            <div className="flex flex-col gap-y-0.5">
+              {availableModels.map((entry, i) => {
+                const reqH = modelCapacitiesReqH[i] ?? null;
+                const reqHFormatted = reqH != null
+                  ? (reqH >= 10_000 ? `${Math.round(reqH / 1000)}k` : reqH >= 1_000 ? `${(reqH / 1000).toFixed(1)}k` : String(reqH))
+                  : null;
+                const detail = [
+                  entry.sotaPercent !== null ? `${Math.round(entry.sotaPercent)}% of SOTA` : null,
+                  reqHFormatted !== null ? `${reqHFormatted} req/h` : null,
+                ].filter(Boolean).join(" at ");
+                return (
+                  <span key={entry.model.model_name} className="text-muted-foreground">
+                    <span className={i === 0 ? "font-medium text-foreground" : ""}>
+                      {entry.model.model_name}
                     </span>
-                  )}
-                </span>
-              ))}
+                    {detail && <span className="text-xs ml-1">({detail})</span>}
+                  </span>
+                );
+              })}
             </div>
           </div>
         )}

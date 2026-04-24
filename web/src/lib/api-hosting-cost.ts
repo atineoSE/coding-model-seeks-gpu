@@ -11,21 +11,21 @@ export const PROVIDER_CACHE_TTLS: Record<string, number[]> = {
 };
 
 export interface CostConfig {
-  turnsPerConversation: number;
+  requestsPerConversation: number;
   cacheHitRate: number;        // 0.0–1.0
   cacheTtlMin: number | null;  // null for providers without TTL
   avgInputTokens: number;
   avgOutputTokens: number;
 }
 
-// Assumed gap between conversations in minutes (for cache expiry check on turn 1)
+// Assumed gap between conversations in minutes (for cache expiry check on request 1)
 const INTER_CONVERSATION_GAP_MIN = 60;
 
-export function computeAvgCostPerTurn(
+export function computeAvgCostPerRequest(
   entry: ApiPricingEntry,
   config: CostConfig,
 ): number {
-  const { turnsPerConversation: T, cacheHitRate: c, cacheTtlMin, avgInputTokens: I, avgOutputTokens: O } = config;
+  const { requestsPerConversation: T, cacheHitRate: c, cacheTtlMin, avgInputTokens: I, avgOutputTokens: O } = config;
 
   if (!entry.input_cost_per_token || !entry.output_cost_per_token) return 0;
 
@@ -44,7 +44,7 @@ export function computeAvgCostPerTurn(
     const ctx = raw > contextWindow ? COMPACTION_THRESHOLD_TOKENS : raw;
     const totalInput = ctx + I;
 
-    // Turn 1: cache may have expired if TTL shorter than inter-conversation gap
+    // Request 1: cache may have expired if TTL shorter than inter-conversation gap
     const effectiveHitRate =
       t === 1 && (cacheTtlMin == null || cacheTtlMin < INTER_CONVERSATION_GAP_MIN)
         ? 0
@@ -53,11 +53,11 @@ export function computeAvgCostPerTurn(
     const cached = totalInput * effectiveHitRate;
     const fresh = totalInput - cached;
 
-    const turnCost = hasCaching
+    const requestCost = hasCaching
       ? fresh * inputCost + cached * cacheReadCost + O * cacheWriteCost + O * outputCost
       : totalInput * inputCost + O * outputCost;
 
-    totalCost += turnCost;
+    totalCost += requestCost;
   }
 
   return totalCost / T;
@@ -66,13 +66,13 @@ export function computeAvgCostPerTurn(
 export function computeApiCostPoints(
   entry: ApiPricingEntry,
   config: CostConfig,
-  maxTurns: number,
+  maxRequests: number,
   steps = 200,
 ): { x: number; y: number }[] {
-  const avgCostPerTurn = computeAvgCostPerTurn(entry, config);
+  const avgCostPerRequest = computeAvgCostPerRequest(entry, config);
   return Array.from({ length: steps + 1 }, (_, i) => {
-    const x = (maxTurns / steps) * i;
-    return { x, y: x * avgCostPerTurn };
+    const x = (maxRequests / steps) * i;
+    return { x, y: x * avgCostPerRequest };
   });
 }
 
@@ -88,11 +88,11 @@ export function computeSelfHostingMonthlyCost(
 }
 
 export function findIntersection(
-  avgCostPerTurn: number,
+  avgCostPerRequest: number,
   flatCost: number,
 ): number | null {
-  if (avgCostPerTurn <= 0) return null;
-  return flatCost / avgCostPerTurn;
+  if (avgCostPerRequest <= 0) return null;
+  return flatCost / avgCostPerRequest;
 }
 
 export function getProviderCacheTtls(entry: ApiPricingEntry): number[] {
@@ -112,7 +112,7 @@ export function findGpuOfferingForConfig(
 
 export interface ConfigSelfHostingCost {
   baseMonthlyCost: number;
-  maxTurnsPerMonth: number | null;
+  maxRequestsPerMonth: number | null;
 }
 
 export function computeSelfHostingCostForConfig(
@@ -137,18 +137,18 @@ export function computeSelfHostingCostForConfig(
     memoryUtilization,
   );
 
-  const maxTurnsPerMonth =
+  const maxRequestsPerMonth =
     stats.maxConcurrentStreams > 0 && stats.decodeThroughputTokS !== null
       ? stats.maxConcurrentStreams * stats.decodeThroughputTokS / settings.avgOutputTokens * SECONDS_PER_MONTH
       : null;
 
-  return { baseMonthlyCost, maxTurnsPerMonth };
+  return { baseMonthlyCost, maxRequestsPerMonth };
 }
 
 export function selfHostingStepCost(
   x: number,
   config: ConfigSelfHostingCost,
 ): number {
-  if (config.maxTurnsPerMonth === null) return config.baseMonthlyCost;
-  return Math.max(1, Math.ceil(x / config.maxTurnsPerMonth)) * config.baseMonthlyCost;
+  if (config.maxRequestsPerMonth === null) return config.baseMonthlyCost;
+  return Math.max(1, Math.ceil(x / config.maxRequestsPerMonth)) * config.baseMonthlyCost;
 }
