@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart,
   Line,
@@ -271,13 +271,44 @@ export function ApiHostingChart({
 
   const activeMaxY = yZoomed ? fullMaxY : fixedMaxY;
 
+  const animFrameRef = useRef<number | null>(null);
+  const fromMaxYRef = useRef(activeMaxY);
+  const [renderedMaxY, setRenderedMaxY] = useState(activeMaxY);
+
+  useEffect(() => {
+    const from = fromMaxYRef.current;
+    const to = activeMaxY;
+    if (from === to) return;
+
+    const startTime = performance.now();
+    const DURATION = 350;
+
+    if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current);
+
+    function tick(now: number) {
+      const t = Math.min((now - startTime) / DURATION, 1);
+      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      const val = from + (to - from) * eased;
+      fromMaxYRef.current = val;
+      setRenderedMaxY(val);
+      if (t < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        fromMaxYRef.current = to;
+      }
+    }
+
+    animFrameRef.current = requestAnimationFrame(tick);
+    return () => { if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current); };
+  }, [activeMaxY]);
+
   // Place each closed-model label near the last visible point on that curve.
   const closedLabelPositions = useMemo(() => {
     const ANCHOR = 0.65;
-    const minGap = activeMaxY * 0.06;
+    const minGap = renderedMaxY * 0.06;
 
     const entries = closedPricing.map((_, ci) => {
-      const exitX = avgCosts[ci] > 0 ? activeMaxY / avgCosts[ci] : fixedMaxX;
+      const exitX = avgCosts[ci] > 0 ? renderedMaxY / avgCosts[ci] : fixedMaxX;
       const anchorX = Math.min(fixedMaxX, exitX) * ANCHOR;
       const anchorY = anchorX * avgCosts[ci];
       return { ci, x: anchorX, y: anchorY };
@@ -291,11 +322,13 @@ export function ApiHostingChart({
     }
 
     return new Map(entries.map(({ ci, x, y }) => [ci, { x, y }]));
-  }, [closedPricing, fixedMaxX, activeMaxY, avgCosts]);
+  }, [closedPricing, fixedMaxX, renderedMaxY, avgCosts]);
+
+  const selfHostingCost = openCosts[0]?.costConfig?.baseMonthlyCost ?? 0;
 
   const yAxisTicks = useMemo(
-    () => niceYTicks(activeMaxY, []),
-    [activeMaxY],
+    () => niceYTicks(renderedMaxY, selfHostingCost > 0 ? [selfHostingCost] : []),
+    [renderedMaxY, selfHostingCost],
   );
 
   const sortedIntersections = useMemo(
@@ -392,12 +425,12 @@ export function ApiHostingChart({
             {yZoomed ? (
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="6" cy="6" r="4" />
-                <path d="M9 9l3 3M4 6h4" />
+                <path d="M9 9l3 3M4 6h4M6 4v4" />
               </svg>
             ) : (
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="6" cy="6" r="4" />
-                <path d="M9 9l3 3M4 6h4M6 4v4" />
+                <path d="M9 9l3 3M4 6h4" />
               </svg>
             )}
             {yZoomed ? "Zoom in" : "Zoom out"}
@@ -431,7 +464,7 @@ export function ApiHostingChart({
               }}
             />
             <YAxis
-              domain={[0, activeMaxY]}
+              domain={[0, renderedMaxY]}
               allowDataOverflow
               tickLine={false}
               axisLine={false}
