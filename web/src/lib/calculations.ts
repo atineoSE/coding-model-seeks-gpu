@@ -49,12 +49,12 @@ const BYTES_PER_PARAM: Record<Precision, number> = {
  */
 export function resolveModelPrecision(model: Model): Precision {
   const raw = (model.precision ?? "").toUpperCase().trim();
-  if (raw === "FP8") return "fp8";
+  if (raw === "FP8" || raw === "FLOAT8") return "fp8";
   if (raw === "BF16") return "bf16";
   if (raw === "FP16") return "fp16";
   if (raw === "FP32") return "fp32";
   if (raw === "INT8") return "int8";
-  if (raw.startsWith("INT4")) return "int4";
+  if (raw.startsWith("INT4") || raw === "FLOAT4") return "int4";
   return "fp16"; // conservative fallback
 }
 

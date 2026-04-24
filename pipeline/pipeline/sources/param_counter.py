@@ -694,4 +694,26 @@ def detect_precision(raw_config: dict) -> PrecisionInfo:
                 )
         raise ValueError("Could not parse compressed-tensors config_groups")
 
+    if method == "modelopt":
+        # NVIDIA ModelOpt quantization (used for NVFP4, mixed FP8/FP4, etc.).
+        # Parse all config_groups and pick the most compressed (minimum num_bits),
+        # which corresponds to the routed expert weights that dominate model size.
+        groups = quant_config.get("config_groups", {})
+        parsed: list[tuple[int, str]] = []
+        for group in groups.values():
+            weights = group.get("weights", {})
+            num_bits = weights.get("num_bits")
+            w_type = weights.get("type")
+            if num_bits and w_type:
+                parsed.append((num_bits, w_type))
+        if not parsed:
+            raise ValueError("Could not parse modelopt config_groups")
+        min_bits, min_type = min(parsed, key=lambda x: x[0])
+        is_mixed = len({b for b, _ in parsed}) > 1
+        return PrecisionInfo(
+            bytes_per_param=min_bits / 8,
+            dtype_str=f"{min_type.upper()}{min_bits}",
+            is_mixed=is_mixed,
+        )
+
     raise ValueError(f"Unknown quant_method='{method}'")
