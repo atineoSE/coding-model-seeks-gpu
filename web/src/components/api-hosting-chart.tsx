@@ -31,16 +31,16 @@ import {
 } from "@/components/ui/select";
 import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings, BenchmarkScore, PresetGpuConfig } from "@/types";
 import {
-  computeAvgCostPerTurn,
+  computeAvgCostPerRequest,
   computeSelfHostingCostForConfig,
   selfHostingStepCost,
   getProviderCacheTtls,
   type CostConfig,
 } from "@/lib/api-hosting-cost";
 
-const TURNS_OPTIONS = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
+const REQUESTS_OPTIONS = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
 const CACHE_HIT_RATE_OPTIONS = [0.8, 0.85, 0.9, 0.95, 0.99];
-const DEFAULT_TURNS = 150;
+const DEFAULT_REQUESTS = 150;
 const DEFAULT_CACHE_HIT_RATE = 0.9;
 
 const CLOSED_MODEL_COLORS: Record<string, string> = {
@@ -98,7 +98,7 @@ export function ApiHostingChart({
   benchmarkCategory,
   currencySymbol = "$",
 }: ApiHostingChartProps) {
-  const [turnsPerConversation, setTurnsPerConversation] = useState(DEFAULT_TURNS);
+  const [requestsPerConversation, setRequestsPerConversation] = useState(DEFAULT_REQUESTS);
   const [cacheHitRate, setCacheHitRate] = useState(DEFAULT_CACHE_HIT_RATE);
 
   const openModels = useMemo(
@@ -153,7 +153,7 @@ export function ApiHostingChart({
     visibleStepCosts,
   } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
-      turnsPerConversation,
+      requestsPerConversation,
       cacheHitRate,
       cacheTtlMin:
         getProviderCacheTtls(entry).length > 0
@@ -164,7 +164,7 @@ export function ApiHostingChart({
     }));
 
     const avgCosts = closedPricing.map((entry, i) =>
-      computeAvgCostPerTurn(entry, configs[i]),
+      computeAvgCostPerRequest(entry, configs[i]),
     );
 
     const openCosts = openModels.map((model) => ({
@@ -190,14 +190,14 @@ export function ApiHostingChart({
     }[] = [];
 
     for (let ci = 0; ci < closedPricing.length; ci++) {
-      const avgCostPerTurn = avgCosts[ci];
-      if (avgCostPerTurn <= 0) continue;
+      const avgCostPerRequest = avgCosts[ci];
+      if (avgCostPerRequest <= 0) continue;
 
       for (let oi = 0; oi < openCosts.length; oi++) {
         const { model, costConfig } = openCosts[oi];
         if (!costConfig) continue;
 
-        const { baseMonthlyCost, maxTurnsPerMonth } = costConfig;
+        const { baseMonthlyCost, maxRequestsPerMonth } = costConfig;
 
         const closedScore = benchmarkScoreMap.get(closedPricing[ci].model_name) ?? null;
         const openScore = benchmarkScoreMap.get(model.model_name) ?? null;
@@ -223,9 +223,9 @@ export function ApiHostingChart({
           performanceNote = `${source} has ${pct.toFixed(1)}% performance of ${reference} (${benchmarkDisplayName})`;
         }
 
-        if (maxTurnsPerMonth === null) {
+        if (maxRequestsPerMonth === null) {
           // No capacity info: flat cost, single intersection
-          const x = baseMonthlyCost / avgCostPerTurn;
+          const x = baseMonthlyCost / avgCostPerRequest;
           allIntersections.push({
             x,
             y: baseMonthlyCost,
@@ -238,15 +238,15 @@ export function ApiHostingChart({
           });
         } else {
           // Self-hosting always more expensive at full capacity — no crossover possible
-          if (baseMonthlyCost > maxTurnsPerMonth * avgCostPerTurn) continue;
+          if (baseMonthlyCost > maxRequestsPerMonth * avgCostPerRequest) continue;
 
           // Step function: find the unique valid replica count k
           for (let k = 1; ; k++) {
             const stepCost = k * baseMonthlyCost;
-            const candidateX = stepCost / avgCostPerTurn;
+            const candidateX = stepCost / avgCostPerRequest;
             if (candidateX > 10_000_000) break;
-            const lowerBound = (k - 1) * maxTurnsPerMonth;
-            const upperBound = k * maxTurnsPerMonth;
+            const lowerBound = (k - 1) * maxRequestsPerMonth;
+            const upperBound = k * maxRequestsPerMonth;
             if (candidateX > lowerBound && candidateX <= upperBound) {
               allIntersections.push({
                 x: candidateX,
@@ -273,10 +273,10 @@ export function ApiHostingChart({
 
     const openCostConfig = openCosts[0]?.costConfig ?? null;
 
-    // Step boundaries at n × maxTurnsPerMonth within [minX, fixedMaxX]
+    // Step boundaries at n × maxRequestsPerMonth within [minX, fixedMaxX]
     const stepBoundaries: number[] = [];
-    if (openCostConfig?.maxTurnsPerMonth != null) {
-      const T = openCostConfig.maxTurnsPerMonth;
+    if (openCostConfig?.maxRequestsPerMonth != null) {
+      const T = openCostConfig.maxRequestsPerMonth;
       for (let n = 1; n * T <= fixedMaxX; n++) {
         const boundary = n * T;
         if (boundary >= minX) stepBoundaries.push(boundary);
@@ -285,8 +285,8 @@ export function ApiHostingChart({
 
     // Highest step cost visible in the chart range for fixedMaxY
     let maxVisibleStepCost = 0;
-    if (openCostConfig?.maxTurnsPerMonth != null) {
-      const T = openCostConfig.maxTurnsPerMonth;
+    if (openCostConfig?.maxRequestsPerMonth != null) {
+      const T = openCostConfig.maxRequestsPerMonth;
       const maxReplicas = Math.max(1, Math.ceil(fixedMaxX / T));
       maxVisibleStepCost = maxReplicas * openCostConfig.baseMonthlyCost;
     } else if (openCostConfig) {
@@ -306,7 +306,7 @@ export function ApiHostingChart({
 
     // Step-level costs visible within the y range (for axis tick injection)
     const visibleStepCosts: number[] = [];
-    if (openCostConfig?.maxTurnsPerMonth != null) {
+    if (openCostConfig?.maxRequestsPerMonth != null) {
       for (let n = 1; n * openCostConfig.baseMonthlyCost <= fixedMaxY * 1.1; n++) {
         visibleStepCosts.push(n * openCostConfig.baseMonthlyCost);
       }
@@ -355,7 +355,7 @@ export function ApiHostingChart({
     gpus,
     memoryUtilization,
     settings,
-    turnsPerConversation,
+    requestsPerConversation,
     cacheHitRate,
     benchmarkScoreMap,
     benchmarkDisplayName,
@@ -393,7 +393,7 @@ export function ApiHostingChart({
     [intersections],
   );
 
-  function formatTurns(n: number) {
+  function formatRequests(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
     return String(Math.round(n));
@@ -419,7 +419,7 @@ export function ApiHostingChart({
       <CardHeader>
         <CardTitle>API vs. Self-Hosting Cost</CardTitle>
         <CardDescription>
-          Monthly cost at a given turns/month volume. Solid lines = API; dashed line = self-hosting
+          Monthly cost at a given requests/month volume. Solid lines = API; dashed line = self-hosting
           (steps up when a new replica is needed). Dots mark the break-even point per pair.
         </CardDescription>
       </CardHeader>
@@ -427,17 +427,17 @@ export function ApiHostingChart({
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-              Turns / conversation
+              Requests / conversation
             </label>
             <Select
-              value={String(turnsPerConversation)}
-              onValueChange={(v) => setTurnsPerConversation(Number(v))}
+              value={String(requestsPerConversation)}
+              onValueChange={(v) => setRequestsPerConversation(Number(v))}
             >
               <SelectTrigger className="w-[80px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TURNS_OPTIONS.map((t) => (
+                {REQUESTS_OPTIONS.map((t) => (
                   <SelectItem key={t} value={String(t)}>
                     {t}
                   </SelectItem>
@@ -486,9 +486,9 @@ export function ApiHostingChart({
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={formatTurns}
+              tickFormatter={formatRequests}
               label={{
-                value: "Agent turns per month",
+                value: "Requests per month",
                 position: "insideBottom",
                 offset: -16,
                 fontSize: 12,
@@ -536,7 +536,7 @@ export function ApiHostingChart({
                 if (x == null) return null;
                 return (
                   <div className="rounded-lg border bg-background p-3 shadow-sm text-sm space-y-1">
-                    <p className="font-medium">{formatTurns(x)} turns/mo</p>
+                    <p className="font-medium">{formatRequests(x)} requests/mo</p>
                     {[...payload]
                       .sort((a, b) => (a.value as number) - (b.value as number))
                       .map((p) => (
@@ -629,7 +629,7 @@ export function ApiHostingChart({
                 strokeWidth={1}
                 strokeDasharray="4 3"
                 label={{
-                  value: formatTurns(ix.x),
+                  value: formatRequests(ix.x),
                   position: "insideBottomLeft",
                   fontSize: 10,
                   fill: OPEN_MODEL_COLORS[ix.openIndex] ?? "#888",
@@ -672,7 +672,7 @@ export function ApiHostingChart({
                     {labToDisplayName(ix.closedModel.lab)} / {ix.openModel.model_name} (×{ix.replicaCount} replica):
                   </span>
                   <span className="font-medium tabular-nums">
-                    {ix.x.toLocaleString("en-US", { maximumFractionDigits: 0 })} turns/mo
+                    {ix.x.toLocaleString("en-US", { maximumFractionDigits: 0 })} requests/mo
                   </span>
                   <span className="text-muted-foreground text-xs">
                     ({formatCost(ix.y)}/mo)
