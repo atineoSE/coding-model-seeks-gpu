@@ -30,6 +30,7 @@
       "fast": 6.0
     },
     "supports_max_reasoning_effort": true,
+    "supports_minimal_reasoning_effort": true,
     "model_name": "claude-opus-4-6",
     "lab": "anthropic",
     "litellm_id": "claude-opus-4-6",

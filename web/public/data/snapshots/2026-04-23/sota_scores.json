@@ -1,0 +1,38 @@
+[
+  {
+    "benchmark_name": "overall",
+    "benchmark_display_name": "Overall",
+    "sota_model_name": "claude-opus-4-7",
+    "sota_score": 68.2
+  },
+  {
+    "benchmark_name": "frontend",
+    "benchmark_display_name": "Frontend",
+    "sota_model_name": "claude-opus-4-7",
+    "sota_score": 48.5
+  },
+  {
+    "benchmark_name": "greenfield",
+    "benchmark_display_name": "Greenfield",
+    "sota_model_name": "GPT-5.4",
+    "sota_score": 56.2
+  },
+  {
+    "benchmark_name": "information_gathering",
+    "benchmark_display_name": "Information Gathering",
+    "sota_model_name": "claude-opus-4-7",
+    "sota_score": 81.2
+  },
+  {
+    "benchmark_name": "issue_resolution",
+    "benchmark_display_name": "Issue Resolution",
+    "sota_model_name": "claude-opus-4-6",
+    "sota_score": 76.8
+  },
+  {
+    "benchmark_name": "testing",
+    "benchmark_display_name": "Testing",
+    "sota_model_name": "claude-opus-4-7",
+    "sota_score": 80.8
+  }
+]
