@@ -173,6 +173,14 @@ export function BudgetChart({ data }: BudgetChartProps) {
             tickMargin={8}
             domain={[0, 100]}
             tickFormatter={(v: number) => `${v}%`}
+            label={{
+              value: "Benchmark score",
+              angle: 90,
+              position: "insideRight",
+              offset: 12,
+              fontSize: 12,
+              fill: "var(--muted-foreground)",
+            }}
           />
           <ChartTooltip content={<BudgetTooltip mode={mode} reqPerDevPerHour={reqPerDevPerHour} />} />
           <Legend content={<BudgetLegend mode={mode} />} />

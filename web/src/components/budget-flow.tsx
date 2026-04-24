@@ -115,6 +115,8 @@ export function BudgetFlow({
   return (
     <div className="space-y-6">
       {/* GPU setup — collapsible, shared across charts */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium text-muted-foreground">GPU configuration</Label>
       <div className="rounded-lg border">
         <button
           onClick={() => setConfigExpanded(!configExpanded)}
@@ -161,6 +163,7 @@ export function BudgetFlow({
             </div>
           </div>
         )}
+      </div>
       </div>
 
       <ChartSelector

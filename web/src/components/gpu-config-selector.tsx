@@ -68,9 +68,6 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
 
   return (
     <div className="space-y-4">
-      <label className="text-sm font-medium text-muted-foreground">
-        Select your GPU configuration
-      </label>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
         {GPU_PRESETS.map((preset) => (
           <button
