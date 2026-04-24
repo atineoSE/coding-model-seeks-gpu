@@ -242,6 +242,16 @@ describe("resolveModelPrecision", () => {
     const m = { ...GLM_47, precision: "WEIRD" };
     expect(resolveModelPrecision(m)).toBe("fp16");
   });
+
+  it("resolves FLOAT4 (modelopt FP4) to int4", () => {
+    const m = { ...KIMI_K2, precision: "FLOAT4" };
+    expect(resolveModelPrecision(m)).toBe("int4");
+  });
+
+  it("resolves FLOAT8 (modelopt FP8) to fp8", () => {
+    const m = { ...DEEPSEEK_V32, precision: "FLOAT8" };
+    expect(resolveModelPrecision(m)).toBe("fp8");
+  });
 });
 
 // ---------------------------------------------------------------------------

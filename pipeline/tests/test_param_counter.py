@@ -485,6 +485,46 @@ class TestPrecision:
         assert info.dtype_str == "FP8"
         assert info.bytes_per_param == 1.0
 
+    def test_modelopt_mixed_fp8_fp4(self):
+        # Nemotron-3-Super: FP8 for Mamba/attention, FP4 for routed experts
+        config = {
+            "quantization_config": {
+                "quant_method": "modelopt",
+                "config_groups": {
+                    "group_0": {"weights": {"num_bits": 8, "type": "float"}},
+                    "group_1": {"weights": {"num_bits": 4, "type": "float"}},
+                },
+            }
+        }
+        info = detect_precision(config)
+        assert info.dtype_str == "FLOAT4"
+        assert info.bytes_per_param == 0.5
+        assert info.is_mixed
+
+    def test_modelopt_uniform_fp8(self):
+        config = {
+            "quantization_config": {
+                "quant_method": "modelopt",
+                "config_groups": {
+                    "group_0": {"weights": {"num_bits": 8, "type": "float"}},
+                },
+            }
+        }
+        info = detect_precision(config)
+        assert info.dtype_str == "FLOAT8"
+        assert info.bytes_per_param == 1.0
+        assert not info.is_mixed
+
+    def test_modelopt_empty_groups_raises(self):
+        config = {
+            "quantization_config": {
+                "quant_method": "modelopt",
+                "config_groups": {},
+            }
+        }
+        with pytest.raises(ValueError, match="Could not parse modelopt config_groups"):
+            detect_precision(config)
+
 
 # ===================================================================
 # Nemotron-H hybrid architecture tests
