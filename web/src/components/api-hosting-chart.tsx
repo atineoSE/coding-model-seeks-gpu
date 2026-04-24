@@ -99,6 +99,7 @@ export function ApiHostingChart({
 }: ApiHostingChartProps) {
   const [requestsPerConversation, setRequestsPerConversation] = useState(DEFAULT_REQUESTS);
   const [cacheHitRate, setCacheHitRate] = useState(DEFAULT_CACHE_HIT_RATE);
+  const [yZoomed, setYZoomed] = useState(false);
 
   const openModels = useMemo(
     () => (availableModels[0] ? [availableModels[0].model] : []),
@@ -147,6 +148,7 @@ export function ApiHostingChart({
     avgCosts,
     fixedMaxX,
     fixedMaxY,
+    fullMaxY,
     minX,
   } = useMemo(() => {
     const configs: CostConfig[] = closedPricing.map((entry) => ({
@@ -238,9 +240,11 @@ export function ApiHostingChart({
       selfHostingCost * 1.1,
     ) || 10_000;
 
+    const fullMaxY = Math.max(...avgCosts.filter(c => c > 0), 0) * fixedMaxX * 1.05 || fixedMaxY;
+
     const STEPS = 200;
     const chartData = Array.from({ length: STEPS + 1 }, (_, i) => {
-      const x = minX * Math.pow(fixedMaxX / minX, i / STEPS);
+      const x = minX + (fixedMaxX - minX) * (i / STEPS);
       const point: Record<string, number> = { x };
       for (let ci = 0; ci < closedPricing.length; ci++) {
         point[closedPricing[ci].lab] = x * avgCosts[ci];
@@ -251,7 +255,7 @@ export function ApiHostingChart({
       return point;
     });
 
-    return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, minX };
+    return { chartData, openCosts, intersections, avgCosts, fixedMaxX, fixedMaxY, fullMaxY, minX };
   }, [
     closedPricing,
     openModels,
@@ -265,13 +269,15 @@ export function ApiHostingChart({
     benchmarkDisplayName,
   ]);
 
+  const activeMaxY = yZoomed ? fullMaxY : fixedMaxY;
+
   // Place each closed-model label near the last visible point on that curve.
   const closedLabelPositions = useMemo(() => {
     const ANCHOR = 0.65;
-    const minGap = fixedMaxY * 0.06;
+    const minGap = activeMaxY * 0.06;
 
     const entries = closedPricing.map((_, ci) => {
-      const exitX = avgCosts[ci] > 0 ? fixedMaxY / avgCosts[ci] : fixedMaxX;
+      const exitX = avgCosts[ci] > 0 ? activeMaxY / avgCosts[ci] : fixedMaxX;
       const anchorX = Math.min(fixedMaxX, exitX) * ANCHOR;
       const anchorY = anchorX * avgCosts[ci];
       return { ci, x: anchorX, y: anchorY };
@@ -285,11 +291,11 @@ export function ApiHostingChart({
     }
 
     return new Map(entries.map(({ ci, x, y }) => [ci, { x, y }]));
-  }, [closedPricing, fixedMaxX, fixedMaxY, avgCosts]);
+  }, [closedPricing, fixedMaxX, activeMaxY, avgCosts]);
 
   const yAxisTicks = useMemo(
-    () => niceYTicks(fixedMaxY, []),
-    [fixedMaxY],
+    () => niceYTicks(activeMaxY, []),
+    [activeMaxY],
   );
 
   const sortedIntersections = useMemo(
@@ -335,7 +341,7 @@ export function ApiHostingChart({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
               Requests / conversation
@@ -377,6 +383,25 @@ export function ApiHostingChart({
               </SelectContent>
             </Select>
           </div>
+
+          <button
+            onClick={() => setYZoomed((z) => !z)}
+            className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            title={yZoomed ? "Zoom in" : "Zoom out"}
+          >
+            {yZoomed ? (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="4" />
+                <path d="M9 9l3 3M4 6h4" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="4" />
+                <path d="M9 9l3 3M4 6h4M6 4v4" />
+              </svg>
+            )}
+            {yZoomed ? "Zoom in" : "Zoom out"}
+          </button>
         </div>
 
         <ChartContainer
@@ -391,7 +416,6 @@ export function ApiHostingChart({
             <XAxis
               dataKey="x"
               type="number"
-              scale="log"
               domain={[minX, fixedMaxX]}
               allowDataOverflow
               tickLine={false}
@@ -407,7 +431,7 @@ export function ApiHostingChart({
               }}
             />
             <YAxis
-              domain={[0, fixedMaxY]}
+              domain={[0, activeMaxY]}
               allowDataOverflow
               tickLine={false}
               axisLine={false}
@@ -494,7 +518,7 @@ export function ApiHostingChart({
 
             {openCosts[0]?.costConfig && (
               <ReferenceDot
-                x={Math.sqrt(minX * fixedMaxX)}
+                x={(minX + fixedMaxX) / 2}
                 y={openCosts[0].costConfig.baseMonthlyCost}
                 r={0}
                 label={(props: { viewBox?: { x?: number; y?: number } }) => (
