@@ -441,13 +441,7 @@ export function calculateBudgetMatrix(
 export interface BudgetChartDataPoint {
   modelName: string;
   maxConcurrentStreams: number;
-  teamSizeIde: number;
-  teamSizeCli: number;
-  teamSizeAvg: number;
-  /** Stream occupancy per developer for IDE workflow (0–1) */
-  ideOccupancy: number;
-  /** Stream occupancy per developer for CLI workflow (0–1) */
-  cliOccupancy: number;
+  requestsPerHour: number | null;
   percentOfSota: number;
   modelMemoryGb: number;
   fits: boolean;
@@ -456,17 +450,6 @@ export interface BudgetChartDataPoint {
   benchmarkScore: number | null;
 }
 
-/**
- * Calculate budget chart data for the team-size view.
- *
- * For each ranked model (by benchmark score), compute how many concurrent
- * streams the GPU config can serve and translate that into development
- * team sizes for IDE-workflow and CLI-workflow patterns.
- *
- * Team sizes are derived from Little's Law: each developer occupies a stream
- * for (avgOutputTokens / decodeTokPerS) seconds per request. The duty cycle
- * depends on the model's decode speed — faster models free streams sooner.
- */
 export function calculateBudgetChartData(
   gpuConfig: PresetGpuConfig,
   allModels: Model[],
@@ -474,8 +457,6 @@ export function calculateBudgetChartData(
   sotaScores: SotaScore[],
   benchmarkCategory: string,
   memoryUtilization: number,
-  ideRequestsPerHour: number,
-  cliRequestsPerHour: number,
   settings: AdvancedSettings,
 ): BudgetChartDataPoint[] {
   // Filter benchmarks for the selected category
@@ -518,11 +499,7 @@ export function calculateBudgetChartData(
       return {
         modelName: model.model_name,
         maxConcurrentStreams: 0,
-        teamSizeIde: 0,
-        teamSizeCli: 0,
-        teamSizeAvg: 0,
-        ideOccupancy: 0,
-        cliOccupancy: 0,
+        requestsPerHour: null,
         percentOfSota,
         modelMemoryGb: modelMemoryGb ?? 0,
         fits: false,
@@ -547,31 +524,15 @@ export function calculateBudgetChartData(
 
     const doesntFitReason: string | null = fits ? null : "Not enough VRAM for KV cache";
 
-    // Duty-cycle team size via Little's Law:
-    // Each request holds a stream for (avgOutputTokens / decodeTokS) seconds.
-    // occupancy = requestsPerHour × secondsPerRequest / 3600
-    const decodeTokS = stats.decodeThroughputTokS;
-    let teamSizeIde = 0;
-    let teamSizeCli = 0;
-    let ideOccupancy = 0;
-    let cliOccupancy = 0;
-    if (fits && decodeTokS && decodeTokS > 0) {
-      const secondsPerRequest = settings.avgOutputTokens / decodeTokS;
-      ideOccupancy = ideRequestsPerHour * secondsPerRequest / 3600;
-      cliOccupancy = cliRequestsPerHour * secondsPerRequest / 3600;
-      teamSizeIde = ideOccupancy > 0 ? Math.floor(stats.maxConcurrentStreams / ideOccupancy) : 0;
-      teamSizeCli = cliOccupancy > 0 ? Math.floor(stats.maxConcurrentStreams / cliOccupancy) : 0;
-    }
-    const teamSizeAvg = Math.floor((teamSizeIde + teamSizeCli) / 2);
+    const requestsPerHour =
+      fits && stats.decodeThroughputTokS !== null && stats.decodeThroughputTokS > 0
+        ? stats.maxConcurrentStreams * stats.decodeThroughputTokS / settings.avgOutputTokens * 3600
+        : null;
 
     return {
       modelName: model.model_name,
       maxConcurrentStreams: stats.maxConcurrentStreams,
-      teamSizeIde,
-      teamSizeCli,
-      teamSizeAvg,
-      ideOccupancy,
-      cliOccupancy,
+      requestsPerHour,
       percentOfSota,
       modelMemoryGb,
       fits,
