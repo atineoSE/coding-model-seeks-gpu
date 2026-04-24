@@ -40,8 +40,8 @@ export function BudgetFlow({
   settings,
   currencySymbol = "$",
 }: BudgetFlowProps) {
-  const gpuPresets = useMemo(() => buildGpuPresets(gpus), [gpus]);
-  const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(() => buildGpuPresets(gpus)[0]);
+  const gpuPresets = useMemo(() => buildGpuPresets(gpus, models, benchmarks), [gpus, models, benchmarks]);
+  const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(() => buildGpuPresets(gpus, models, benchmarks)[0]);
   const [memoryUtilization, setMemoryUtilization] = useState(90);
   const [configExpanded, setConfigExpanded] = useState(false);
 

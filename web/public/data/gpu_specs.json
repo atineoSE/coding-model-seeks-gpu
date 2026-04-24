@@ -99,6 +99,15 @@
     "architecture": "Blackwell"
   },
   {
+    "gpu_name": "GB200",
+    "memory_size_gb": 186.0,
+    "fp16_tflops": 2500.0,
+    "memory_bandwidth_tb_s": 8.0,
+    "nvlink_bandwidth_gb_s": 1800,
+    "fp8_multiplier": 2,
+    "architecture": "Blackwell"
+  },
+  {
     "gpu_name": "GH200",
     "memory_size_gb": 96,
     "fp16_tflops": 990,
