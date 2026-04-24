@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { PresetGpuConfig } from "@/types";
-import { GPU_PRESETS } from "@/lib/gpu-presets";
 import { GPU_THROUGHPUT_SPECS, getGpuThroughputSpec, getGpuVram } from "@/lib/gpu-specs";
 import { isNvLink } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
@@ -29,9 +28,10 @@ import { Badge } from "@/components/ui/badge";
 interface GpuConfigSelectorProps {
   value: PresetGpuConfig | null;
   onChange: (config: PresetGpuConfig) => void;
+  presets: PresetGpuConfig[];
 }
 
-export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
+export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelectorProps) {
   const [customOpen, setCustomOpen] = useState(false);
   const [customGpu, setCustomGpu] = useState("H100");
   const [customCount, setCustomCount] = useState("4");
@@ -69,7 +69,7 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-        {GPU_PRESETS.map((preset) => (
+        {presets.map((preset) => (
           <button
             key={preset.label}
             onClick={() => onChange(preset)}
@@ -93,7 +93,7 @@ export function GpuConfigSelector({ value, onChange }: GpuConfigSelectorProps) {
               className={cn(
                 "rounded-lg border border-dashed px-3 py-2.5 text-sm font-medium transition-all cursor-pointer",
                 "hover:border-primary/50 text-muted-foreground hover:text-foreground",
-                value && !GPU_PRESETS.find((p) => p.label === value.label)
+                value && !presets.find((p) => p.label === value.label)
                   ? "border-primary bg-primary/5"
                   : "border-border",
               )}

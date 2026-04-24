@@ -10,7 +10,7 @@ import type {
   PresetGpuConfig,
 } from "@/types";
 import { calculateBudgetChartData } from "@/lib/matrix-calculator";
-import { GPU_PRESETS } from "@/lib/gpu-presets";
+import { buildGpuPresets } from "@/lib/gpu-presets";
 import { isNvLink } from "@/lib/calculations";
 import { GpuConfigSelector } from "@/components/gpu-config-selector";
 import { BudgetChart } from "@/components/budget-chart";
@@ -40,7 +40,8 @@ export function BudgetFlow({
   settings,
   currencySymbol = "$",
 }: BudgetFlowProps) {
-  const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(GPU_PRESETS[0]);
+  const gpuPresets = useMemo(() => buildGpuPresets(gpus), [gpus]);
+  const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(() => buildGpuPresets(gpus)[0]);
   const [memoryUtilization, setMemoryUtilization] = useState(90);
   const [configExpanded, setConfigExpanded] = useState(false);
 
@@ -144,7 +145,7 @@ export function BudgetFlow({
 
         {configExpanded && (
           <div className="px-3 pb-3 pt-1 space-y-6 border-t">
-            <GpuConfigSelector value={gpuConfig} onChange={setGpuConfig} />
+            <GpuConfigSelector value={gpuConfig} onChange={setGpuConfig} presets={gpuPresets} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-3">

@@ -13,7 +13,6 @@ import {
   resolveModelPrecision,
   WEIGHT_OVERHEAD_FACTOR,
 } from "./calculations";
-import { GPU_PRESETS } from "./gpu-presets";
 
 // ---------------------------------------------------------------------------
 // Model alias map — ported from pipeline/pipeline/snapshots/alias_map.py
@@ -487,12 +486,12 @@ export interface GpuReferenceCost {
   monthlyCost: number;
 }
 
-const REFERENCE_PRESETS = [
-  "1× H100 80GB",
-  "4× H100 80GB",
-  "8× H100 80GB",
-  "1× H200 141GB",
-  "8× A100 80GB",
+const REFERENCE_CONFIGS: { label: string; gpuName: string; gpuCount: number }[] = [
+  { label: "1× H100 80GB", gpuName: "H100", gpuCount: 1 },
+  { label: "4× H100 80GB", gpuName: "H100", gpuCount: 4 },
+  { label: "8× H100 80GB", gpuName: "H100", gpuCount: 8 },
+  { label: "1× H200 141GB", gpuName: "H200", gpuCount: 1 },
+  { label: "8× A100 80GB", gpuName: "A100_80G", gpuCount: 8 },
 ];
 
 export function computeGpuReferenceCosts(
@@ -500,14 +499,9 @@ export function computeGpuReferenceCosts(
 ): GpuReferenceCost[] {
   const costs: GpuReferenceCost[] = [];
 
-  for (const label of REFERENCE_PRESETS) {
-    const preset = GPU_PRESETS.find((p) => p.label === label);
-    if (!preset) continue;
-
+  for (const { label, gpuName, gpuCount } of REFERENCE_CONFIGS) {
     const offerings = gpus.filter(
-      (g) =>
-        g.gpu_name === preset.gpuName &&
-        g.gpu_count === preset.gpuCount,
+      (g) => g.gpu_name === gpuName && g.gpu_count === gpuCount,
     );
     if (offerings.length === 0) continue;
 
