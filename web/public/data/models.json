@@ -205,7 +205,7 @@
     "active_params_b": 26.7,
     "architecture": "MoE",
     "context_length": 262144,
-    "precision": null,
+    "precision": "FLOAT4",
     "attention_type": "GQA",
     "num_hidden_layers": 88,
     "num_kv_layers": 8,
