@@ -4,11 +4,17 @@ Uses stdlib smtplib + email.message — no extra dependencies.
 All notifications are best-effort: failures are logged but never crash the pipeline.
 """
 
+from __future__ import annotations
+
 import logging
 import smtplib
 from email.message import EmailMessage
+from typing import TYPE_CHECKING
 
 from pipeline.config import NOTIFY_TO, SMTP_PASSWORD, SMTP_USER
+
+if TYPE_CHECKING:
+    from pipeline.snapshots.exporter import NewSnapshotInfo
 
 logger = logging.getLogger(__name__)
 
@@ -138,3 +144,36 @@ def notify_data_updated(updates: list[str]) -> None:
     body = "The pipeline completed successfully. Updates:\n\n"
     body += "\n".join(f"  - {u}" for u in updates)
     send_email(subject="Source data updated", body=body)
+
+
+def format_snapshot_coverage(infos: list[NewSnapshotInfo]) -> str:
+    """Format per-model category coverage into a human-readable string.
+
+    Each snapshot gets a section with date header and per-model lines showing
+    covered and missing categories.
+    """
+    from pipeline.snapshots.constants import DISPLAY_NAMES
+
+    sections: list[str] = []
+    for info in infos:
+        lines: list[str] = [f"New snapshot for {info.snapshot_date.isoformat()}:"]
+        for model in sorted(info.model_coverage):
+            covered = [DISPLAY_NAMES.get(c, c) for c in info.model_coverage[model]]
+            missing = [DISPLAY_NAMES.get(c, c) for c in info.model_missing.get(model, [])]
+            if missing:
+                line = f"  {model}: {', '.join(covered)} (missing: {', '.join(missing)})"
+            else:
+                line = f"  {model}: {', '.join(covered)} (complete)"
+            lines.append(line)
+        sections.append("\n".join(lines))
+    return "\n\n".join(sections)
+
+
+def notify_new_snapshots(infos: list[NewSnapshotInfo]) -> None:
+    """Send an email summarizing per-model category coverage for new snapshots."""
+    if not infos:
+        return
+    count = len(infos)
+    subject = f"New snapshot{'s' if count > 1 else ''}: {count} generated"
+    body = format_snapshot_coverage(infos)
+    send_email(subject=subject, body=body)

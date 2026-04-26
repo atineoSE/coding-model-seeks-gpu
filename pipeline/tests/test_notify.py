@@ -1,17 +1,21 @@
 """Tests for the email notification module."""
 
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 from pipeline.notify import (
     SUBJECT_PREFIX,
+    format_snapshot_coverage,
     is_enabled,
     notify_breaking_format_change,
     notify_data_updated,
     notify_failure,
     notify_missing_mapping,
     notify_missing_required_api_pricing,
+    notify_new_snapshots,
     send_email,
 )
+from pipeline.snapshots.exporter import NewSnapshotInfo
 
 
 class TestIsEnabled:
@@ -201,3 +205,169 @@ class TestNotifyDataUpdated:
         body = sent_msg.get_payload()
         assert "500 offerings" in body
         assert "Models enriched: 7" in body
+
+
+class TestFormatSnapshotCoverage:
+    def test_complete_model(self):
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Qwen4-72B"] = [
+            "frontend", "greenfield", "information_gathering",
+            "issue_resolution", "testing",
+        ]
+        # No missing categories
+        result = format_snapshot_coverage([info])
+        assert "2026-04-24" in result
+        assert "Qwen4-72B" in result
+        assert "(complete)" in result
+
+    def test_model_with_missing_categories(self):
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["GPT-5.5"] = [
+            "frontend", "greenfield", "information_gathering",
+        ]
+        info.model_missing["GPT-5.5"] = ["issue_resolution", "testing"]
+        result = format_snapshot_coverage([info])
+        assert "GPT-5.5" in result
+        assert "Frontend" in result
+        assert "(missing: Issue Resolution, Testing)" in result
+
+    def test_multiple_models_sorted(self):
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Zebra-7B"] = ["frontend"]
+        info.model_missing["Zebra-7B"] = ["greenfield"]
+        info.model_coverage["Alpha-7B"] = ["frontend"]
+        info.model_missing["Alpha-7B"] = ["greenfield"]
+        result = format_snapshot_coverage([info])
+        alpha_pos = result.index("Alpha-7B")
+        zebra_pos = result.index("Zebra-7B")
+        assert alpha_pos < zebra_pos
+
+    def test_multiple_snapshots(self):
+        info1 = NewSnapshotInfo(snapshot_date=date(2026, 4, 23))
+        info1.model_coverage["ModelA"] = ["frontend"]
+        info2 = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info2.model_coverage["ModelB"] = ["testing"]
+        result = format_snapshot_coverage([info1, info2])
+        assert "2026-04-23" in result
+        assert "2026-04-24" in result
+        assert "ModelA" in result
+        assert "ModelB" in result
+
+    def test_empty_list(self):
+        result = format_snapshot_coverage([])
+        assert result == ""
+
+
+class TestNotifyNewSnapshots:
+    def _smtp_mocks(self, monkeypatch):
+        monkeypatch.setattr("pipeline.notify.SMTP_USER", "user@gmail.com")
+        monkeypatch.setattr("pipeline.notify.SMTP_PASSWORD", "secret")
+        monkeypatch.setattr("pipeline.notify.NOTIFY_TO", "dest@example.com")
+        mock_instance = MagicMock()
+        mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+        mock_instance.__exit__ = MagicMock(return_value=False)
+        mock_cls = MagicMock(return_value=mock_instance)
+        return mock_cls, mock_instance
+
+    def test_single_snapshot_subject(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["ModelA"] = ["frontend"]
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_new_snapshots([info])
+        sent = mock_instance.send_message.call_args[0][0]
+        assert "New snapshot: 1 generated" in sent["Subject"]
+
+    def test_multiple_snapshots_subject(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+        infos = [
+            NewSnapshotInfo(snapshot_date=date(2026, 4, 23)),
+            NewSnapshotInfo(snapshot_date=date(2026, 4, 24)),
+        ]
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_new_snapshots(infos)
+        sent = mock_instance.send_message.call_args[0][0]
+        assert "New snapshots: 2 generated" in sent["Subject"]
+
+    def test_body_contains_coverage(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["GPT-5.5"] = ["frontend", "greenfield"]
+        info.model_missing["GPT-5.5"] = ["testing"]
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_new_snapshots([info])
+        body = mock_instance.send_message.call_args[0][0].get_payload()
+        assert "GPT-5.5" in body
+        assert "Frontend" in body
+        assert "missing: Testing" in body
+
+    def test_empty_infos_skips_email(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_new_snapshots([])
+        mock_instance.send_message.assert_not_called()
+
+
+class TestNotificationContent:
+    """Test that notification content correctly identifies missing vs covered categories."""
+
+    def test_all_categories_missing_identified(self):
+        """Every category absent from a model should appear in the missing list."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Sparse-7B"] = ["frontend"]
+        info.model_missing["Sparse-7B"] = [
+            "greenfield", "information_gathering", "issue_resolution", "testing",
+        ]
+        result = format_snapshot_coverage([info])
+        assert "missing: Greenfield, Information Gathering, Issue Resolution, Testing" in result
+
+    def test_complete_model_has_no_missing_section(self):
+        """A model with all 5 categories should show '(complete)' and no 'missing:' text."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Full-Model"] = [
+            "frontend", "greenfield", "information_gathering",
+            "issue_resolution", "testing",
+        ]
+        result = format_snapshot_coverage([info])
+        assert "(complete)" in result
+        assert "missing" not in result
+
+    def test_single_missing_category(self):
+        """A model missing exactly one category should list only that one."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Almost-7B"] = [
+            "frontend", "greenfield", "information_gathering", "testing",
+        ]
+        info.model_missing["Almost-7B"] = ["issue_resolution"]
+        result = format_snapshot_coverage([info])
+        assert "(missing: Issue Resolution)" in result
+
+    def test_mixed_models_in_same_snapshot(self):
+        """One complete model and one with gaps should each render correctly."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Complete-70B"] = [
+            "frontend", "greenfield", "information_gathering",
+            "issue_resolution", "testing",
+        ]
+        info.model_coverage["Partial-7B"] = ["frontend", "testing"]
+        info.model_missing["Partial-7B"] = [
+            "greenfield", "information_gathering", "issue_resolution",
+        ]
+        result = format_snapshot_coverage([info])
+        assert "Complete-70B" in result
+        assert "(complete)" in result
+        assert "Partial-7B" in result
+        assert "missing: Greenfield, Information Gathering, Issue Resolution" in result
+
+    def test_display_names_used_not_internal_names(self):
+        """The formatted output should use display names, not internal benchmark names."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Model-X"] = ["information_gathering"]
+        info.model_missing["Model-X"] = ["issue_resolution"]
+        result = format_snapshot_coverage([info])
+        # Should use display names
+        assert "Information Gathering" in result
+        assert "Issue Resolution" in result
+        # Should NOT contain internal names
+        assert "information_gathering" not in result
+        assert "issue_resolution" not in result

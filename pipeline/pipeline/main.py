@@ -17,6 +17,7 @@ from pipeline.notify import (
     notify_missing_api_pricing,
     notify_missing_required_api_pricing,
     notify_missing_mapping,
+    notify_new_snapshots,
     notify_unsupported_architecture,
 )
 from pipeline.snapshots.exporter import load_index, run_snapshot_export
@@ -49,12 +50,15 @@ def run_gpu_specs_pipeline() -> list[dict]:
     return gpu_specs
 
 
-def run_snapshot_pipeline(*, force: bool = False) -> int:
-    """Generate historical snapshots from the git submodule."""
+def run_snapshot_pipeline(*, force: bool = False) -> list:
+    """Generate historical snapshots from the git submodule.
+
+    Returns a list of NewSnapshotInfo with per-model category coverage.
+    """
     logger.info("=== Snapshot Pipeline ===")
-    count = run_snapshot_export(SUBMODULE_PATH, SNAPSHOTS_DIR, force=force)
-    logger.info("Snapshot pipeline complete: %d new snapshots", count)
-    return count
+    new_snapshots = run_snapshot_export(SUBMODULE_PATH, SNAPSHOTS_DIR, force=force)
+    logger.info("Snapshot pipeline complete: %d new snapshots", len(new_snapshots))
+    return new_snapshots
 
 
 def run_model_pipeline():
@@ -236,9 +240,11 @@ def main():
             gpu_specs = run_gpu_specs_pipeline()
 
         if args.step in ("snapshots", "all"):
-            new_snapshots = run_snapshot_pipeline(force=args.force_snapshots)
-            if new_snapshots > 0:
-                updates.append(f"New benchmark snapshots: {new_snapshots}")
+            snapshot_infos = run_snapshot_pipeline(force=args.force_snapshots)
+            if snapshot_infos:
+                updates.append(f"New benchmark snapshots: {len(snapshot_infos)}")
+                if is_enabled():
+                    notify_new_snapshots(snapshot_infos)
 
         # Check for missing mappings between snapshot and model steps
         if args.step in ("all",):
