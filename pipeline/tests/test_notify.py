@@ -306,3 +306,68 @@ class TestNotifyNewSnapshots:
         with patch("pipeline.notify.smtplib.SMTP", mock_cls):
             notify_new_snapshots([])
         mock_instance.send_message.assert_not_called()
+
+
+class TestNotificationContent:
+    """Test that notification content correctly identifies missing vs covered categories."""
+
+    def test_all_categories_missing_identified(self):
+        """Every category absent from a model should appear in the missing list."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Sparse-7B"] = ["frontend"]
+        info.model_missing["Sparse-7B"] = [
+            "greenfield", "information_gathering", "issue_resolution", "testing",
+        ]
+        result = format_snapshot_coverage([info])
+        assert "missing: Greenfield, Information Gathering, Issue Resolution, Testing" in result
+
+    def test_complete_model_has_no_missing_section(self):
+        """A model with all 5 categories should show '(complete)' and no 'missing:' text."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Full-Model"] = [
+            "frontend", "greenfield", "information_gathering",
+            "issue_resolution", "testing",
+        ]
+        result = format_snapshot_coverage([info])
+        assert "(complete)" in result
+        assert "missing" not in result
+
+    def test_single_missing_category(self):
+        """A model missing exactly one category should list only that one."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Almost-7B"] = [
+            "frontend", "greenfield", "information_gathering", "testing",
+        ]
+        info.model_missing["Almost-7B"] = ["issue_resolution"]
+        result = format_snapshot_coverage([info])
+        assert "(missing: Issue Resolution)" in result
+
+    def test_mixed_models_in_same_snapshot(self):
+        """One complete model and one with gaps should each render correctly."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Complete-70B"] = [
+            "frontend", "greenfield", "information_gathering",
+            "issue_resolution", "testing",
+        ]
+        info.model_coverage["Partial-7B"] = ["frontend", "testing"]
+        info.model_missing["Partial-7B"] = [
+            "greenfield", "information_gathering", "issue_resolution",
+        ]
+        result = format_snapshot_coverage([info])
+        assert "Complete-70B" in result
+        assert "(complete)" in result
+        assert "Partial-7B" in result
+        assert "missing: Greenfield, Information Gathering, Issue Resolution" in result
+
+    def test_display_names_used_not_internal_names(self):
+        """The formatted output should use display names, not internal benchmark names."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+        info.model_coverage["Model-X"] = ["information_gathering"]
+        info.model_missing["Model-X"] = ["issue_resolution"]
+        result = format_snapshot_coverage([info])
+        # Should use display names
+        assert "Information Gathering" in result
+        assert "Issue Resolution" in result
+        # Should NOT contain internal names
+        assert "information_gathering" not in result
+        assert "issue_resolution" not in result
