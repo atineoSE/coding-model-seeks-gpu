@@ -49,6 +49,7 @@ export interface BenchmarkScore {
   cost_per_task: number | null;
   benchmark_group: string;
   benchmark_group_display: string;
+  openness?: "closed_api_available" | "open_weights";
 }
 
 export type Precision = "fp32" | "fp16" | "bf16" | "fp8" | "int8" | "int4";
