@@ -52,7 +52,8 @@ def run_gpu_specs_pipeline() -> list[dict]:
 def run_snapshot_pipeline(*, force: bool = False) -> int:
     """Generate historical snapshots from the git submodule."""
     logger.info("=== Snapshot Pipeline ===")
-    count = run_snapshot_export(SUBMODULE_PATH, SNAPSHOTS_DIR, force=force)
+    new_snapshots = run_snapshot_export(SUBMODULE_PATH, SNAPSHOTS_DIR, force=force)
+    count = len(new_snapshots)
     logger.info("Snapshot pipeline complete: %d new snapshots", count)
     return count
 

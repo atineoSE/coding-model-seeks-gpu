@@ -3,7 +3,13 @@
 import json
 from datetime import date
 
-from pipeline.snapshots.exporter import load_index, write_index, write_snapshot
+from pipeline.snapshots.exporter import (
+    ALL_CATEGORIES,
+    extract_coverage,
+    load_index,
+    write_index,
+    write_snapshot,
+)
 from pipeline.snapshots.generator import BenchmarkEntry, Snapshot, SotaEntry
 
 
@@ -86,3 +92,86 @@ def test_load_index_valid(tmp_path):
     result = load_index(tmp_path)
     assert result is not None
     assert result["latest"] == "2026-01-15"
+
+
+def _make_entry(model: str, bench: str, display: str = "", score: float = 50.0) -> BenchmarkEntry:
+    """Helper to create a BenchmarkEntry for testing."""
+    return BenchmarkEntry(
+        model_name=model,
+        benchmark_name=bench,
+        benchmark_display_name=display or bench,
+        score=score,
+        rank=1,
+        cost_per_task=None,
+    )
+
+
+def test_extract_coverage_complete_model():
+    """A model with all 5 categories should have no missing entries."""
+    snapshot = Snapshot(
+        snapshot_date=date(2026, 4, 20),
+        benchmarks=[
+            _make_entry("model-a", "frontend"),
+            _make_entry("model-a", "greenfield"),
+            _make_entry("model-a", "issue_resolution"),
+            _make_entry("model-a", "testing"),
+            _make_entry("model-a", "information_gathering"),
+            _make_entry("model-a", "overall"),  # should be ignored
+        ],
+    )
+
+    info = extract_coverage(snapshot)
+
+    assert info.snapshot_date == date(2026, 4, 20)
+    assert set(info.model_coverage["model-a"]) == ALL_CATEGORIES
+    assert "model-a" not in info.model_missing
+
+
+def test_extract_coverage_partial_model():
+    """A model missing some categories should appear in model_missing."""
+    snapshot = Snapshot(
+        snapshot_date=date(2026, 4, 20),
+        benchmarks=[
+            _make_entry("model-b", "frontend"),
+            _make_entry("model-b", "greenfield"),
+        ],
+    )
+
+    info = extract_coverage(snapshot)
+
+    assert info.model_coverage["model-b"] == ["frontend", "greenfield"]
+    assert set(info.model_missing["model-b"]) == {
+        "information_gathering",
+        "issue_resolution",
+        "testing",
+    }
+
+
+def test_extract_coverage_multiple_models():
+    """Coverage is tracked independently per model."""
+    snapshot = Snapshot(
+        snapshot_date=date(2026, 4, 20),
+        benchmarks=[
+            _make_entry("model-a", "frontend"),
+            _make_entry("model-a", "greenfield"),
+            _make_entry("model-a", "issue_resolution"),
+            _make_entry("model-a", "testing"),
+            _make_entry("model-a", "information_gathering"),
+            _make_entry("model-b", "frontend"),
+        ],
+    )
+
+    info = extract_coverage(snapshot)
+
+    assert "model-a" not in info.model_missing
+    assert set(info.model_missing["model-b"]) == ALL_CATEGORIES - {"frontend"}
+
+
+def test_extract_coverage_empty_snapshot():
+    """An empty snapshot should produce empty coverage."""
+    snapshot = Snapshot(snapshot_date=date(2026, 4, 20), benchmarks=[])
+
+    info = extract_coverage(snapshot)
+
+    assert info.model_coverage == {}
+    assert info.model_missing == {}
