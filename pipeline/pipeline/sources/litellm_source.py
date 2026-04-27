@@ -1,13 +1,14 @@
 """Fetch API pricing data from LiteLLM for the best closed model per American lab."""
 
+import json
 import logging
 import urllib.request
 
-import json
-
 logger = logging.getLogger(__name__)
 
-LITELLM_URL = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+LITELLM_URL = (
+    "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+)
 
 # Maps OpenHands canonical model name → lab ("anthropic" | "openai" | "google").
 # Covers all known closed-API models from American labs appearing in OpenHands Index.
@@ -34,7 +35,7 @@ MODEL_LAB_MAP: dict[str, str] = {
 LITELLM_ID_MAP: dict[str, str] = {
     "claude-opus-4-6": "claude-opus-4-6",
     "GPT-5.4": "gpt-5.4",
-    "Gemini-3.1-Pro": "gemini/gemini-3.1-pro-preview",
+    "Gemini-3.1-Pro": "gemini-3.1-pro-preview",
 }
 
 PROVIDER_EXCLUDE_PREFIXES = ["bedrock/", "vertex_ai/", "azure/", "sagemaker/"]
@@ -70,7 +71,9 @@ def find_best_models_per_lab(benchmarks: list[dict]) -> dict[str, str]:
         else:
             cur_is_overall, cur_score, _ = current
             # Prefer "overall" over non-overall; within same type, prefer higher score
-            if (not cur_is_overall and is_overall) or (cur_is_overall == is_overall and score > cur_score):
+            if (not cur_is_overall and is_overall) or (
+                cur_is_overall == is_overall and score > cur_score
+            ):
                 best[lab] = (is_overall, score, model_name)
 
     return {lab: model_name for lab, (_, _, model_name) in best.items()}
