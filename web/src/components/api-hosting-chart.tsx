@@ -36,7 +36,7 @@ import {
   getProviderCacheTtls,
   type CostConfig,
 } from "@/lib/api-hosting-cost";
-import { formatModelName } from "@/lib/utils";
+import { formatModelName, formatLabName } from "@/lib/utils";
 
 const REQUESTS_OPTIONS = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
 const CACHE_HIT_RATE_OPTIONS = [0.8, 0.85, 0.9, 0.95, 0.99];
@@ -49,15 +49,6 @@ const CLOSED_MODEL_COLORS: Record<string, string> = {
   google: "#8b5cf6",
 };
 
-const LAB_DISPLAY_NAMES: Record<string, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  google: "Google",
-};
-
-function labToDisplayName(lab: string): string {
-  return LAB_DISPLAY_NAMES[lab] ?? lab.charAt(0).toUpperCase() + lab.slice(1);
-}
 
 const OPEN_MODEL_COLORS = ["#22c55e", "#14b8a6", "#84cc16"];
 

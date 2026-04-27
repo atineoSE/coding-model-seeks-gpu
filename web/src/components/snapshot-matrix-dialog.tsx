@@ -10,7 +10,7 @@ import {
   type BenchmarkCategory,
 } from "@/lib/snapshot-matrix";
 import { Button } from "@/components/ui/button";
-import { formatModelName } from "@/lib/utils";
+import { formatModelName, formatLabName } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -66,7 +66,7 @@ export function SnapshotMatrixDialog({ benchmarks }: SnapshotMatrixDialogProps) 
                     {formatModelName(model.modelName)}
                     {model.lab && (
                       <span className="ml-1.5 text-xs text-muted-foreground">
-                        ({model.lab.charAt(0).toUpperCase() + model.lab.slice(1)})
+                        ({formatLabName(model.lab)})
                       </span>
                     )}
                   </td>

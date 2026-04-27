@@ -17,3 +17,14 @@ export function formatModelName(name: string): string {
     .replace(/-/g, " ")
     .replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
+
+const LAB_DISPLAY_NAMES: Record<string, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  google: "Google",
+};
+
+/** Format a lab identifier for human display. "openai" → "OpenAI" */
+export function formatLabName(lab: string): string {
+  return LAB_DISPLAY_NAMES[lab] ?? lab.charAt(0).toUpperCase() + lab.slice(1);
+}
