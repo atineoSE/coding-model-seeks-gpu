@@ -19,6 +19,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import type { BudgetChartDataPoint } from "@/lib/matrix-calculator";
+import { formatModelName } from "@/lib/utils";
 
 const DEFAULT_REQ_PER_DEV_HOUR = 200;
 
@@ -82,7 +83,7 @@ export function BudgetChart({ data }: BudgetChartProps) {
           ? d.requestsPerHour
           : Math.floor(d.requestsPerHour / reqPerDevPerHour);
       }
-      return { ...d, modelLabel: truncateModel(d.modelName), displayValue };
+      return { ...d, modelLabel: truncateModel(formatModelName(d.modelName)), displayValue };
     }),
     [data, mode, reqPerDevPerHour],
   );
@@ -206,7 +207,7 @@ export function BudgetChart({ data }: BudgetChartProps) {
       {nonFittingModels.length > 0 && (
         <p className="text-xs text-muted-foreground px-1">
           The current GPU setup cannot accommodate{" "}
-          {formatModelList(nonFittingModels.map((m) => m.modelName))}. Try a larger setup.
+          {formatModelList(nonFittingModels.map((m) => formatModelName(m.modelName)))}. Try a larger setup.
         </p>
       )}
     </div>
@@ -231,7 +232,7 @@ function BudgetTooltip({ active, payload, mode, reqPerDevPerHour }: {
   return (
     <div className="rounded-lg border bg-background p-3 shadow-sm">
       <div className="space-y-1.5 text-sm">
-        <p className="font-medium">{point.modelName}</p>
+        <p className="font-medium">{formatModelName(point.modelName)}</p>
         {point.fits ? (
           <>
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground">

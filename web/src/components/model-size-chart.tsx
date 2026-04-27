@@ -22,6 +22,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import type { ModelSizeScorePoint } from "@/lib/trend-data";
+import { formatModelName } from "@/lib/utils";
 
 const chartConfig = {
   score: {
@@ -46,7 +47,7 @@ function CustomTooltip({ active, payload }: {
 
   return (
     <div className="rounded-lg border bg-background p-3 shadow-sm">
-      <p className="text-sm font-medium mb-1.5">{point.modelName}</p>
+      <p className="text-sm font-medium mb-1.5">{formatModelName(point.modelName)}</p>
       <div className="space-y-1 text-sm">
         <div className="flex items-center gap-2">
           <span
@@ -120,7 +121,7 @@ function ModelLabel(props: Record<string, unknown>) {
       className="select-none"
       pointerEvents="none"
     >
-      {value}
+      {formatModelName(value)}
     </text>
   );
 }

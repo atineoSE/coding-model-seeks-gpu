@@ -15,6 +15,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import type { SotaPercentTrendPoint } from "@/lib/trend-data";
+import { formatModelName } from "@/lib/utils";
 
 const chartConfig = {
   percentOfSota: {
@@ -59,10 +60,10 @@ function CustomTooltip({ active, payload, label }: {
             {point.percentDisplay.toFixed(1)}%
           </span>
         </div>
-        <p className="text-muted-foreground">{point.openSourceModel}</p>
+        <p className="text-muted-foreground">{formatModelName(point.openSourceModel)}</p>
         {point.percentDisplay < 100 && (
           <p className="text-muted-foreground text-xs">
-            of {point.closedSourceModel}
+            of {formatModelName(point.closedSourceModel)}
           </p>
         )}
       </div>
@@ -94,7 +95,7 @@ export function SotaPercentChart({ data }: SotaPercentChartProps) {
     return data.map((p, i): ChartPoint => ({
       ...p,
       percentDisplay: p.percentOfSota * 100,
-      modelLabel: p.openSourceModel,
+      modelLabel: formatModelName(p.openSourceModel),
       isFirst: i === 0,
       isLast: i === data.length - 1,
     }));

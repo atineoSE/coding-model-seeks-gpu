@@ -28,6 +28,7 @@ import {
   findBestOpenSourceModel,
   resolveModelName,
 } from "@/lib/trend-data";
+import { formatModelName } from "@/lib/utils";
 
 interface TrendsSectionProps {
   models: Model[];
@@ -193,7 +194,7 @@ export function TrendsSection({
                     <SelectContent>
                       {availableScalingModels.map((m, i) => (
                         <SelectItem key={m.model_name} value={m.model_name}>
-                          {m.model_name}{i === 0 ? " (best)" : ""}
+                          {formatModelName(m.model_name)}{i === 0 ? " (best)" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>

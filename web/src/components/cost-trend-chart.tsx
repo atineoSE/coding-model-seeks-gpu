@@ -26,6 +26,7 @@ import {
   type CostTrendPoint,
   type GpuReferenceCost,
 } from "@/lib/trend-data";
+import { formatModelName } from "@/lib/utils";
 
 const chartConfig = {
   monthlyCost: {
@@ -100,7 +101,7 @@ export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: C
             </span>
           </div>
           <p className="text-muted-foreground">
-            {point.modelName} &middot; {point.gpuSetup}
+            {formatModelName(point.modelName)} &middot; {point.gpuSetup}
           </p>
           <p className="text-muted-foreground text-xs">
             Score: {point.score.toFixed(1)} &middot; Weights: {point.modelMemoryGb.toFixed(0)} GB
@@ -113,7 +114,7 @@ export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: C
   const chartData = useMemo(() => {
     return data.map((p, i): ChartPoint => ({
       ...p,
-      displayLabel: `${p.modelName} (${p.score.toFixed(1)}, ${p.modelMemoryGb.toFixed(0)} gb)`,
+      displayLabel: `${formatModelName(p.modelName)} (${p.score.toFixed(1)}, ${p.modelMemoryGb.toFixed(0)} gb)`,
       isFirst: i === 0,
       isLast: i === data.length - 1,
     }));

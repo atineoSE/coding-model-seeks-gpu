@@ -15,6 +15,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import type { GapTrendPoint } from "@/lib/trend-data";
+import { formatModelName } from "@/lib/utils";
 
 const chartConfig = {
   closedSourceScore: {
@@ -72,7 +73,7 @@ function CustomTooltip({ active, payload, label }: {
             </span>
             <span className="font-medium">{entry.value.toFixed(1)}</span>
             <span className="text-muted-foreground text-xs">
-              ({modelName})
+              ({formatModelName(modelName)})
             </span>
           </div>
         );
@@ -123,8 +124,8 @@ export function GapChart({ data }: GapChartProps) {
   const chartData = useMemo(() => {
     return data.map((p, i): ChartPoint => ({
       ...p,
-      closedLabel: p.closedSourceModel,
-      openLabel: p.openSourceModel,
+      closedLabel: formatModelName(p.closedSourceModel),
+      openLabel: formatModelName(p.openSourceModel),
       isFirst: i === 0,
       isLast: i === data.length - 1,
     }));

@@ -21,6 +21,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import type { ScalingCurvePoint, GpuReferenceCost } from "@/lib/trend-data";
+import { formatModelName } from "@/lib/utils";
 
 const chartConfig = {
   monthlyCost: {
@@ -113,7 +114,7 @@ export function ScalingChart({ data, referenceCosts, modelName, categoryDisplayN
       <CardHeader>
         <CardTitle>What Does It Cost to Scale Agents?</CardTitle>
         <CardDescription>
-          Monthly cloud cost as you add concurrent coding streams for {modelName}.
+          Monthly cloud cost as you add concurrent coding streams for {formatModelName(modelName)}.
         </CardDescription>
       </CardHeader>
       <CardContent>

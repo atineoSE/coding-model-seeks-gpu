@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/hover-card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useIsDesktop } from "@/hooks/use-media-query";
+import { formatModelName } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
 
 interface RecommendationMatrixProps {
@@ -134,12 +135,6 @@ function formatWeightMemory(model: Model): string {
   return `${Math.round(memGb)} GB`;
 }
 
-function formatSotaModelName(name: string): string {
-  return name
-    .replace(/(\d)-(\d)/g, "$1.$2") // digit-digit hyphens → dots (version numbers)
-    .replace(/-/g, " ")
-    .replace(/\b[a-z]/g, (c) => c.toUpperCase());
-}
 
 function getMinVramGb(model: Model): number | null {
   const precision = resolveModelPrecision(model);
@@ -199,11 +194,11 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
                 rel="noopener noreferrer"
                 className="hover:underline inline-flex items-center gap-1"
               >
-                {model.model_name}
+                {formatModelName(model.model_name)}
                 <ExternalLink className="size-3 text-muted-foreground" />
               </a>
             ) : (
-              model.model_name
+              formatModelName(model.model_name)
             );
           })()}
         </div>
@@ -432,7 +427,7 @@ function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax,
       {sotaScore && (
         <div className="text-xs text-muted-foreground mb-2">
           <span className="font-semibold text-foreground">
-            SOTA: {formatSotaModelName(sotaScore.sota_model_name)}
+            SOTA: {formatModelName(sotaScore.sota_model_name)}
           </span>{" "}
           <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>
           {sotaTotalBenchmarkCost !== null && sotaTotalBenchmarkCost !== undefined && (
@@ -576,7 +571,7 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
                 {sotaScore && (
                   <div className="text-xs font-normal mt-1">
                     <span className="font-semibold text-foreground">
-                      SOTA: {formatSotaModelName(sotaScore.sota_model_name)}
+                      SOTA: {formatModelName(sotaScore.sota_model_name)}
                     </span>
                     {" "}
                     <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>

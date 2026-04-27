@@ -36,6 +36,7 @@ import {
   getProviderCacheTtls,
   type CostConfig,
 } from "@/lib/api-hosting-cost";
+import { formatModelName } from "@/lib/utils";
 
 const REQUESTS_OPTIONS = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
 const CACHE_HIT_RATE_OPTIONS = [0.8, 0.85, 0.9, 0.95, 0.99];
@@ -509,7 +510,7 @@ export function ApiHostingChart({
                 stroke={CLOSED_MODEL_COLORS[entry.lab] ?? "#888"}
                 strokeWidth={2}
                 dot={false}
-                name={entry.model_name}
+                name={formatModelName(entry.model_name)}
               />
             ))}
 
@@ -521,7 +522,7 @@ export function ApiHostingChart({
                 strokeWidth={1.5}
                 strokeDasharray="6 3"
                 dot={false}
-                name={openCosts[0].model.model_name}
+                name={formatModelName(openCosts[0].model.model_name)}
               />
             )}
 
@@ -542,7 +543,7 @@ export function ApiHostingChart({
                       fontSize={10}
                       fill={CLOSED_MODEL_COLORS[entry.lab] ?? "#888"}
                     >
-                      {entry.model_name}
+                      {formatModelName(entry.model_name)}
                     </text>
                   )}
                 />
@@ -562,7 +563,7 @@ export function ApiHostingChart({
                     fontSize={10}
                     fill={OPEN_MODEL_COLORS[0] ?? "#22c55e"}
                   >
-                    {openCosts[0].model.model_name}
+                    {formatModelName(openCosts[0].model.model_name)}
                   </text>
                 )}
               />
@@ -621,7 +622,7 @@ export function ApiHostingChart({
                 return (
                   <span key={entry.model.model_name} className="text-muted-foreground">
                     <span className={i === 0 ? "font-medium text-foreground" : ""}>
-                      {entry.model.model_name}
+                      {formatModelName(entry.model.model_name)}
                     </span>
                     {detail && <span className="text-xs ml-1">({detail})</span>}
                   </span>

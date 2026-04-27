@@ -15,6 +15,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import type { EfficiencyTrendPoint } from "@/lib/trend-data";
+import { formatModelName } from "@/lib/utils";
 
 const chartConfig = {
   closedSourceCostPerTask: {
@@ -72,7 +73,7 @@ function CustomTooltip({ active, payload, label }: {
             </span>
             <span className="font-medium">${entry.value.toFixed(2)}/task</span>
             <span className="text-muted-foreground text-xs">
-              ({modelName})
+              ({formatModelName(modelName)})
             </span>
           </div>
         );
@@ -123,8 +124,8 @@ export function EfficiencyChart({ data, categoryDisplayName }: EfficiencyChartPr
   const chartData = useMemo(() => {
     return data.map((p, i): ChartPoint => ({
       ...p,
-      closedLabel: p.closedSourceModel,
-      openLabel: p.openSourceModel,
+      closedLabel: formatModelName(p.closedSourceModel),
+      openLabel: formatModelName(p.openSourceModel),
       isFirst: i === 0,
       isLast: i === data.length - 1,
     }));
