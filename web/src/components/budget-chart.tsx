@@ -22,6 +22,7 @@ import type { BudgetChartDataPoint } from "@/lib/matrix-calculator";
 import { formatModelName } from "@/lib/utils";
 
 const DEFAULT_REQ_PER_DEV_HOUR = 200;
+const ZOOMED_MODEL_COUNT = 6;
 
 const chartConfig = {
   displayValue: {
@@ -72,11 +73,13 @@ interface BudgetChartProps {
 export function BudgetChart({ data }: BudgetChartProps) {
   const [mode, setMode] = useState<"request" | "team">("request");
   const [reqPerDevPerHour, setReqPerDevPerHour] = useState(DEFAULT_REQ_PER_DEV_HOUR);
+  const [zoomed, setZoomed] = useState(false);
 
-  const nonFittingModels = data.filter((d) => !d.fits);
+  const visibleData = zoomed ? data : data.slice(0, ZOOMED_MODEL_COUNT);
+  const nonFittingModels = visibleData.filter((d) => !d.fits);
 
   const chartData = useMemo(() =>
-    data.map((d) => {
+    visibleData.map((d) => {
       let displayValue = 0;
       if (d.fits && d.requestsPerHour !== null) {
         displayValue = mode === "request"
@@ -85,7 +88,7 @@ export function BudgetChart({ data }: BudgetChartProps) {
       }
       return { ...d, modelLabel: truncateModel(formatModelName(d.modelName)), displayValue };
     }),
-    [data, mode, reqPerDevPerHour],
+    [visibleData, mode, reqPerDevPerHour],
   );
 
   if (chartData.length === 0) {
@@ -133,6 +136,27 @@ export function BudgetChart({ data }: BudgetChartProps) {
               className="w-36"
             />
           </div>
+        )}
+
+        {data.length > ZOOMED_MODEL_COUNT && (
+          <button
+            onClick={() => setZoomed((z) => !z)}
+            className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            title={zoomed ? "Zoom in" : "Zoom out"}
+          >
+            {zoomed ? (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="4" />
+                <path d="M9 9l3 3M4 6h4M6 4v4" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="4" />
+                <path d="M9 9l3 3M4 6h4" />
+              </svg>
+            )}
+            {zoomed ? "Zoom in" : "Zoom out"}
+          </button>
         )}
       </div>
 
