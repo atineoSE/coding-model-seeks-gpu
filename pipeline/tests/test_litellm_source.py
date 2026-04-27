@@ -6,9 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pipeline.sources.litellm_source import (
+    LAB_PATTERNS,
     LITELLM_ID_MAP,
-    MODEL_LAB_MAP,
     PROVIDER_EXCLUDE_PREFIXES,
+    _get_lab_for_model,
     fetch_api_pricing,
     find_best_models_per_lab,
 )
@@ -76,7 +77,7 @@ SAMPLE_LITELLM_JSON = {
         "max_input_tokens": 1050000,  # LiteLLM uses max_input_tokens, not context_window
         "max_output_tokens": 128000,
     },
-    "gemini/gemini-3.1-pro-preview": {
+    "gemini-3.1-pro-preview": {
         "input_cost_per_token": 0.000002,
         "output_cost_per_token": 0.000008,
         "cache_creation_input_token_cost": None,
@@ -89,11 +90,39 @@ SAMPLE_LITELLM_JSON = {
         "input_cost_per_token": 0.000005,
         "output_cost_per_token": 0.000025,
     },
-    "vertex_ai/gemini/gemini-3.1-pro-preview": {
+    "vertex_ai/gemini-3.1-pro-preview": {
         "input_cost_per_token": 0.000002,
         "output_cost_per_token": 0.000008,
     },
 }
+
+
+class TestGetLabForModel:
+    def test_claude_prefix_returns_anthropic(self):
+        assert _get_lab_for_model("claude-opus-4-6") == "anthropic"
+        assert _get_lab_for_model("claude-sonnet-4-5") == "anthropic"
+
+    def test_gpt_prefix_returns_openai(self):
+        assert _get_lab_for_model("GPT-5.4") == "openai"
+        assert _get_lab_for_model("gpt-5.2-codex") == "openai"
+
+    def test_gemini_prefix_returns_google(self):
+        assert _get_lab_for_model("Gemini-3.1-Pro") == "google"
+        assert _get_lab_for_model("gemini-3-flash") == "google"
+
+    def test_prefix_matching_is_case_insensitive(self):
+        assert _get_lab_for_model("CLAUDE-OPUS-4-6") == "anthropic"
+        assert _get_lab_for_model("GPT-5.4") == "openai"
+        assert _get_lab_for_model("GEMINI-3-PRO") == "google"
+
+    def test_unknown_prefix_returns_none(self):
+        assert _get_lab_for_model("Qwen3.6-Plus") is None
+        assert _get_lab_for_model("GLM-5") is None
+        assert _get_lab_for_model("") is None
+
+    def test_lab_patterns_covers_three_labs(self):
+        labs = {lab for _, lab in LAB_PATTERNS}
+        assert labs == {"anthropic", "openai", "google"}
 
 
 class TestFindBestModelsPerLab:
@@ -109,7 +138,7 @@ class TestFindBestModelsPerLab:
 
     def test_ignores_non_american_labs(self):
         result = find_best_models_per_lab(SAMPLE_BENCHMARKS)
-        # Qwen3.6-Plus is not in MODEL_LAB_MAP so it shouldn't appear
+        # Qwen3.6-Plus doesn't match any lab prefix so it shouldn't appear
         model_names = set(result.values())
         assert "Qwen3.6-Plus" not in model_names
 
@@ -140,6 +169,19 @@ class TestFindBestModelsPerLab:
         ]
         result = find_best_models_per_lab(benchmarks)
         assert result.get("anthropic") == "claude-opus-4-6"
+
+    def test_new_model_picked_up_without_map_update(self):
+        """A future model matching a known prefix is automatically assigned to the right lab."""
+        benchmarks = [
+            {
+                "model_name": "claude-opus-4-99",
+                "benchmark_name": "overall",
+                "score": 99.0,
+                "openness": "closed_api_available",
+            }
+        ]
+        result = find_best_models_per_lab(benchmarks)
+        assert result.get("anthropic") == "claude-opus-4-99"
 
 
 class TestFetchApiPricing:
@@ -174,6 +216,53 @@ class TestFetchApiPricing:
         # Should use the direct key, not bedrock/
         assert "claude-opus-4-6" in result
         assert result["claude-opus-4-6"]["litellm_id"] == "claude-opus-4-6"
+
+    def test_lowercase_key_resolves_directly(self):
+        """GPT-5.4 → gpt-5.4 via lowercase, no LITELLM_ID_MAP needed."""
+        best_models = {"openai": "GPT-5.4"}
+        response = self._make_response(SAMPLE_LITELLM_JSON)
+
+        with patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
+            result = fetch_api_pricing(best_models)
+
+        assert "GPT-5.4" in result
+        assert result["GPT-5.4"]["litellm_id"] == "gpt-5.4"
+
+    def test_preview_suffix_tried_before_litellm_id_map(self):
+        """Gemini-3.1-Pro → gemini-3.1-pro misses, then gemini-3.1-pro-preview hits."""
+        best_models = {"google": "Gemini-3.1-Pro"}
+        response = self._make_response(SAMPLE_LITELLM_JSON)
+
+        with patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
+            result = fetch_api_pricing(best_models)
+
+        assert "Gemini-3.1-Pro" in result
+        assert result["Gemini-3.1-Pro"]["litellm_id"] == "gemini-3.1-pro-preview"
+
+    def test_fallback_to_litellm_id_map_when_preview_also_misses(self):
+        """When both lowercase and lowercase-preview miss, LITELLM_ID_MAP is used."""
+        litellm_json = {
+            **SAMPLE_LITELLM_JSON,
+            "my-model-special": {"input_cost_per_token": 0.001, "output_cost_per_token": 0.002},
+        }
+        # Remove gemini-3.1-pro-preview so -preview step fails
+        litellm_json = {k: v for k, v in litellm_json.items() if k != "gemini-3.1-pro-preview"}
+
+        from unittest.mock import patch as _patch
+        import pipeline.sources.litellm_source as src
+        original_map = src.LITELLM_ID_MAP.copy()
+        src.LITELLM_ID_MAP["Gemini-3.1-Pro"] = "my-model-special"
+        try:
+            best_models = {"google": "Gemini-3.1-Pro"}
+            response = self._make_response(litellm_json)
+            with _patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
+                result = fetch_api_pricing(best_models)
+        finally:
+            src.LITELLM_ID_MAP.clear()
+            src.LITELLM_ID_MAP.update(original_map)
+
+        assert "Gemini-3.1-Pro" in result
+        assert result["Gemini-3.1-Pro"]["litellm_id"] == "my-model-special"
 
     def test_warns_on_missing_key(self, caplog):
         best_models = {"anthropic": "claude-opus-4-99"}  # not in LITELLM_ID_MAP or raw data
@@ -229,24 +318,13 @@ class TestFetchApiPricing:
         assert entry["cache_creation_input_token_cost"] is None
 
 
-class TestModelLabMap:
-    def test_covers_all_american_lab_closed_models(self):
-        expected = {
-            "claude-opus-4-6", "claude-opus-4-5", "claude-sonnet-4-5", "claude-sonnet-4-6",
-            "GPT-5.4", "GPT-5.2", "GPT-5.2-Codex",
-            "Gemini-3.1-Pro", "Gemini-3-Pro", "Gemini-3-Flash",
-        }
-        assert expected.issubset(set(MODEL_LAB_MAP.keys()))
-
-    def test_lab_values_are_valid(self):
-        valid_labs = {"anthropic", "openai", "google"}
-        assert all(lab in valid_labs for lab in MODEL_LAB_MAP.values())
-
-
 class TestLitellmIdMap:
-    def test_covers_current_best_models(self):
-        expected_models = {"claude-opus-4-6", "GPT-5.4", "Gemini-3.1-Pro"}
-        assert expected_models.issubset(set(LITELLM_ID_MAP.keys()))
+    def test_only_contains_models_needing_non_trivial_key_mapping(self):
+        """LITELLM_ID_MAP should only hold models where lowercase doesn't match directly."""
+        for openhands_name, litellm_key in LITELLM_ID_MAP.items():
+            assert openhands_name.lower() != litellm_key, (
+                f"'{openhands_name}' lowercases to its LiteLLM key — remove from LITELLM_ID_MAP"
+            )
 
     def test_no_cloud_routed_values(self):
         for key, value in LITELLM_ID_MAP.items():

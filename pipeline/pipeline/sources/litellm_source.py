@@ -10,55 +10,52 @@ LITELLM_URL = (
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 )
 
-# Maps OpenHands canonical model name → lab ("anthropic" | "openai" | "google").
-# Covers all known closed-API models from American labs appearing in OpenHands Index.
-MODEL_LAB_MAP: dict[str, str] = {
-    # Anthropic
-    "claude-opus-4-6": "anthropic",
-    "claude-opus-4-5": "anthropic",
-    "claude-sonnet-4-5": "anthropic",
-    "claude-sonnet-4-6": "anthropic",
-    # OpenAI
-    "GPT-5.4": "openai",
-    "GPT-5.2": "openai",
-    "GPT-5.2-Codex": "openai",
-    # Google
-    "Gemini-3.1-Pro": "google",
-    "Gemini-3-Pro": "google",
-    "Gemini-3-Flash": "google",
-}
+# Maps model name prefix (lowercase) → lab.
+# Models are matched case-insensitively, so new models are picked up automatically.
+LAB_PATTERNS: list[tuple[str, str]] = [
+    ("claude-", "anthropic"),
+    ("gpt-", "openai"),
+    ("gemini-", "google"),
+]
 
-# Manually curated: OpenHands canonical name → LiteLLM dict key.
-# Only covers the three current best-per-lab models; add new entries as models rotate.
-# When a model's key cannot be found, a warning is logged and a notification is sent.
-# See UPDATE-MODEL.md → "Updating API Pricing Mapping" for instructions.
+# Fallback: OpenHands canonical name → LiteLLM dict key.
+# Only needed for models where model_name.lower() doesn't match the LiteLLM key directly
+# (e.g. "Gemini-3.1-Pro" → "gemini-3.1-pro-preview" due to a -preview suffix).
+# When a model's key cannot be found via either method, a warning is logged.
 LITELLM_ID_MAP: dict[str, str] = {
-    "claude-opus-4-6": "claude-opus-4-6",
-    "GPT-5.4": "gpt-5.4",
     "Gemini-3.1-Pro": "gemini-3.1-pro-preview",
 }
 
 PROVIDER_EXCLUDE_PREFIXES = ["bedrock/", "vertex_ai/", "azure/", "sagemaker/"]
 
 
+def _get_lab_for_model(model_name: str) -> str | None:
+    """Return the lab for a model name based on name prefix, or None if unrecognised."""
+    lower = model_name.lower()
+    for prefix, lab in LAB_PATTERNS:
+        if lower.startswith(prefix):
+            return lab
+    return None
+
+
 def find_best_models_per_lab(benchmarks: list[dict]) -> dict[str, str]:
     """Return {lab: best_model_name} from the latest snapshot benchmarks.
 
-    Considers only models with openness == "closed_api_available" that appear
-    in MODEL_LAB_MAP. For each lab, picks the model with the highest "overall"
-    benchmark score (falls back to any benchmark if "overall" is absent).
+    Considers only closed-API models whose names match a known lab prefix.
+    For each lab, picks the model with the highest "overall" benchmark score
+    (falls back to any benchmark if "overall" is absent).
     """
     # lab → (has_overall, score, model_name)
     best: dict[str, tuple[bool, float, str]] = {}
 
     for entry in benchmarks:
         model_name = entry.get("model_name", "")
-        if model_name not in MODEL_LAB_MAP:
+        lab = _get_lab_for_model(model_name)
+        if lab is None:
             continue
         if entry.get("openness") != "closed_api_available":
             continue
 
-        lab = MODEL_LAB_MAP[model_name]
         score = entry.get("score")
         if score is None:
             continue
@@ -84,13 +81,18 @@ def fetch_api_pricing(
 ) -> dict[str, dict]:
     """Fetch LiteLLM pricing for the given best models.
 
+    Key resolution order:
+      1. model_name.lower() — matches most models directly (e.g. "GPT-5.4" → "gpt-5.4")
+      2. model_name.lower() + "-preview" — handles preview variants (e.g. "Gemini-3.1-Pro" → "gemini-3.1-pro-preview")
+      3. LITELLM_ID_MAP[model_name] — last resort for fully custom key mappings
+
+    Models whose LiteLLM key cannot be found are omitted; a warning is logged for each.
+
     Args:
         best_models: {lab: openhands_model_name} as returned by find_best_models_per_lab.
 
     Returns:
         {openhands_model_name: {all LiteLLM fields..., "model_name", "lab", "litellm_id"}}
-
-    Models whose LiteLLM key cannot be found are omitted; a warning is logged for each.
     """
     logger.info("Fetching LiteLLM pricing from %s", LITELLM_URL)
     with urllib.request.urlopen(LITELLM_URL, timeout=30) as resp:  # noqa: S310
@@ -105,7 +107,17 @@ def fetch_api_pricing(
 
     result: dict[str, dict] = {}
     for lab, model_name in best_models.items():
-        litellm_key = LITELLM_ID_MAP.get(model_name, model_name.lower())
+        # Step 1: try lowercase (e.g. "GPT-5.4" → "gpt-5.4")
+        litellm_key = model_name.lower()
+        if litellm_key not in direct_pricing:
+            # Step 2: try lowercase + "-preview" (e.g. "gemini-3.1-pro" → "gemini-3.1-pro-preview")
+            preview_key = litellm_key + "-preview"
+            if preview_key in direct_pricing:
+                litellm_key = preview_key
+            else:
+                # Step 3: fall back to LITELLM_ID_MAP for fully custom mappings
+                litellm_key = LITELLM_ID_MAP.get(model_name, litellm_key)
+
         entry = direct_pricing.get(litellm_key)
         if entry is None:
             logger.warning(
