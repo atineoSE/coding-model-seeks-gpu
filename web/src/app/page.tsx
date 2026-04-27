@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { version } from "../../package.json";
 import type { Persona, AdvancedSettings } from "@/types";
 import { DEFAULT_ADVANCED_SETTINGS } from "@/lib/matrix-calculator";
 import { useData, getBenchmarkGroups, getLocations, deduplicateGpus } from "@/lib/data";
@@ -137,7 +138,7 @@ export default function Home() {
             <h1 className="text-3xl font-bold tracking-tight">
               Coding Model Seeks GPU
               <span className="ml-2 text-sm font-normal text-muted-foreground align-middle">
-                v0.3
+                v{version}
               </span>
             </h1>
             <div className="flex items-center gap-2 shrink-0">
