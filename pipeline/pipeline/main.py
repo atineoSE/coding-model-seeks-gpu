@@ -17,7 +17,6 @@ from pipeline.notify import (
     notify_missing_api_pricing,
     notify_missing_required_api_pricing,
     notify_missing_mapping,
-    notify_new_snapshots,
     notify_unsupported_architecture,
 )
 from pipeline.snapshots.exporter import load_index, run_snapshot_export
@@ -239,12 +238,11 @@ def main():
             offerings, source_metadata = run_gpu_pipeline()
             gpu_specs = run_gpu_specs_pipeline()
 
+        snapshot_infos = []
         if args.step in ("snapshots", "all"):
             snapshot_infos = run_snapshot_pipeline(force=args.force_snapshots)
             if snapshot_infos:
                 updates.append(f"New benchmark snapshots: {len(snapshot_infos)}")
-                if is_enabled():
-                    notify_new_snapshots(snapshot_infos)
 
         # Check for missing mappings between snapshot and model steps
         if args.step in ("all",):
@@ -269,7 +267,7 @@ def main():
 
         # Success — send data update notification if anything changed
         if updates and is_enabled():
-            notify_data_updated(updates)
+            notify_data_updated(updates, snapshot_infos=snapshot_infos or None)
 
         logger.info("Pipeline complete!")
 

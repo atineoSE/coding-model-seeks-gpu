@@ -28,6 +28,9 @@ class NewSnapshotInfo:
     model_missing: dict[str, list[str]] = field(default_factory=dict)
     """model_name → list of missing category benchmark_names."""
 
+    new_models: set[str] | None = None
+    """Model names appearing for the first time in this snapshot. None = not computed (show all)."""
+
 
 def extract_coverage(snapshot: Snapshot) -> NewSnapshotInfo:
     """Extract per-model category coverage from a snapshot."""
@@ -153,15 +156,34 @@ def run_snapshot_export(
         len(all_dates),
     )
 
+    # Seed known_models from the most recent existing snapshot so we can diff new ones
+    known_models: set[str] = set()
+    if existing_dates:
+        latest_existing = max(date.fromisoformat(d) for d in existing_dates)
+        benchmarks_path = snapshots_dir / latest_existing.isoformat() / "benchmarks.json"
+        if benchmarks_path.exists():
+            try:
+                data = json.loads(benchmarks_path.read_text())
+                known_models = {
+                    entry["model_name"]
+                    for entry in data
+                    if entry.get("benchmark_name") != OVERALL_NAME
+                }
+            except (json.JSONDecodeError, KeyError):
+                pass
+
     # Generate new snapshots
     generated_dates: list[date] = []
     new_snapshot_infos: list[NewSnapshotInfo] = []
     for day in new_dates:
         snapshot = generate_snapshot(repo_path, day)
         if snapshot is not None:
+            info = extract_coverage(snapshot)
+            info.new_models = {m for m in info.model_coverage if m not in known_models}
+            known_models |= set(info.model_coverage.keys())
             write_snapshot(snapshots_dir, snapshot)
             generated_dates.append(day)
-            new_snapshot_infos.append(extract_coverage(snapshot))
+            new_snapshot_infos.append(info)
 
     # Combine existing + new for index
     all_snapshot_dates = sorted(

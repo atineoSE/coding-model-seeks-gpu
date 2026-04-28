@@ -139,25 +139,39 @@ def notify_missing_required_api_pricing(missing: list[tuple[str, str]]) -> None:
     )
 
 
-def notify_data_updated(updates: list[str]) -> None:
+def notify_data_updated(
+    updates: list[str],
+    snapshot_infos: list[NewSnapshotInfo] | None = None,
+) -> None:
     """Summarize what changed in a successful pipeline run."""
     body = "The pipeline completed successfully. Updates:\n\n"
     body += "\n".join(f"  - {u}" for u in updates)
+    if snapshot_infos:
+        coverage = format_snapshot_coverage(snapshot_infos)
+        if coverage:
+            body += f"\n\n{coverage}"
     send_email(subject="Source data updated", body=body)
 
 
 def format_snapshot_coverage(infos: list[NewSnapshotInfo]) -> str:
-    """Format per-model category coverage into a human-readable string.
+    """Format new-model category coverage into a human-readable string.
 
-    Each snapshot gets a section with date header and per-model lines showing
-    covered and missing categories.
+    Only shows models that are new to a snapshot (info.new_models). When
+    new_models is None (not computed), all models are shown as a fallback.
     """
     from pipeline.snapshots.constants import DISPLAY_NAMES
 
     sections: list[str] = []
     for info in infos:
+        models_to_show = (
+            sorted(m for m in info.model_coverage if m in info.new_models)
+            if info.new_models is not None
+            else sorted(info.model_coverage)
+        )
+        if not models_to_show:
+            continue
         lines: list[str] = [f"New snapshot for {info.snapshot_date.isoformat()}:"]
-        for model in sorted(info.model_coverage):
+        for model in models_to_show:
             covered = [DISPLAY_NAMES.get(c, c) for c in info.model_coverage[model]]
             missing = [DISPLAY_NAMES.get(c, c) for c in info.model_missing.get(model, [])]
             if missing:
@@ -167,13 +181,3 @@ def format_snapshot_coverage(infos: list[NewSnapshotInfo]) -> str:
             lines.append(line)
         sections.append("\n".join(lines))
     return "\n\n".join(sections)
-
-
-def notify_new_snapshots(infos: list[NewSnapshotInfo]) -> None:
-    """Send an email summarizing per-model category coverage for new snapshots."""
-    if not infos:
-        return
-    count = len(infos)
-    subject = f"New snapshot{'s' if count > 1 else ''}: {count} generated"
-    body = format_snapshot_coverage(infos)
-    send_email(subject=subject, body=body)

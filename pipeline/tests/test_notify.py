@@ -12,7 +12,6 @@ from pipeline.notify import (
     notify_failure,
     notify_missing_mapping,
     notify_missing_required_api_pricing,
-    notify_new_snapshots,
     send_email,
 )
 from pipeline.snapshots.exporter import NewSnapshotInfo
@@ -187,24 +186,56 @@ class TestNotifyMissingRequiredApiPricing:
 
 
 class TestNotifyDataUpdated:
-    def test_subject_and_body(self, monkeypatch):
+    def _smtp_mocks(self, monkeypatch):
         monkeypatch.setattr("pipeline.notify.SMTP_USER", "user@gmail.com")
         monkeypatch.setattr("pipeline.notify.SMTP_PASSWORD", "secret")
         monkeypatch.setattr("pipeline.notify.NOTIFY_TO", "dest@example.com")
+        mock_instance = MagicMock()
+        mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+        mock_instance.__exit__ = MagicMock(return_value=False)
+        mock_cls = MagicMock(return_value=mock_instance)
+        return mock_cls, mock_instance
 
-        mock_smtp_instance = MagicMock()
-        mock_smtp_cls = MagicMock(return_value=mock_smtp_instance)
-        mock_smtp_instance.__enter__ = MagicMock(return_value=mock_smtp_instance)
-        mock_smtp_instance.__exit__ = MagicMock(return_value=False)
+    def test_subject_and_body(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
 
-        with patch("pipeline.notify.smtplib.SMTP", mock_smtp_cls):
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
             notify_data_updated(["GPU prices refreshed: 500 offerings", "Models enriched: 7"])
 
-        sent_msg = mock_smtp_instance.send_message.call_args[0][0]
+        sent_msg = mock_instance.send_message.call_args[0][0]
         assert sent_msg["Subject"] == f"{SUBJECT_PREFIX} Source data updated"
         body = sent_msg.get_payload()
         assert "500 offerings" in body
         assert "Models enriched: 7" in body
+
+    def test_snapshot_coverage_appended_when_provided(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
+        info.model_coverage["NewModel-7B"] = ["frontend", "greenfield"]
+        info.model_missing["NewModel-7B"] = ["testing"]
+        info.new_models = {"NewModel-7B"}
+
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_data_updated(["New benchmark snapshots: 1"], snapshot_infos=[info])
+
+        body = mock_instance.send_message.call_args[0][0].get_payload()
+        assert "New benchmark snapshots: 1" in body
+        assert "NewModel-7B" in body
+        assert "missing: Testing" in body
+
+    def test_no_snapshot_section_when_no_new_models(self, monkeypatch):
+        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
+
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
+        info.model_coverage["ExistingModel"] = ["frontend"]
+        info.new_models = set()  # no new models
+
+        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
+            notify_data_updated(["New benchmark snapshots: 1"], snapshot_infos=[info])
+
+        body = mock_instance.send_message.call_args[0][0].get_payload()
+        assert "ExistingModel" not in body
 
 
 class TestFormatSnapshotCoverage:
@@ -257,55 +288,33 @@ class TestFormatSnapshotCoverage:
         result = format_snapshot_coverage([])
         assert result == ""
 
+    def test_new_models_filters_to_only_new(self):
+        """When new_models is set, only those models appear in output."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
+        info.model_coverage["ExistingModel"] = ["frontend"]
+        info.model_coverage["NewModel"] = ["frontend", "greenfield"]
+        info.new_models = {"NewModel"}
+        result = format_snapshot_coverage([info])
+        assert "NewModel" in result
+        assert "ExistingModel" not in result
 
-class TestNotifyNewSnapshots:
-    def _smtp_mocks(self, monkeypatch):
-        monkeypatch.setattr("pipeline.notify.SMTP_USER", "user@gmail.com")
-        monkeypatch.setattr("pipeline.notify.SMTP_PASSWORD", "secret")
-        monkeypatch.setattr("pipeline.notify.NOTIFY_TO", "dest@example.com")
-        mock_instance = MagicMock()
-        mock_instance.__enter__ = MagicMock(return_value=mock_instance)
-        mock_instance.__exit__ = MagicMock(return_value=False)
-        mock_cls = MagicMock(return_value=mock_instance)
-        return mock_cls, mock_instance
+    def test_empty_new_models_produces_no_output(self):
+        """When new_models is an empty set, the snapshot section is omitted."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
+        info.model_coverage["ExistingModel"] = ["frontend"]
+        info.new_models = set()
+        result = format_snapshot_coverage([info])
+        assert result == ""
 
-    def test_single_snapshot_subject(self, monkeypatch):
-        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
-        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
+    def test_none_new_models_shows_all(self):
+        """When new_models is None (not computed), all models are shown."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
         info.model_coverage["ModelA"] = ["frontend"]
-        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
-            notify_new_snapshots([info])
-        sent = mock_instance.send_message.call_args[0][0]
-        assert "New snapshot: 1 generated" in sent["Subject"]
-
-    def test_multiple_snapshots_subject(self, monkeypatch):
-        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
-        infos = [
-            NewSnapshotInfo(snapshot_date=date(2026, 4, 23)),
-            NewSnapshotInfo(snapshot_date=date(2026, 4, 24)),
-        ]
-        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
-            notify_new_snapshots(infos)
-        sent = mock_instance.send_message.call_args[0][0]
-        assert "New snapshots: 2 generated" in sent["Subject"]
-
-    def test_body_contains_coverage(self, monkeypatch):
-        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
-        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 24))
-        info.model_coverage["GPT-5.5"] = ["frontend", "greenfield"]
-        info.model_missing["GPT-5.5"] = ["testing"]
-        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
-            notify_new_snapshots([info])
-        body = mock_instance.send_message.call_args[0][0].get_payload()
-        assert "GPT-5.5" in body
-        assert "Frontend" in body
-        assert "missing: Testing" in body
-
-    def test_empty_infos_skips_email(self, monkeypatch):
-        mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
-        with patch("pipeline.notify.smtplib.SMTP", mock_cls):
-            notify_new_snapshots([])
-        mock_instance.send_message.assert_not_called()
+        info.model_coverage["ModelB"] = ["testing"]
+        # new_models stays None
+        result = format_snapshot_coverage([info])
+        assert "ModelA" in result
+        assert "ModelB" in result
 
 
 class TestNotificationContent:
