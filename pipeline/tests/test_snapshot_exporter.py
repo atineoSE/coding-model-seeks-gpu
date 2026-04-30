@@ -2,11 +2,14 @@
 
 import json
 from datetime import date
+from unittest.mock import patch
 
 from pipeline.snapshots.exporter import (
     ALL_CATEGORIES,
+    NewSnapshotInfo,
     extract_coverage,
     load_index,
+    run_snapshot_export,
     write_index,
     write_snapshot,
 )
@@ -175,3 +178,116 @@ def test_extract_coverage_empty_snapshot():
 
     assert info.model_coverage == {}
     assert info.model_missing == {}
+
+
+# ---------------------------------------------------------------------------
+# run_snapshot_export — new_models and gained_categories diff logic
+# ---------------------------------------------------------------------------
+
+def _make_snapshot(d: date, model_cats: dict[str, list[str]]) -> Snapshot:
+    """Build a minimal Snapshot with the given model→categories mapping."""
+    entries = [
+        _make_entry(model, bench)
+        for model, cats in model_cats.items()
+        for bench in cats
+    ]
+    return Snapshot(snapshot_date=d, benchmarks=entries)
+
+
+def _write_baseline(snapshots_dir, snap_date: date, model_cats: dict[str, list[str]]) -> None:
+    """Write a fake existing snapshot and index so run_snapshot_export treats it as known."""
+    date_str = snap_date.isoformat()
+    snap_dir = snapshots_dir / date_str
+    snap_dir.mkdir(parents=True)
+    rows = [
+        {"model_name": m, "benchmark_name": b}
+        for m, cats in model_cats.items()
+        for b in cats
+    ]
+    (snap_dir / "benchmarks.json").write_text(json.dumps(rows))
+    (snap_dir / "sota_scores.json").write_text("[]")
+    index = {"snapshots": [date_str], "latest": date_str, "generated_at": "2026-01-01T00:00:00Z"}
+    (snapshots_dir / "index.json").write_text(json.dumps(index))
+
+
+def test_new_model_detected(tmp_path):
+    """A model absent from the previous snapshot appears in new_models."""
+    _write_baseline(tmp_path, date(2026, 4, 27), {"existing-model": ["frontend"]})
+    new_snap = _make_snapshot(date(2026, 4, 28), {
+        "existing-model": ["frontend"],
+        "brand-new-model": ["frontend", "testing"],
+    })
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=[date(2026, 4, 28)]),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert len(infos) == 1
+    assert infos[0].new_models == {"brand-new-model"}
+    assert "existing-model" not in infos[0].new_models
+
+
+def test_gained_categories_detected(tmp_path):
+    """An existing model that gains a new category appears in gained_categories."""
+    _write_baseline(tmp_path, date(2026, 4, 27), {"model-a": ["frontend"]})
+    new_snap = _make_snapshot(date(2026, 4, 28), {"model-a": ["frontend", "testing"]})
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=[date(2026, 4, 28)]),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert infos[0].gained_categories == {"model-a": ["testing"]}
+
+
+def test_unchanged_model_has_no_gained_categories(tmp_path):
+    """A model with identical coverage produces no gained_categories entry."""
+    _write_baseline(tmp_path, date(2026, 4, 27), {"model-a": ["frontend", "testing"]})
+    new_snap = _make_snapshot(date(2026, 4, 28), {"model-a": ["frontend", "testing"]})
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=[date(2026, 4, 28)]),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert infos[0].new_models == set()
+    assert infos[0].gained_categories == {}
+
+
+def test_prev_coverage_advances_between_snapshots(tmp_path):
+    """Models added in snapshot N are treated as existing in snapshot N+1."""
+    _write_baseline(tmp_path, date(2026, 4, 26), {"old-model": ["frontend"]})
+
+    snap_apr27 = _make_snapshot(date(2026, 4, 27), {
+        "old-model": ["frontend"],
+        "mid-model": ["frontend"],
+    })
+    snap_apr28 = _make_snapshot(date(2026, 4, 28), {
+        "old-model": ["frontend"],
+        "mid-model": ["frontend"],
+        "newest-model": ["frontend"],
+    })
+
+    def fake_generate(repo_path, day):
+        return snap_apr27 if day == date(2026, 4, 27) else snap_apr28
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits",
+              return_value=[date(2026, 4, 27), date(2026, 4, 28)]),
+        patch("pipeline.snapshots.generator.generate_snapshot", side_effect=fake_generate),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert len(infos) == 2
+    assert infos[0].new_models == {"mid-model"}
+    # mid-model was added in Apr 27, so it must NOT be new in Apr 28
+    assert infos[1].new_models == {"newest-model"}
+    assert "mid-model" not in infos[1].new_models

@@ -154,30 +154,41 @@ def notify_data_updated(
 
 
 def format_snapshot_coverage(infos: list[NewSnapshotInfo]) -> str:
-    """Format new-model category coverage into a human-readable string.
+    """Format only what changed in each snapshot: new models and coverage gains.
 
-    Only shows models that are new to a snapshot (info.new_models). When
-    new_models is None (not computed), all models are shown as a fallback.
+    Skips snapshots with no new models and no gained categories.
+    When new_models is None (not computed), all models are shown as a fallback.
     """
     from pipeline.snapshots.constants import DISPLAY_NAMES
 
+    def _fmt_cats(cats: list[str]) -> str:
+        return ", ".join(DISPLAY_NAMES.get(c, c) for c in cats)
+
     sections: list[str] = []
     for info in infos:
-        models_to_show = (
-            sorted(m for m in info.model_coverage if m in info.new_models)
-            if info.new_models is not None
-            else sorted(info.model_coverage)
-        )
-        if not models_to_show:
+        lines: list[str] = []
+
+        if info.new_models is None:
+            # Fallback: coverage diff not computed, show everything
+            for model in sorted(info.model_coverage):
+                cats = _fmt_cats(info.model_coverage[model])
+                missing = info.model_missing.get(model, [])
+                suffix = f"(missing: {_fmt_cats(missing)})" if missing else "(complete)"
+                lines.append(f"  {model}: {cats} {suffix}")
+        else:
+            for model in sorted(info.new_models):
+                cats = _fmt_cats(info.model_coverage[model])
+                missing = info.model_missing.get(model, [])
+                suffix = f"(missing: {_fmt_cats(missing)})" if missing else "(complete)"
+                lines.append(f"  NEW {model}: {cats} {suffix}")
+            for model in sorted(info.gained_categories):
+                gained = _fmt_cats(info.gained_categories[model])
+                lines.append(f"  +{model}: gained {gained}")
+
+        if not lines:
             continue
-        lines: list[str] = [f"New snapshot for {info.snapshot_date.isoformat()}:"]
-        for model in models_to_show:
-            covered = [DISPLAY_NAMES.get(c, c) for c in info.model_coverage[model]]
-            missing = [DISPLAY_NAMES.get(c, c) for c in info.model_missing.get(model, [])]
-            if missing:
-                line = f"  {model}: {', '.join(covered)} (missing: {', '.join(missing)})"
-            else:
-                line = f"  {model}: {', '.join(covered)} (complete)"
-            lines.append(line)
-        sections.append("\n".join(lines))
+
+        header = f"Snapshot {info.snapshot_date.isoformat()}:"
+        sections.append("\n".join([header] + lines))
+
     return "\n\n".join(sections)

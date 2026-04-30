@@ -31,6 +31,9 @@ class NewSnapshotInfo:
     new_models: set[str] | None = None
     """Model names appearing for the first time in this snapshot. None = not computed (show all)."""
 
+    gained_categories: dict[str, list[str]] = field(default_factory=dict)
+    """model_name → categories gained since the previous snapshot (existing models only)."""
+
 
 def extract_coverage(snapshot: Snapshot) -> NewSnapshotInfo:
     """Extract per-model category coverage from a snapshot."""
@@ -156,19 +159,19 @@ def run_snapshot_export(
         len(all_dates),
     )
 
-    # Seed known_models from the most recent existing snapshot so we can diff new ones
-    known_models: set[str] = set()
+    # Seed known coverage from the most recent existing snapshot so we can diff new ones
+    prev_coverage: dict[str, set[str]] = {}
     if existing_dates:
         latest_existing = max(date.fromisoformat(d) for d in existing_dates)
         benchmarks_path = snapshots_dir / latest_existing.isoformat() / "benchmarks.json"
         if benchmarks_path.exists():
             try:
                 data = json.loads(benchmarks_path.read_text())
-                known_models = {
-                    entry["model_name"]
-                    for entry in data
-                    if entry.get("benchmark_name") != OVERALL_NAME
-                }
+                for entry in data:
+                    if entry.get("benchmark_name") != OVERALL_NAME:
+                        prev_coverage.setdefault(entry["model_name"], set()).add(
+                            entry["benchmark_name"]
+                        )
             except (json.JSONDecodeError, KeyError):
                 pass
 
@@ -179,8 +182,13 @@ def run_snapshot_export(
         snapshot = generate_snapshot(repo_path, day)
         if snapshot is not None:
             info = extract_coverage(snapshot)
-            info.new_models = {m for m in info.model_coverage if m not in known_models}
-            known_models |= set(info.model_coverage.keys())
+            info.new_models = {m for m in info.model_coverage if m not in prev_coverage}
+            for model, cats in info.model_coverage.items():
+                if model in prev_coverage:
+                    gained = sorted(set(cats) - prev_coverage[model])
+                    if gained:
+                        info.gained_categories[model] = gained
+            prev_coverage = {m: set(cats) for m, cats in info.model_coverage.items()}
             write_snapshot(snapshots_dir, snapshot)
             generated_dates.append(day)
             new_snapshot_infos.append(info)

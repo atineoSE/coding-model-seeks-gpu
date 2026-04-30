@@ -224,12 +224,12 @@ class TestNotifyDataUpdated:
         assert "NewModel-7B" in body
         assert "missing: Testing" in body
 
-    def test_no_snapshot_section_when_no_new_models(self, monkeypatch):
+    def test_no_snapshot_section_when_nothing_changed(self, monkeypatch):
         mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
 
         info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
         info.model_coverage["ExistingModel"] = ["frontend"]
-        info.new_models = set()  # no new models
+        info.new_models = set()  # no new models, no gained categories
 
         with patch("pipeline.notify.smtplib.SMTP", mock_cls):
             notify_data_updated(["New benchmark snapshots: 1"], snapshot_infos=[info])
@@ -288,23 +288,33 @@ class TestFormatSnapshotCoverage:
         result = format_snapshot_coverage([])
         assert result == ""
 
-    def test_new_models_filters_to_only_new(self):
-        """When new_models is set, only those models appear in output."""
+    def test_new_models_shown_with_NEW_prefix(self):
+        """New models appear with 'NEW' prefix; existing unchanged models are omitted."""
         info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
         info.model_coverage["ExistingModel"] = ["frontend"]
         info.model_coverage["NewModel"] = ["frontend", "greenfield"]
         info.new_models = {"NewModel"}
         result = format_snapshot_coverage([info])
-        assert "NewModel" in result
+        assert "NEW NewModel" in result
         assert "ExistingModel" not in result
 
-    def test_empty_new_models_produces_no_output(self):
-        """When new_models is an empty set, the snapshot section is omitted."""
+    def test_empty_new_models_and_no_gains_produces_no_output(self):
+        """When nothing changed (no new models, no gained categories), snapshot is skipped."""
         info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
         info.model_coverage["ExistingModel"] = ["frontend"]
         info.new_models = set()
         result = format_snapshot_coverage([info])
         assert result == ""
+
+    def test_gained_categories_shown_for_existing_model(self):
+        """Existing models that gained categories appear with a + prefix."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
+        info.model_coverage["ExistingModel"] = ["frontend", "testing"]
+        info.new_models = set()
+        info.gained_categories["ExistingModel"] = ["testing"]
+        result = format_snapshot_coverage([info])
+        assert "+ExistingModel" in result
+        assert "Testing" in result
 
     def test_none_new_models_shows_all(self):
         """When new_models is None (not computed), all models are shown."""
