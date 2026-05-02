@@ -8,24 +8,22 @@
 
 import type { BenchmarkScore } from "@/types";
 
-// Maps OpenHands canonical model name → lab.
-// Mirrors MODEL_LAB_MAP in pipeline/pipeline/sources/litellm_source.py.
-export const MODEL_LAB_MAP: Record<string, string> = {
-  // Anthropic
-  "claude-opus-4-7": "anthropic",
-  "claude-opus-4-6": "anthropic",
-  "claude-opus-4-5": "anthropic",
-  "claude-sonnet-4-5": "anthropic",
-  "claude-sonnet-4-6": "anthropic",
-  // OpenAI
-  "GPT-5.4": "openai",
-  "GPT-5.2": "openai",
-  "GPT-5.2-Codex": "openai",
-  // Google
-  "Gemini-3.1-Pro": "google",
-  "Gemini-3-Pro": "google",
-  "Gemini-3-Flash": "google",
-};
+// Prefix-based lab detection — mirrors LAB_PATTERNS in
+// pipeline/pipeline/sources/litellm_source.py. New models are picked up
+// automatically as long as they follow the naming convention.
+export const LAB_PATTERNS: [prefix: string, lab: string][] = [
+  ["claude-", "anthropic"],
+  ["gpt-", "openai"],
+  ["gemini-", "google"],
+];
+
+export function getLabForModel(modelName: string): string | null {
+  const lower = modelName.toLowerCase();
+  for (const [prefix, lab] of LAB_PATTERNS) {
+    if (lower.startsWith(prefix)) return lab;
+  }
+  return null;
+}
 
 /** The 5 benchmark categories (excluding the derived "overall"). */
 export const BENCHMARK_CATEGORIES = [
@@ -64,10 +62,10 @@ export function findBestModelsPerLab(
 
   for (const entry of benchmarks) {
     const modelName = entry.model_name;
-    if (!(modelName in MODEL_LAB_MAP)) continue;
+    const lab = getLabForModel(modelName);
+    if (lab === null) continue;
     if (entry.openness !== "closed_api_available") continue;
 
-    const lab = MODEL_LAB_MAP[modelName];
     const score = entry.score;
     if (score == null) continue;
 

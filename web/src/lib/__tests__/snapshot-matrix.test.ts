@@ -56,7 +56,7 @@ describe("findBestModelsPerLab", () => {
     expect(findBestModelsPerLab(benchmarks)).toEqual({});
   });
 
-  it("ignores models not in MODEL_LAB_MAP", () => {
+  it("ignores models with unrecognised name prefix", () => {
     const benchmarks: BenchmarkScore[] = [
       makeEntry({ model_name: "unknown-model", benchmark_name: "overall", score: 99, openness: "closed_api_available" }),
     ];
