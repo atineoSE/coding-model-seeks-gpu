@@ -120,6 +120,26 @@
     "license_url": "https://huggingface.co/moonshotai/Kimi-K2.5/blob/main/LICENSE"
   },
   {
+    "model_name": "Kimi-K2.6",
+    "learnable_params_b": 1026.4,
+    "active_params_b": 32.9,
+    "architecture": "MoE",
+    "context_length": 262144,
+    "precision": "INT4",
+    "attention_type": "MLA",
+    "num_hidden_layers": 61,
+    "num_kv_layers": null,
+    "num_kv_heads": null,
+    "head_dim": null,
+    "routed_expert_params_b": 1014.7,
+    "kv_lora_rank": 512,
+    "qk_rope_head_dim": 64,
+    "hf_model_id": "moonshotai/Kimi-K2.6",
+    "model_url": null,
+    "license_name": "Modified MIT",
+    "license_url": "https://huggingface.co/moonshotai/Kimi-K2.6/blob/main/LICENSE"
+  },
+  {
     "model_name": "MiniMax-M2.1",
     "learnable_params_b": 228.7,
     "active_params_b": 11.1,
