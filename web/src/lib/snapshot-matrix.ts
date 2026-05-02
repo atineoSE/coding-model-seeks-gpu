@@ -139,14 +139,22 @@ export function getMatrixModels(benchmarks: BenchmarkScore[]): MatrixModel[] {
     model.scores[entry.benchmark_name] = entry.score;
   }
 
-  // Sort: models with overall score first (descending), then models without (alphabetical)
+  const avgScore = (m: MatrixModel): number | null => {
+    const vals = Object.entries(m.scores)
+      .filter(([k]) => k !== "overall")
+      .map(([, v]) => v)
+      .filter((v): v is number => v != null);
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+
+  // Sort by overall score if available, otherwise by average of available scores
   const models = Array.from(modelMap.values());
   models.sort((a, b) => {
-    if (a.overallScore != null && b.overallScore != null) {
-      return b.overallScore - a.overallScore;
-    }
-    if (a.overallScore != null) return -1;
-    if (b.overallScore != null) return 1;
+    const scoreA = a.overallScore ?? avgScore(a);
+    const scoreB = b.overallScore ?? avgScore(b);
+    if (scoreA != null && scoreB != null) return scoreB - scoreA;
+    if (scoreA != null) return -1;
+    if (scoreB != null) return 1;
     return a.modelName.localeCompare(b.modelName);
   });
 

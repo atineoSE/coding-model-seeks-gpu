@@ -165,13 +165,16 @@ describe("getMatrixModels", () => {
     expect(getMatrixModels([])).toEqual([]);
   });
 
-  it("models without overall are sorted alphabetically among themselves", () => {
+  it("models without overall are sorted by average available score descending", () => {
     const entries: BenchmarkScore[] = [
-      makeEntry({ model_name: "Zebra-Model", benchmark_name: "frontend", score: 10.0, openness: "open_weights" }),
-      makeEntry({ model_name: "Alpha-Model", benchmark_name: "frontend", score: 90.0, openness: "open_weights" }),
+      // Zebra-Model sorts first alphabetically but has lower scores
+      makeEntry({ model_name: "Zebra-Model", benchmark_name: "frontend", score: 90.0, openness: "open_weights" }),
+      makeEntry({ model_name: "Zebra-Model", benchmark_name: "greenfield", score: 80.0, openness: "open_weights" }),
+      makeEntry({ model_name: "Alpha-Model", benchmark_name: "frontend", score: 10.0, openness: "open_weights" }),
     ];
     const models = getMatrixModels(entries);
-    expect(models.map((m) => m.modelName)).toEqual(["Alpha-Model", "Zebra-Model"]);
+    // Zebra-Model avg=(90+80)/2=85 > Alpha-Model avg=10, so Zebra ranks first despite alphabetical order
+    expect(models.map((m) => m.modelName)).toEqual(["Zebra-Model", "Alpha-Model"]);
   });
 });
 
