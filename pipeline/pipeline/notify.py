@@ -154,15 +154,20 @@ def notify_data_updated(
 
 
 def format_snapshot_coverage(infos: list[NewSnapshotInfo]) -> str:
-    """Format only what changed in each snapshot: new models and coverage gains.
+    """Format what changed in each snapshot: new models, coverage gains, score moves.
 
-    Skips snapshots with no new models and no gained categories.
+    Every snapshot in *infos* produces a section. When the computed diff is empty
+    (snapshot was minted for an off-leaderboard change like cost or openness),
+    the section reports "(no score changes)" so the snapshot is still acknowledged.
     When new_models is None (not computed), all models are shown as a fallback.
     """
     from pipeline.snapshots.constants import DISPLAY_NAMES
 
     def _fmt_cats(cats: list[str]) -> str:
         return ", ".join(DISPLAY_NAMES.get(c, c) for c in cats)
+
+    def _fmt_score(s: float) -> str:
+        return f"{s:g}"
 
     sections: list[str] = []
     for info in infos:
@@ -184,6 +189,14 @@ def format_snapshot_coverage(infos: list[NewSnapshotInfo]) -> str:
             for model in sorted(info.gained_categories):
                 gained = _fmt_cats(info.gained_categories[model])
                 lines.append(f"  +{model}: gained {gained}")
+            for model in sorted(info.score_changes):
+                parts = [
+                    f"{DISPLAY_NAMES.get(b, b)} {_fmt_score(old)} → {_fmt_score(new)}"
+                    for b, old, new in info.score_changes[model]
+                ]
+                lines.append(f"  ~{model}: {', '.join(parts)}")
+            if not lines:
+                lines.append("  (no score changes)")
 
         if not lines:
             continue

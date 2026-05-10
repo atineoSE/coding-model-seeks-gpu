@@ -34,6 +34,10 @@ class NewSnapshotInfo:
     gained_categories: dict[str, list[str]] = field(default_factory=dict)
     """model_name → categories gained since the previous snapshot (existing models only)."""
 
+    score_changes: dict[str, list[tuple[str, float, float]]] = field(default_factory=dict)
+    """model_name → list of (benchmark_name, old_score, new_score) for benchmarks where the
+    score changed but coverage did not (i.e. excludes new_models and gained_categories)."""
+
 
 def extract_coverage(snapshot: Snapshot) -> NewSnapshotInfo:
     """Extract per-model category coverage from a snapshot."""
@@ -159,39 +163,90 @@ def run_snapshot_export(
         len(all_dates),
     )
 
-    # Seed known coverage from the most recent existing snapshot so we can diff new ones
+    # Seed prev state from the most recent existing snapshot so we can dedup and diff new ones
+    prev_benchmarks_data: list[dict] | None = None
+    prev_sota_data: list[dict] | None = None
     prev_coverage: dict[str, set[str]] = {}
+    prev_scores: dict[tuple[str, str], float] = {}
     if existing_dates:
         latest_existing = max(date.fromisoformat(d) for d in existing_dates)
-        benchmarks_path = snapshots_dir / latest_existing.isoformat() / "benchmarks.json"
+        snap_dir = snapshots_dir / latest_existing.isoformat()
+        benchmarks_path = snap_dir / "benchmarks.json"
+        sota_path = snap_dir / "sota_scores.json"
         if benchmarks_path.exists():
             try:
-                data = json.loads(benchmarks_path.read_text())
-                for entry in data:
+                prev_benchmarks_data = json.loads(benchmarks_path.read_text())
+                for entry in prev_benchmarks_data:
                     if entry.get("benchmark_name") != OVERALL_NAME:
-                        prev_coverage.setdefault(entry["model_name"], set()).add(
-                            entry["benchmark_name"]
-                        )
+                        name = entry["model_name"]
+                        bench = entry["benchmark_name"]
+                        prev_coverage.setdefault(name, set()).add(bench)
+                        prev_scores[(name, bench)] = entry["score"]
             except (json.JSONDecodeError, KeyError):
-                pass
+                prev_benchmarks_data = None
+                prev_coverage = {}
+                prev_scores = {}
+        if sota_path.exists():
+            try:
+                prev_sota_data = json.loads(sota_path.read_text())
+            except json.JSONDecodeError:
+                prev_sota_data = None
 
     # Generate new snapshots
     generated_dates: list[date] = []
     new_snapshot_infos: list[NewSnapshotInfo] = []
     for day in new_dates:
         snapshot = generate_snapshot(repo_path, day)
-        if snapshot is not None:
-            info = extract_coverage(snapshot)
-            info.new_models = {m for m in info.model_coverage if m not in prev_coverage}
-            for model, cats in info.model_coverage.items():
-                if model in prev_coverage:
-                    gained = sorted(set(cats) - prev_coverage[model])
-                    if gained:
-                        info.gained_categories[model] = gained
-            prev_coverage = {m: set(cats) for m, cats in info.model_coverage.items()}
-            write_snapshot(snapshots_dir, snapshot)
-            generated_dates.append(day)
-            new_snapshot_infos.append(info)
+        if snapshot is None:
+            continue
+
+        benchmarks_data = [e.to_dict() for e in snapshot.benchmarks]
+        sota_data = [e.to_dict() for e in snapshot.sota_scores]
+
+        # Dedup: skip when content is byte-identical to the previous snapshot.
+        # An upstream commit-day with no leaderboard delta should not mint a new snapshot.
+        if (
+            prev_benchmarks_data is not None
+            and prev_sota_data is not None
+            and benchmarks_data == prev_benchmarks_data
+            and sota_data == prev_sota_data
+        ):
+            logger.info("Snapshot %s identical to previous; skipping", day.isoformat())
+            continue
+
+        info = extract_coverage(snapshot)
+        info.new_models = {m for m in info.model_coverage if m not in prev_coverage}
+
+        curr_scores = {
+            (e.model_name, e.benchmark_name): e.score
+            for e in snapshot.benchmarks
+            if e.benchmark_name != OVERALL_NAME
+        }
+
+        for model, cats in info.model_coverage.items():
+            if model not in prev_coverage:
+                continue
+            gained = sorted(set(cats) - prev_coverage[model])
+            if gained:
+                info.gained_categories[model] = gained
+            shared = sorted(set(cats) & prev_coverage[model])
+            changes: list[tuple[str, float, float]] = []
+            for bench in shared:
+                old = prev_scores.get((model, bench))
+                new = curr_scores[(model, bench)]
+                if old is not None and old != new:
+                    changes.append((bench, old, new))
+            if changes:
+                info.score_changes[model] = changes
+
+        prev_benchmarks_data = benchmarks_data
+        prev_sota_data = sota_data
+        prev_coverage = {m: set(cats) for m, cats in info.model_coverage.items()}
+        prev_scores = dict(curr_scores)
+
+        write_snapshot(snapshots_dir, snapshot)
+        generated_dates.append(day)
+        new_snapshot_infos.append(info)
 
     # Combine existing + new for index
     all_snapshot_dates = sorted(

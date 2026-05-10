@@ -184,23 +184,37 @@ def test_extract_coverage_empty_snapshot():
 # run_snapshot_export — new_models and gained_categories diff logic
 # ---------------------------------------------------------------------------
 
-def _make_snapshot(d: date, model_cats: dict[str, list[str]]) -> Snapshot:
-    """Build a minimal Snapshot with the given model→categories mapping."""
+def _make_snapshot(
+    d: date,
+    model_cats: dict[str, list[str]],
+    scores: dict[tuple[str, str], float] | None = None,
+) -> Snapshot:
+    """Build a minimal Snapshot with the given model→categories mapping.
+
+    Optional `scores` overrides the default 50.0 for specific (model, benchmark) pairs.
+    """
+    scores = scores or {}
     entries = [
-        _make_entry(model, bench)
+        _make_entry(model, bench, score=scores.get((model, bench), 50.0))
         for model, cats in model_cats.items()
         for bench in cats
     ]
     return Snapshot(snapshot_date=d, benchmarks=entries)
 
 
-def _write_baseline(snapshots_dir, snap_date: date, model_cats: dict[str, list[str]]) -> None:
+def _write_baseline(
+    snapshots_dir,
+    snap_date: date,
+    model_cats: dict[str, list[str]],
+    scores: dict[tuple[str, str], float] | None = None,
+) -> None:
     """Write a fake existing snapshot and index so run_snapshot_export treats it as known."""
+    scores = scores or {}
     date_str = snap_date.isoformat()
     snap_dir = snapshots_dir / date_str
     snap_dir.mkdir(parents=True)
     rows = [
-        {"model_name": m, "benchmark_name": b}
+        {"model_name": m, "benchmark_name": b, "score": scores.get((m, b), 50.0)}
         for m, cats in model_cats.items()
         for b in cats
     ]
@@ -259,6 +273,175 @@ def test_unchanged_model_has_no_gained_categories(tmp_path):
 
     assert infos[0].new_models == set()
     assert infos[0].gained_categories == {}
+
+
+def test_score_change_detected(tmp_path):
+    """A model whose score changes on an existing benchmark appears in score_changes."""
+    _write_baseline(
+        tmp_path,
+        date(2026, 4, 27),
+        {"model-a": ["frontend", "testing"]},
+        scores={("model-a", "frontend"): 40.0, ("model-a", "testing"): 60.0},
+    )
+    new_snap = _make_snapshot(
+        date(2026, 4, 28),
+        {"model-a": ["frontend", "testing"]},
+        scores={("model-a", "frontend"): 45.0, ("model-a", "testing"): 60.0},
+    )
+
+    dates = [date(2026, 4, 28)]
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=dates),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert infos[0].score_changes == {"model-a": [("frontend", 40.0, 45.0)]}
+    assert infos[0].new_models == set()
+    assert infos[0].gained_categories == {}
+
+
+def test_score_change_excludes_new_models(tmp_path):
+    """A new model's scores belong under new_models, not score_changes."""
+    _write_baseline(tmp_path, date(2026, 4, 27), {"old-model": ["frontend"]})
+    new_snap = _make_snapshot(
+        date(2026, 4, 28),
+        {"old-model": ["frontend"], "new-model": ["frontend"]},
+    )
+
+    dates = [date(2026, 4, 28)]
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=dates),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert infos[0].new_models == {"new-model"}
+    assert "new-model" not in infos[0].score_changes
+
+
+def test_score_change_excludes_gained_categories(tmp_path):
+    """A newly gained category goes in gained_categories, not score_changes."""
+    _write_baseline(
+        tmp_path,
+        date(2026, 4, 27),
+        {"model-a": ["frontend"]},
+        scores={("model-a", "frontend"): 40.0},
+    )
+    new_snap = _make_snapshot(
+        date(2026, 4, 28),
+        {"model-a": ["frontend", "testing"]},
+        scores={("model-a", "frontend"): 40.0, ("model-a", "testing"): 50.0},
+    )
+
+    dates = [date(2026, 4, 28)]
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=dates),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert infos[0].gained_categories == {"model-a": ["testing"]}
+    assert infos[0].score_changes == {}
+
+
+def test_identical_snapshot_skipped(tmp_path):
+    """A snapshot byte-identical to the previous is not written or returned."""
+    # Use write_snapshot to seed a real prior so to_dict()-shaped comparison can match.
+    prior = Snapshot(
+        snapshot_date=date(2026, 4, 27),
+        benchmarks=[
+            BenchmarkEntry(
+                model_name="model-a",
+                benchmark_name="frontend",
+                benchmark_display_name="Frontend",
+                score=42.0,
+                rank=1,
+                cost_per_task=None,
+            ),
+        ],
+        sota_scores=[
+            SotaEntry(
+                benchmark_name="frontend",
+                benchmark_display_name="Frontend",
+                sota_model_name="model-a",
+                sota_score=42.0,
+            ),
+        ],
+    )
+    write_snapshot(tmp_path, prior)
+    write_index(tmp_path, [date(2026, 4, 27)])
+
+    # New snapshot for a later date with identical content (only the snapshot_date differs)
+    duplicate = Snapshot(
+        snapshot_date=date(2026, 4, 28),
+        benchmarks=prior.benchmarks,
+        sota_scores=prior.sota_scores,
+    )
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits",
+              return_value=[date(2026, 4, 27), date(2026, 4, 28)]),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=duplicate),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert infos == []
+    assert not (tmp_path / "2026-04-28").exists()
+    # Index unchanged: still only the original date
+    index = json.loads((tmp_path / "index.json").read_text())
+    assert index["snapshots"] == ["2026-04-27"]
+
+
+def test_score_change_mints_snapshot(tmp_path):
+    """A snapshot with only score changes (no roster change) is still written."""
+    prior = Snapshot(
+        snapshot_date=date(2026, 4, 27),
+        benchmarks=[
+            BenchmarkEntry(
+                model_name="model-a",
+                benchmark_name="frontend",
+                benchmark_display_name="Frontend",
+                score=42.0,
+                rank=1,
+                cost_per_task=None,
+            ),
+        ],
+        sota_scores=[],
+    )
+    write_snapshot(tmp_path, prior)
+    write_index(tmp_path, [date(2026, 4, 27)])
+
+    bumped = Snapshot(
+        snapshot_date=date(2026, 4, 28),
+        benchmarks=[
+            BenchmarkEntry(
+                model_name="model-a",
+                benchmark_name="frontend",
+                benchmark_display_name="Frontend",
+                score=48.0,
+                rank=1,
+                cost_per_task=None,
+            ),
+        ],
+        sota_scores=[],
+    )
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch("pipeline.snapshots.exporter.get_dates_with_commits",
+              return_value=[date(2026, 4, 27), date(2026, 4, 28)]),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=bumped),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert len(infos) == 1
+    assert infos[0].score_changes == {"model-a": [("frontend", 42.0, 48.0)]}
+    assert (tmp_path / "2026-04-28" / "benchmarks.json").exists()
 
 
 def test_prev_coverage_advances_between_snapshots(tmp_path):

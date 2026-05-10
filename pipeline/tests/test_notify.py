@@ -224,17 +224,20 @@ class TestNotifyDataUpdated:
         assert "NewModel-7B" in body
         assert "missing: Testing" in body
 
-    def test_no_snapshot_section_when_nothing_changed(self, monkeypatch):
+    def test_snapshot_acknowledged_when_no_score_changes(self, monkeypatch):
+        """A minted snapshot with no diff (e.g. cost-only change) still gets a section."""
         mock_cls, mock_instance = self._smtp_mocks(monkeypatch)
 
         info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
         info.model_coverage["ExistingModel"] = ["frontend"]
-        info.new_models = set()  # no new models, no gained categories
+        info.new_models = set()  # no new models, no gained categories, no score changes
 
         with patch("pipeline.notify.smtplib.SMTP", mock_cls):
             notify_data_updated(["New benchmark snapshots: 1"], snapshot_infos=[info])
 
         body = mock_instance.send_message.call_args[0][0].get_payload()
+        assert "Snapshot 2026-04-27" in body
+        assert "(no score changes)" in body
         assert "ExistingModel" not in body
 
 
@@ -298,13 +301,15 @@ class TestFormatSnapshotCoverage:
         assert "NEW NewModel" in result
         assert "ExistingModel" not in result
 
-    def test_empty_new_models_and_no_gains_produces_no_output(self):
-        """When nothing changed (no new models, no gained categories), snapshot is skipped."""
+    def test_empty_diff_renders_no_score_changes_fallback(self):
+        """When the computed diff is empty, the section reports '(no score changes)'."""
         info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
         info.model_coverage["ExistingModel"] = ["frontend"]
         info.new_models = set()
         result = format_snapshot_coverage([info])
-        assert result == ""
+        assert "Snapshot 2026-04-27" in result
+        assert "(no score changes)" in result
+        assert "ExistingModel" not in result
 
     def test_gained_categories_shown_for_existing_model(self):
         """Existing models that gained categories appear with a + prefix."""
@@ -315,6 +320,30 @@ class TestFormatSnapshotCoverage:
         result = format_snapshot_coverage([info])
         assert "+ExistingModel" in result
         assert "Testing" in result
+
+    def test_score_changes_shown_with_before_after(self):
+        """Score changes render as '~Model: Benchmark old → new' using display names."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 4, 27))
+        info.model_coverage["ExistingModel"] = ["frontend", "testing"]
+        info.new_models = set()
+        info.score_changes["ExistingModel"] = [
+            ("frontend", 45.0, 52.0),
+            ("testing", 30.0, 38.5),
+        ]
+        result = format_snapshot_coverage([info])
+        assert "~ExistingModel" in result
+        assert "Frontend 45 → 52" in result
+        assert "Testing 30 → 38.5" in result
+
+    def test_score_changes_alone_produce_section(self):
+        """A snapshot with only score changes (no new/gained) still renders a section."""
+        info = NewSnapshotInfo(snapshot_date=date(2026, 5, 8))
+        info.model_coverage["ExistingModel"] = ["frontend"]
+        info.new_models = set()
+        info.score_changes["ExistingModel"] = [("frontend", 10.0, 11.0)]
+        result = format_snapshot_coverage([info])
+        assert "Snapshot 2026-05-08" in result
+        assert "~ExistingModel" in result
 
     def test_none_new_models_shows_all(self):
         """When new_models is None (not computed), all models are shown."""
