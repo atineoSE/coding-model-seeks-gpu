@@ -110,7 +110,7 @@
     "openness": "open_weights"
   },
   {
-    "model_name": "nemotron",
+    "model_name": "nemotron-3-nano",
     "benchmark_name": "overall",
     "benchmark_display_name": "Overall",
     "score": 14.4,
@@ -231,7 +231,7 @@
     "openness": "open_weights"
   },
   {
-    "model_name": "nemotron",
+    "model_name": "nemotron-3-nano",
     "benchmark_name": "frontend",
     "benchmark_display_name": "Frontend",
     "score": 15.7,
@@ -341,7 +341,7 @@
     "openness": "closed_api_available"
   },
   {
-    "model_name": "nemotron",
+    "model_name": "nemotron-3-nano",
     "benchmark_name": "greenfield",
     "benchmark_display_name": "Greenfield",
     "score": 6.2,
@@ -473,7 +473,7 @@
     "openness": "open_weights"
   },
   {
-    "model_name": "nemotron",
+    "model_name": "nemotron-3-nano",
     "benchmark_name": "information_gathering",
     "benchmark_display_name": "Information Gathering",
     "score": 8.5,
@@ -594,7 +594,7 @@
     "openness": "open_weights"
   },
   {
-    "model_name": "nemotron",
+    "model_name": "nemotron-3-nano",
     "benchmark_name": "issue_resolution",
     "benchmark_display_name": "Issue Resolution",
     "score": 34.2,
@@ -715,7 +715,7 @@
     "openness": "open_weights"
   },
   {
-    "model_name": "nemotron",
+    "model_name": "nemotron-3-nano",
     "benchmark_name": "testing",
     "benchmark_display_name": "Testing",
     "score": 7.6,

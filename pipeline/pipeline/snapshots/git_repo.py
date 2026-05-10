@@ -1,6 +1,7 @@
 """Git operations for reading the OpenHands index results repository."""
 
 import logging
+import os
 import subprocess
 from datetime import date
 from pathlib import Path
@@ -19,20 +20,22 @@ def ensure_submodule(repo_path: Path) -> None:
 
 
 def _run_git(repo_path: Path, args: list[str]) -> str:
-    """Run a git command in the given repo and return stdout."""
+    """Run a git command with TZ=UTC so date formatting and --until parsing agree."""
     result = subprocess.run(
         ["git", "-C", str(repo_path), *args],
         capture_output=True,
         text=True,
         check=True,
+        env={**os.environ, "TZ": "UTC"},
     )
     return result.stdout.strip()
 
 
 def get_dates_with_commits(repo_path: Path) -> list[date]:
-    """Get all unique dates with commits since schema consolidation.
+    """Get all unique dates (UTC) with commits since schema consolidation.
 
-    Returns sorted list of dates (ascending).
+    Returns sorted list of dates (ascending). Dates are bucketed in UTC to
+    match get_last_commit_of_day's --until filter.
     """
     output = _run_git(
         repo_path,
@@ -40,7 +43,7 @@ def get_dates_with_commits(repo_path: Path) -> list[date]:
             "log",
             f"--since={SCHEMA_CONSOLIDATION_DATE.isoformat()}",
             "--format=%ad",
-            "--date=short",
+            "--date=short-local",
         ],
     )
     if not output:
@@ -51,7 +54,7 @@ def get_dates_with_commits(repo_path: Path) -> list[date]:
 
 
 def get_last_commit_of_day(repo_path: Path, day: date) -> str | None:
-    """Get the commit hash of the last commit on a given date.
+    """Get the commit hash of the last commit on a given UTC date.
 
     Returns None if no commits exist up to that date.
     """
