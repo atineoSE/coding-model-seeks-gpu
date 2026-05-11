@@ -109,6 +109,46 @@ def write_index(snapshots_dir: Path, snapshot_dates: list[date]) -> None:
     )
 
 
+def _load_snapshot_state(
+    snap_dir: Path,
+) -> tuple[
+    list[dict] | None,
+    list[dict] | None,
+    dict[str, set[str]],
+    dict[tuple[str, str], float],
+]:
+    """Read a snapshot dir into (benchmarks, sota, coverage, scores).
+
+    Returns Nones / empties for any file that's missing or unparsable so callers
+    can treat that as "no baseline" and fall through to writing.
+    """
+    benchmarks_path = snap_dir / "benchmarks.json"
+    sota_path = snap_dir / "sota_scores.json"
+    benchmarks_data: list[dict] | None = None
+    sota_data: list[dict] | None = None
+    coverage: dict[str, set[str]] = {}
+    scores: dict[tuple[str, str], float] = {}
+    if benchmarks_path.exists():
+        try:
+            benchmarks_data = json.loads(benchmarks_path.read_text())
+            for entry in benchmarks_data:
+                if entry.get("benchmark_name") != OVERALL_NAME:
+                    name = entry["model_name"]
+                    bench = entry["benchmark_name"]
+                    coverage.setdefault(name, set()).add(bench)
+                    scores[(name, bench)] = entry["score"]
+        except (json.JSONDecodeError, KeyError):
+            benchmarks_data = None
+            coverage = {}
+            scores = {}
+    if sota_path.exists():
+        try:
+            sota_data = json.loads(sota_path.read_text())
+        except json.JSONDecodeError:
+            sota_data = None
+    return benchmarks_data, sota_data, coverage, scores
+
+
 def run_snapshot_export(
     repo_path: Path,
     snapshots_dir: Path,
@@ -163,39 +203,39 @@ def run_snapshot_export(
         len(all_dates),
     )
 
-    # Seed prev state from the most recent existing snapshot so we can dedup and diff new ones
+    # Walk existing + new dates in chronological order so each new date's
+    # dedup/diff baseline is the snapshot that *chronologically* precedes it,
+    # which may be an existing snapshot or a just-generated new one. Seeding
+    # from max(existing_dates) is wrong when new dates land *between* existing
+    # ones — e.g. after regenerating with a corrected timezone — because that
+    # compares the new snapshot against one taken after it.
+    existing_date_objs: set[date] = {date.fromisoformat(d) for d in existing_dates}
+    walk_dates = sorted(existing_date_objs | set(new_dates))
+
     prev_benchmarks_data: list[dict] | None = None
     prev_sota_data: list[dict] | None = None
     prev_coverage: dict[str, set[str]] = {}
     prev_scores: dict[tuple[str, str], float] = {}
-    if existing_dates:
-        latest_existing = max(date.fromisoformat(d) for d in existing_dates)
-        snap_dir = snapshots_dir / latest_existing.isoformat()
-        benchmarks_path = snap_dir / "benchmarks.json"
-        sota_path = snap_dir / "sota_scores.json"
-        if benchmarks_path.exists():
-            try:
-                prev_benchmarks_data = json.loads(benchmarks_path.read_text())
-                for entry in prev_benchmarks_data:
-                    if entry.get("benchmark_name") != OVERALL_NAME:
-                        name = entry["model_name"]
-                        bench = entry["benchmark_name"]
-                        prev_coverage.setdefault(name, set()).add(bench)
-                        prev_scores[(name, bench)] = entry["score"]
-            except (json.JSONDecodeError, KeyError):
-                prev_benchmarks_data = None
-                prev_coverage = {}
-                prev_scores = {}
-        if sota_path.exists():
-            try:
-                prev_sota_data = json.loads(sota_path.read_text())
-            except json.JSONDecodeError:
-                prev_sota_data = None
+    pending_existing: date | None = None
 
-    # Generate new snapshots
     generated_dates: list[date] = []
     new_snapshot_infos: list[NewSnapshotInfo] = []
-    for day in new_dates:
+    for day in walk_dates:
+        if day in existing_date_objs:
+            pending_existing = day
+            continue
+
+        # New date — if an existing snapshot has been seen since we last
+        # refreshed the baseline, load it now (it's the chronological prior).
+        if pending_existing is not None:
+            (
+                prev_benchmarks_data,
+                prev_sota_data,
+                prev_coverage,
+                prev_scores,
+            ) = _load_snapshot_state(snapshots_dir / pending_existing.isoformat())
+            pending_existing = None
+
         snapshot = generate_snapshot(repo_path, day)
         if snapshot is None:
             continue

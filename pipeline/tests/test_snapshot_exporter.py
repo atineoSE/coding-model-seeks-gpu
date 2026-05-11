@@ -444,6 +444,92 @@ def test_score_change_mints_snapshot(tmp_path):
     assert (tmp_path / "2026-04-28" / "benchmarks.json").exists()
 
 
+def _write_multi_baseline(
+    snapshots_dir,
+    snapshots: dict[date, dict[str, list[str]]],
+    scores: dict[date, dict[tuple[str, str], float]] | None = None,
+) -> None:
+    """Write several existing snapshots (via the real writer so bytes match
+    what generate_snapshot would produce) + an index referencing them all."""
+    scores = scores or {}
+    for snap_date, model_cats in snapshots.items():
+        snap = _make_snapshot(snap_date, model_cats, scores=scores.get(snap_date))
+        write_snapshot(snapshots_dir, snap)
+    write_index(snapshots_dir, list(snapshots.keys()))
+
+
+def test_backfill_identical_to_chronological_prior_is_skipped(tmp_path):
+    """A new date that lands *between* two existing snapshots must dedup against
+    the chronologically prior one (not the latest). Regression for the case
+    where regenerating with a corrected timezone produced an index with gaps,
+    and a subsequent incremental run wrote duplicate snapshots for those gap
+    dates because the dedup compared them against the later latest snapshot."""
+    _write_multi_baseline(
+        tmp_path,
+        {
+            date(2026, 5, 1): {"model-a": ["frontend"]},
+            date(2026, 5, 7): {"model-a": ["frontend"], "model-b": ["frontend"]},
+        },
+    )
+    # Identical to 05-01; chronologically prior to 05-07
+    backfill = _make_snapshot(date(2026, 5, 2), {"model-a": ["frontend"]})
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch(
+            "pipeline.snapshots.exporter.get_dates_with_commits",
+            return_value=[date(2026, 5, 1), date(2026, 5, 2), date(2026, 5, 7)],
+        ),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=backfill),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert infos == []
+    assert not (tmp_path / "2026-05-02").exists()
+    index = json.loads((tmp_path / "index.json").read_text())
+    assert index["snapshots"] == ["2026-05-01", "2026-05-07"]
+
+
+def test_backfill_diff_against_chronological_prior(tmp_path):
+    """A backfill snapshot's diff (new_models, score_changes) is computed
+    against the chronological prior existing snapshot, not the latest."""
+    _write_multi_baseline(
+        tmp_path,
+        {
+            date(2026, 5, 1): {"model-a": ["frontend"]},
+            date(2026, 5, 7): {
+                "model-a": ["frontend"],
+                "future-model": ["frontend"],
+            },
+        },
+        scores={
+            date(2026, 5, 1): {("model-a", "frontend"): 40.0},
+            date(2026, 5, 7): {("model-a", "frontend"): 60.0, ("future-model", "frontend"): 70.0},
+        },
+    )
+    # On 05-02: model-a score bumped to 45 (no new models yet relative to 05-01)
+    backfill = _make_snapshot(
+        date(2026, 5, 2),
+        {"model-a": ["frontend"]},
+        scores={("model-a", "frontend"): 45.0},
+    )
+
+    with (
+        patch("pipeline.snapshots.exporter.ensure_submodule"),
+        patch(
+            "pipeline.snapshots.exporter.get_dates_with_commits",
+            return_value=[date(2026, 5, 1), date(2026, 5, 2), date(2026, 5, 7)],
+        ),
+        patch("pipeline.snapshots.generator.generate_snapshot", return_value=backfill),
+    ):
+        infos = run_snapshot_export(tmp_path, tmp_path)
+
+    assert len(infos) == 1
+    # Compared against 05-01 (prior), not 05-07 (latest)
+    assert infos[0].new_models == set()
+    assert infos[0].score_changes == {"model-a": [("frontend", 40.0, 45.0)]}
+
+
 def test_prev_coverage_advances_between_snapshots(tmp_path):
     """Models added in snapshot N are treated as existing in snapshot N+1."""
     _write_baseline(tmp_path, date(2026, 4, 26), {"old-model": ["frontend"]})
