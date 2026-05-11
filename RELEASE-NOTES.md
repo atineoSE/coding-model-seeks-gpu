@@ -1,5 +1,20 @@
 # Release Notes
 
+## 0.5.1 — 2026-05-11
+
+- **Snapshot dedup baseline fix.** `run_snapshot_export` now walks existing
+  + new dates in chronological order and seeds each new date's dedup/diff
+  baseline from the snapshot that *chronologically* precedes it, instead of
+  always from `max(existing_dates)`. The old behavior wrote bogus duplicate
+  snapshots (and produced misleading "new models" / score-change entries in
+  the notification email) whenever a new date landed between two existing
+  ones — which is exactly what happened after the 0.5.0 timezone-fix regen
+  dropped some local-time dates from the index.
+- **Orphaned snapshot cleanup.** Removed `2026-05-02`, `2026-05-04`, and
+  `2026-05-08` from `web/public/data/snapshots/` — all byte-identical
+  duplicates of their chronological predecessors, left over from the
+  earlier buggy run.
+
 ## 0.5.0 — 2026-05-10
 
 - **Snapshot pipeline timezone fix.** `git_repo.py` now runs all git
