@@ -2,11 +2,11 @@
 
 # Run the full data pipeline (fetch, enrich, export to JSON)
 pipeline:
-	cd pipeline && python -m pipeline.main --step all
+	cd pipeline && uv run python -m pipeline.main --step all
 
 # Run only the GPU pipeline (fetches from gpuhunt)
 pipeline-gpu:
-	cd pipeline && python -m pipeline.main --step gpu
+	cd pipeline && uv run python -m pipeline.main --step gpu
 
 # Install minimal Python dependencies
 install-pipeline:
