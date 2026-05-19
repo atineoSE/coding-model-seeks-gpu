@@ -37,6 +37,7 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "Qwen3.5-Flash": "Qwen/Qwen3.5-35B-A3B",
     "Nemotron-3-Super": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
     "Trinity-Large-Thinking": "arcee-ai/Trinity-Large-Thinking",
+    "DeepSeek-V4-Pro": "deepseek-ai/DeepSeek-V4-Pro",
 }
 
 # Models with no HuggingFace page of their own.
@@ -121,6 +122,10 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
     "Trinity-Large-Thinking": (
         "Apache 2.0",
         "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md",
+    ),
+    "DeepSeek-V4-Pro": (
+        "MIT",
+        "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/LICENSE",
     ),
 }
 
