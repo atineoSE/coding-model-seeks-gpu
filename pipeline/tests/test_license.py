@@ -129,6 +129,7 @@ TYPESCRIPT_MODEL_FIELDS = {
     "head_dim",
     "kv_lora_rank",
     "qk_rope_head_dim",
+    "kv_elems_per_token",
     "hf_model_id",
     "model_url",
     "license_name",

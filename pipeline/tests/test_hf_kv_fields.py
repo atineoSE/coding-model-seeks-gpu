@@ -13,6 +13,7 @@ from pipeline.sources.huggingface import fetch_model
 # Re-use the embedded configs from test_param_counter.  Import them rather
 # than duplicating to keep a single source of truth.
 from tests.test_param_counter import (
+    DEEPSEEK_V4_CONFIG,
     DEEPSEEK_V32_CONFIG,
     GLM_47_CONFIG,
     GLM5_CONFIG,
@@ -168,6 +169,34 @@ class TestGqaKvFields:
 
 
 # ===================================================================
+# DeepSeek-V4 — DSV4 compressed/sparse KV
+# ===================================================================
+
+
+class TestDsv4KvFields:
+    """DeepSeek-V4 is registered as MLA for the AttentionType lookup but must
+    surface as 'DSV4' with a precomputed kv_elems_per_token and no MLA fields."""
+
+    def test_deepseek_v4(self):
+        spec = _mock_fetch("DSV4", "deepseek-ai/DeepSeek-V4-Pro", DEEPSEEK_V4_CONFIG)
+        assert spec.attention_type == "DSV4"
+        assert spec.num_hidden_layers == 61
+        assert spec.kv_elems_per_token == 4924
+        # No MLA / GQA fields — the DSV4 web formula uses kv_elems_per_token.
+        assert spec.kv_lora_rank is None
+        assert spec.qk_rope_head_dim is None
+        assert spec.num_kv_heads is None
+        assert spec.head_dim is None
+
+    def test_deepseek_v4_precision_fp4_mixed(self):
+        spec = _mock_fetch("DSV4", "deepseek-ai/DeepSeek-V4-Pro", DEEPSEEK_V4_CONFIG)
+        assert spec.precision == "FP4"
+        # routed experts are the FP4 bulk; populated for the mixed-precision split
+        assert spec.routed_expert_params_b is not None
+        assert spec.routed_expert_params_b > 1500
+
+
+# ===================================================================
 # KV cache spot-check values (bytes per token)
 # ===================================================================
 
@@ -182,7 +211,19 @@ class TestKvCacheValues:
             return spec.num_hidden_layers * (spec.kv_lora_rank + spec.qk_rope_head_dim) * 2
         elif spec.attention_type == "GQA":
             return 2 * spec.num_hidden_layers * spec.num_kv_heads * spec.head_dim * 2
+        elif spec.attention_type == "DSV4":
+            return spec.kv_elems_per_token * 2
         raise ValueError(f"Unknown attention_type: {spec.attention_type}")
+
+    def test_deepseek_v4_dsv4_bytes(self):
+        spec = _mock_fetch("DSV4", "deepseek-ai/DS-V4", DEEPSEEK_V4_CONFIG)
+        assert self._kv_bytes_per_token(spec) == 9_848  # 4924 × 2
+
+    def test_dsv4_far_more_efficient_than_mla(self):
+        v4 = _mock_fetch("DSV4", "ds/v4", DEEPSEEK_V4_CONFIG)
+        ds = _mock_fetch("DS", "ds/id", DEEPSEEK_V32_CONFIG)
+        # V4's compressed KV is a small fraction of dense 61-layer MLA.
+        assert self._kv_bytes_per_token(v4) < self._kv_bytes_per_token(ds) / 5
 
     def test_deepseek_mla_bytes(self):
         spec = _mock_fetch("DS", "deepseek-ai/DS", DEEPSEEK_V32_CONFIG)

@@ -91,6 +91,25 @@ KNOWN_ARCHITECTURES: dict[str, tuple[AttentionType, MoEFieldMapping]] = {
             mtp_key="num_nextn_predict_layers",
         ),
     ),
+    # DeepSeek-V4: MLA-derived hybrid attention (per-layer KV compression +
+    # sparse indexer), low-rank output projection, Hyper-Connections, hash
+    # routing, and an MTP block that is itself a full MoE block.  The generic
+    # MLA/MoEFieldMapping path cannot express it (no kv_lora_rank /
+    # qk_nope_head_dim / v_head_dim / intermediate_size / first_k_dense_replace)
+    # so count_params_from_config dispatches to _count_deepseek_v4_params().
+    # The mapping below is only used for the AttentionType lookup in
+    # fetch_model(); its field keys are not consumed by the dedicated counter.
+    "deepseek_v4": (
+        AttentionType.MLA,
+        MoEFieldMapping(
+            expert_count_key="n_routed_experts",
+            shared_expert_key="n_shared_experts",
+            shared_expert_is_count=True,
+            expert_intermediate_key="moe_intermediate_size",
+            dense_layers_key=None,
+            mtp_key="num_nextn_predict_layers",
+        ),
+    ),
     "kimi_k2": (
         AttentionType.MLA,
         MoEFieldMapping(
@@ -545,6 +564,190 @@ def _count_interval_hybrid_params(
 
 
 # ---------------------------------------------------------------------------
+# DeepSeek-V4 — dedicated counter
+# ---------------------------------------------------------------------------
+#
+# Shapes are taken verbatim from the official reference implementation
+# (inference/model.py in deepseek-ai/DeepSeek-V4-Pro).  Per layer:
+#
+#   Attention (every layer, independent of compression):
+#     wq_a    : dim x q_lora_rank
+#     wq_b    : q_lora_rank x (n_heads * head_dim)
+#     wkv     : dim x head_dim
+#     wo_a    : (n_heads*head_dim // o_groups) x (o_groups * o_lora_rank)
+#               == n_heads * head_dim * o_lora_rank  (o_groups cancels)
+#     wo_b    : (o_groups * o_lora_rank) x dim
+#     + attn_sink / q_norm / kv_norm  (negligible)
+#
+#   Compressor (present when compress_ratios[layer] != 0); coff = 2 when
+#   ratio == 4 (overlapping windows) else 1:
+#     ape  : ratio * coff * hd     wkv/wgate : dim * coff * hd   norm : hd
+#
+#   Indexer (only ratio == 4 layers): wq_b (q_lora_rank x idx_heads*idx_hd)
+#     + weights_proj (dim x idx_heads) + its own ratio-4 Compressor(idx_hd).
+#
+#   Hyper-Connections (every Block): hc_*_fn 2x (mix_hc x hc_mult*dim),
+#     bases/scales (negligible), + attn_norm + ffn_norm.
+#
+#   MoE (every layer; V4 has no dense layers): n_routed_experts +
+#     n_shared_experts SwiGLU experts (3*dim*moe_inter each) + router
+#     (n_routed_experts x dim, + bias on non-hash layers).  The first
+#     num_hash_layers use a fixed int32 token->expert table (tid2eid) instead
+#     of a learned bias; it is a routing LUT, not a float weight, so it is
+#     excluded from the param count.
+#
+#   MTP block (num_nextn_predict_layers): a full Block (its own 384 experts;
+#     compress_ratios[n_layers] == 0 so its attention has no compressor) plus
+#     e_proj/h_proj (dim x dim) and an extra HC head.  Counted in both total
+#     and active, consistent with the generic counter's MTP convention.
+
+
+def _dsv4_dims(config: dict) -> dict:
+    """Extract and name every DeepSeek-V4 dimension the counter needs."""
+    return {
+        "hidden": _require(config, "hidden_size"),
+        "vocab": _require(config, "vocab_size"),
+        "n_layers": _require(config, "num_hidden_layers"),
+        "n_heads": _require(config, "num_attention_heads"),
+        "head_dim": _require(config, "head_dim"),
+        "q_lora": _require(config, "q_lora_rank"),
+        "o_lora": _require(config, "o_lora_rank"),
+        "o_groups": _require(config, "o_groups"),
+        "moe_inter": _require(config, "moe_intermediate_size"),
+        "n_routed": _require(config, "n_routed_experts"),
+        "n_shared": _require(config, "n_shared_experts"),
+        "n_active": _require(config, "num_experts_per_tok"),
+        "n_hash": int(config.get("num_hash_layers", 0) or 0),
+        "n_mtp": int(config.get("num_nextn_predict_layers", 0) or 0),
+        "hc_mult": _require(config, "hc_mult"),
+        "idx_heads": _require(config, "index_n_heads"),
+        "idx_hd": _require(config, "index_head_dim"),
+        "compress": list(config.get("compress_ratios") or []),
+    }
+
+
+def _dsv4_compressor_params(hidden: int, ratio: int, hd: int) -> int:
+    coff = 2 if ratio == 4 else 1  # ratio==4 uses overlapping windows
+    ape = ratio * coff * hd
+    wkv = hidden * coff * hd
+    wgate = hidden * coff * hd
+    norm = hd
+    return ape + wkv + wgate + norm
+
+
+def _dsv4_block_params(d: dict, ratio: int) -> int:
+    """Attention + Compressor(+Indexer) + Hyper-Connection params for one block."""
+    hidden, n_heads, head_dim = d["hidden"], d["n_heads"], d["head_dim"]
+    q_lora, o_lora, o_groups = d["q_lora"], d["o_lora"], d["o_groups"]
+
+    attn = (
+        n_heads  # attn_sink
+        + hidden * q_lora  # wq_a
+        + q_lora  # q_norm
+        + q_lora * (n_heads * head_dim)  # wq_b
+        + hidden * head_dim  # wkv
+        + head_dim  # kv_norm
+        + n_heads * head_dim * o_lora  # wo_a  (o_groups cancels)
+        + (o_groups * o_lora) * hidden  # wo_b
+    )
+
+    compressor = 0
+    if ratio:
+        compressor += _dsv4_compressor_params(hidden, ratio, head_dim)
+        if ratio == 4:  # ratio-4 layers carry a sparse Indexer
+            idx_heads, idx_hd = d["idx_heads"], d["idx_hd"]
+            compressor += (
+                q_lora * (idx_heads * idx_hd)  # indexer.wq_b
+                + hidden * idx_heads  # indexer.weights_proj
+                + _dsv4_compressor_params(hidden, 4, idx_hd)  # indexer.compressor
+            )
+
+    mix_hc = (2 + d["hc_mult"]) * d["hc_mult"]
+    hc_dim = d["hc_mult"] * hidden
+    hc = 2 * mix_hc * hc_dim + 2 * mix_hc + 2 * 3 + 2 * hidden  # fns + bases + scales + 2 norms
+
+    return attn + compressor + hc
+
+
+def deepseek_v4_kv_elems_per_token(config: dict) -> int:
+    """Per-token KV-cache element width, summed across all KV-bearing layers.
+
+    DeepSeek-V4 is not standard MLA: each attention layer keeps a sliding
+    window (constant per request) plus a *compressed* KV cache that grows by
+    ``head_dim / compress_ratio`` elements per token; ratio-4 layers add a
+    sparse-indexer cache growing by ``index_head_dim / compress_ratio``.
+
+    Returns the precision-agnostic element count; callers multiply by the
+    KV-cache bytes-per-element.  The constant sliding-window term
+    (window_size * head_dim per layer) is intentionally omitted — it is
+    negligible at the long contexts this tool targets and keeps the value a
+    pure per-token rate (consistent with the MLA/GQA formulas).
+    """
+    d = _dsv4_dims(config)
+    head_dim, idx_hd = d["head_dim"], d["idx_hd"]
+    total = 0.0
+    for layer_id in range(d["n_layers"]):
+        ratio = d["compress"][layer_id] if layer_id < len(d["compress"]) else 0
+        if not ratio:
+            continue
+        total += head_dim / ratio
+        if ratio == 4:
+            total += idx_hd / ratio
+    return round(total)
+
+
+def _count_deepseek_v4_params(config: dict) -> ParamCountResult:
+    d = _dsv4_dims(config)
+    hidden, vocab, n_layers = d["hidden"], d["vocab"], d["n_layers"]
+    expert = 3 * hidden * d["moe_inter"]  # SwiGLU w1/w2/w3
+
+    embed = vocab * hidden
+    lm_head = 0 if config.get("tie_word_embeddings", False) else vocab * hidden
+    final_norm = hidden
+    hc_dim = d["hc_mult"] * hidden
+    global_hc_head = d["hc_mult"] * hc_dim + d["hc_mult"] + 1  # hc_head_fn/base/scale
+
+    fixed = embed + lm_head + final_norm + global_hc_head
+    total = active = fixed
+    routed_expert_params = 0
+
+    n_blocks = n_layers + d["n_mtp"]  # MTP block included (matches generic counter)
+    for layer_id in range(n_blocks):
+        is_mtp = layer_id >= n_layers
+        ratio = d["compress"][layer_id] if layer_id < len(d["compress"]) else 0
+
+        block = _dsv4_block_params(d, ratio)
+        router = d["n_routed"] * hidden
+        # Hash layers (first num_hash_layers) route via the int32 tid2eid LUT
+        # (excluded); all other layers — including MTP — have a float router bias.
+        if not is_mtp and layer_id < d["n_hash"]:
+            gate = router
+        else:
+            gate = router + d["n_routed"]
+        if is_mtp:
+            # e_proj + h_proj + enorm/hnorm/norm + extra HC head
+            block += 2 * hidden * hidden + 3 * hidden + (d["hc_mult"] * hc_dim + d["hc_mult"] + 1)
+
+        shared = d["n_shared"] * expert
+        routed_all = d["n_routed"] * expert
+        routed_active = d["n_active"] * expert
+
+        total += block + gate + shared + routed_all
+        active += block + gate + shared + routed_active
+        routed_expert_params += routed_all
+
+    return ParamCountResult(
+        total_params=total,
+        active_params=active,
+        routed_expert_params=routed_expert_params,
+        model_type=config.get("model_type", ""),
+        num_layers=n_layers,
+        num_moe_layers=n_layers,  # every V4 layer is MoE (no dense layers)
+        num_dense_layers=0,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main entry point — parameter counting
 # ---------------------------------------------------------------------------
 
@@ -562,6 +765,11 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
         raise ValueError(f"Unknown model_type='{model_type}'")
 
     attn_type, mapping = KNOWN_ARCHITECTURES[model_type]
+
+    # DeepSeek-V4 has a bespoke structure (no intermediate_size / kv_lora_rank /
+    # first_k_dense_replace) that the generic path below cannot handle.
+    if model_type == "deepseek_v4":
+        return _count_deepseek_v4_params(config)
 
     # Hybrid architectures (Mamba2 + Attention + MoE) have a per-layer pattern
     if "hybrid_override_pattern" in config:
@@ -676,6 +884,13 @@ def detect_precision(raw_config: dict) -> PrecisionInfo:
     method = quant_config.get("quant_method", "")
 
     if method == "fp8":
+        # DeepSeek-V4-style mixed checkpoint: the routed-expert weights (the
+        # quantizable bulk, ~98% of params) are FP4 while attention / shared
+        # experts / embeddings stay FP8.  Report FP4+mixed; downstream uses
+        # routed_expert_params_b to split FP4 (experts) vs FP8 (the rest).
+        if config.get("expert_dtype") == "fp4":
+            # 4-bit + ue8m0 block scale (1 byte / 32 vals) ≈ 0.5625 effective.
+            return PrecisionInfo(bytes_per_param=0.5625, dtype_str="FP4", is_mixed=True)
         return PrecisionInfo(bytes_per_param=1.0, dtype_str="FP8")
 
     if method == "compressed-tensors":

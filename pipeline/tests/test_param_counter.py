@@ -8,6 +8,7 @@ import pytest
 from pipeline.sources.param_counter import (
     ParamCountResult,
     count_params_from_config,
+    deepseek_v4_kv_elems_per_token,
     detect_precision,
 )
 
@@ -293,6 +294,40 @@ TRINITY_CONFIG = {
     "torch_dtype": "bfloat16",
 }
 
+# DeepSeek-V4-Pro: 1.6T total / ~50B active.  compress_ratios is 62 long
+# (61 layers + 1 MTP slot): layers 0–1 use ratio 128, then alternating 4/128
+# from layer 2, MTP slot (index 61) = 0 (no compressor).  Trimmed to the
+# fields the dedicated deepseek_v4 counter reads.
+DEEPSEEK_V4_CONFIG = {
+    "model_type": "deepseek_v4",
+    "hidden_size": 7168,
+    "vocab_size": 129280,
+    "num_hidden_layers": 61,
+    "num_attention_heads": 128,
+    "head_dim": 512,
+    "q_lora_rank": 1536,
+    "o_lora_rank": 1024,
+    "o_groups": 16,
+    "qk_rope_head_dim": 64,
+    "moe_intermediate_size": 3072,
+    "n_routed_experts": 384,
+    "n_shared_experts": 1,
+    "num_experts_per_tok": 6,
+    "num_hash_layers": 3,
+    "num_nextn_predict_layers": 1,
+    "hc_mult": 4,
+    "index_n_heads": 64,
+    "index_head_dim": 128,
+    "compress_ratios": [128, 128] + [4 if i % 2 == 0 else 128 for i in range(59)] + [0],
+    "tie_word_embeddings": False,
+    "expert_dtype": "fp4",
+    "quantization_config": {
+        "quant_method": "fp8",
+        "fmt": "e4m3",
+    },
+    "torch_dtype": "bfloat16",
+}
+
 
 # ===================================================================
 # Ground truth validation
@@ -346,6 +381,7 @@ class TestAllModels:
             ("MiniMax-M2.1", MINIMAX_M21_CONFIG, 229, 11),
             ("Qwen3-Coder-480B", QWEN3_CODER_CONFIG, 480, 35),
             ("GLM-5", GLM5_CONFIG, 744, 45),
+            ("DeepSeek-V4-Pro", DEEPSEEK_V4_CONFIG, 1600, 49),
             ("Qwen3-Next", QWEN3_NEXT_CONFIG, 80, 4),
             ("Qwen3.5-Flash", QWEN35_FLASH_CONFIG, 35, 3.5),
             ("Trinity-Large-Thinking", TRINITY_CONFIG, 399, 13),
@@ -372,6 +408,7 @@ class TestAllModels:
             MINIMAX_M25_CONFIG,
             QWEN3_CODER_CONFIG,
             GLM5_CONFIG,
+            DEEPSEEK_V4_CONFIG,
             QWEN3_NEXT_CONFIG,
             QWEN35_FLASH_CONFIG,
         ]:
@@ -524,6 +561,51 @@ class TestPrecision:
         }
         with pytest.raises(ValueError, match="Could not parse modelopt config_groups"):
             detect_precision(config)
+
+
+# ===================================================================
+# DeepSeek-V4 dedicated counter tests
+# ===================================================================
+
+
+class TestDeepSeekV4:
+    """Validate the bespoke deepseek_v4 counter (MLA-derived hybrid attention,
+    per-layer KV compression, sparse indexer, Hyper-Connections, hash routing,
+    MTP-as-full-MoE-block)."""
+
+    def test_model_type_and_layers(self):
+        result = count_params_from_config(DEEPSEEK_V4_CONFIG)
+        assert result.model_type == "deepseek_v4"
+        assert result.num_layers == 61
+        assert result.num_moe_layers == 61  # every layer is MoE
+        assert result.num_dense_layers == 0
+
+    def test_total_params(self):
+        """~1.6T total within 5% (matches the published figure)."""
+        total_b = count_params_from_config(DEEPSEEK_V4_CONFIG).total_params / 1e9
+        assert abs(total_b - 1600) / 1600 < 0.05, f"total={total_b:.1f}B, expected ~1600B"
+
+    def test_active_params(self):
+        """~49B active within 10% of the published figure."""
+        active_b = count_params_from_config(DEEPSEEK_V4_CONFIG).active_params / 1e9
+        assert abs(active_b - 49) / 49 < 0.10, f"active={active_b:.1f}B, expected ~49B"
+
+    def test_routed_experts_dominate(self):
+        result = count_params_from_config(DEEPSEEK_V4_CONFIG)
+        assert result.active_params < result.total_params
+        frac = result.routed_expert_params / result.total_params
+        assert frac > 0.95, f"routed experts only {frac:.1%} of total"
+
+    def test_kv_elems_per_token(self):
+        """31 ratio-128 layers × 512/128 + 30 ratio-4 layers × (512/4 + 128/4)
+        = 124 + 4800 = 4924 elements/token."""
+        assert deepseek_v4_kv_elems_per_token(DEEPSEEK_V4_CONFIG) == 4924
+
+    def test_precision_is_fp4_mixed(self):
+        info = detect_precision(DEEPSEEK_V4_CONFIG)
+        assert info.dtype_str == "FP4"
+        assert info.is_mixed
+        assert info.bytes_per_param == 0.5625
 
 
 # ===================================================================

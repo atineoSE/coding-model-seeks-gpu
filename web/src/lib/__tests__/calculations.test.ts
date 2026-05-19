@@ -97,6 +97,32 @@ const QWEN3_CODER: Model = {
   model_url: null,
 };
 
+// DeepSeek-V4-Pro: mixed FP4-expert / FP8-rest checkpoint with the bespoke
+// "DSV4" compressed + sparse-indexed KV cache (kv_elems_per_token precomputed
+// by the pipeline: 31 ratio-128 layers × 512/128 + 30 ratio-4 layers ×
+// (512/4 + 128/4) = 124 + 4800 = 4924).
+const DEEPSEEK_V4: Model = {
+  model_name: "DeepSeek-V4-Pro",
+  learnable_params_b: 1598.8,
+  active_params_b: 50.6,
+  architecture: "MoE",
+  context_length: 1048576,
+  precision: "FP4",
+  routed_expert_params_b: 1572.8,
+  attention_type: "DSV4",
+  num_hidden_layers: 61,
+  num_kv_layers: null,
+  num_kv_heads: null,
+  head_dim: null,
+  kv_lora_rank: null,
+  qk_rope_head_dim: null,
+  kv_elems_per_token: 4924,
+  hf_model_id: "deepseek-ai/DeepSeek-V4-Pro",
+  model_url: null,
+  license_name: "MIT",
+  license_url: "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/LICENSE",
+};
+
 /** Model with null KV cache fields — should return 0 for all KV functions. */
 const INCOMPLETE_MODEL: Model = {
   model_name: "Incomplete",
@@ -153,6 +179,20 @@ describe("getModelMemory", () => {
     expect(getModelMemory(KIMI_K2, "fp16")).toBeCloseTo(1026.4 * 2, 1);
   });
 
+  it("FP4-mixed (DeepSeek-V4): routed experts at FP4, rest at FP8 (not BF16)", () => {
+    // 1572.8B routed × 0.5625 + (1598.8 - 1572.8)B non-routed × 1.0 (FP8)
+    const mem = getModelMemory(DEEPSEEK_V4, "int4");
+    expect(mem).toBeCloseTo(1572.8 * 0.5625 + (1598.8 - 1572.8) * 1.0, 1);
+
+    // The FP8 split matters: legacy INT4-mixed would put the rest at BF16,
+    // over-counting the ~26B non-expert params by ~26 GB.
+    const legacyInt4 = { ...DEEPSEEK_V4, precision: "INT4" };
+    expect(getModelMemory(legacyInt4, "int4")).toBeCloseTo(
+      1572.8 * 0.5625 + (1598.8 - 1572.8) * 2.0,
+      1,
+    );
+  });
+
   it("returns null when learnable_params_b is null", () => {
     const m = { ...GLM_47, learnable_params_b: null };
     expect(getModelMemory(m, "fp16")).toBeNull();
@@ -183,6 +223,15 @@ describe("getActiveModelMemory", () => {
     // active memory = 21.2 × 0.5625 + 11.7 × 2.0 = 11.925 + 23.4 = 35.325 GB
     const mem = getActiveModelMemory(KIMI_K2, "int4");
     expect(mem).toBeCloseTo(21.2 * 0.5625 + 11.7 * 2.0, 1);
+  });
+
+  it("FP4-mixed (DeepSeek-V4): active routed at FP4, non-routed at FP8", () => {
+    // non_routed = 1598.8 - 1572.8 = 26.0B at FP8 (1.0 byte)
+    // active_routed = 50.6 - 26.0 = 24.6B at FP4 (0.5625 bytes)
+    const mem = getActiveModelMemory(DEEPSEEK_V4, "int4");
+    const nonRouted = 1598.8 - 1572.8;
+    const activeRouted = 50.6 - nonRouted;
+    expect(mem).toBeCloseTo(activeRouted * 0.5625 + nonRouted * 1.0, 1);
   });
 
   it("dense model falls back to getModelMemory (all params active)", () => {
@@ -246,6 +295,10 @@ describe("resolveModelPrecision", () => {
   it("resolves FLOAT4 (modelopt FP4) to int4", () => {
     const m = { ...KIMI_K2, precision: "FLOAT4" };
     expect(resolveModelPrecision(m)).toBe("int4");
+  });
+
+  it("resolves FP4 (DeepSeek-V4 mixed) to int4", () => {
+    expect(resolveModelPrecision(DEEPSEEK_V4)).toBe("int4");
   });
 
   it("resolves FLOAT8 (modelopt FP8) to fp8", () => {
@@ -320,6 +373,32 @@ describe("calcKvCachePerToken", () => {
     const kvGb = calcKvCachePerToken(QWEN3_CODER);
     const kvBytes = kvGb * 1024 * 1024 * 1024;
     expect(kvBytes).toBeCloseTo(253_952, 0);
+  });
+
+  it("DSV4: kv_elems_per_token × 2 bytes (FP16 default)", () => {
+    // DeepSeek-V4: 4924 × 2 = 9848 bytes/token
+    const kvBytes = calcKvCachePerToken(DEEPSEEK_V4) * 1024 * 1024 * 1024;
+    expect(kvBytes).toBeCloseTo(9_848, 0);
+  });
+
+  it("DSV4 FP8 KV cache is exactly half of FP16", () => {
+    expect(calcKvCachePerToken(DEEPSEEK_V4, 1)).toBeCloseTo(
+      calcKvCachePerToken(DEEPSEEK_V4, 2) / 2,
+      12,
+    );
+  });
+
+  it("DSV4 is far more KV-efficient than the equivalent dense-MLA baseline", () => {
+    // V4's compressed KV (~9.8 KB/token) is a small fraction of a 61-layer
+    // MLA model's (~70 KB/token) — the headline long-context win.
+    expect(calcKvCachePerToken(DEEPSEEK_V4)).toBeLessThan(
+      calcKvCachePerToken(DEEPSEEK_V32) / 5,
+    );
+  });
+
+  it("returns 0 if DSV4 kv_elems_per_token is null", () => {
+    const broken = { ...DEEPSEEK_V4, kv_elems_per_token: null };
+    expect(calcKvCachePerToken(broken)).toBe(0);
   });
 
   it("returns 0 for unknown attention_type", () => {

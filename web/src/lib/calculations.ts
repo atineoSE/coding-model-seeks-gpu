@@ -54,15 +54,32 @@ export function resolveModelPrecision(model: Model): Precision {
   if (raw === "FP16") return "fp16";
   if (raw === "FP32") return "fp32";
   if (raw === "INT8") return "int8";
-  if (raw.startsWith("INT4") || raw === "FLOAT4") return "int4";
+  // "FP4" is DeepSeek-V4's mixed FP4-expert / FP8-rest checkpoint; map the
+  // quantized bulk to the int4 byte bucket (see nonRoutedBytesPerParam for
+  // the non-expert split).
+  if (raw === "FP4" || raw.startsWith("INT4") || raw === "FLOAT4") return "int4";
   return "fp16"; // conservative fallback
+}
+
+/**
+ * Bytes/param for the *non-routed* weights (attention, shared experts,
+ * embeddings, lm_head) of a mixed-precision MoE checkpoint.
+ *
+ * Community INT4 / NVFP4 quants leave these in BF16; FP4-native checkpoints
+ * (e.g. DeepSeek-V4) keep them in FP8. Routed experts always use the int4
+ * byte bucket.
+ */
+function nonRoutedBytesPerParam(model: Model): number {
+  const raw = (model.precision ?? "").toUpperCase().trim();
+  return raw === "FP4" ? BYTES_PER_PARAM["fp8"] : BYTES_PER_PARAM["bf16"];
 }
 
 /** Get memory in GB for a model at a given precision.
  *
  * For mixed-precision models (with routed_expert_params_b), when precision
- * resolves to int4: routed experts use INT4 (0.5 bytes/param), remaining
- * params (attention, shared experts, lm_head) use BF16 (2 bytes/param).
+ * resolves to int4: routed experts use the int4 byte bucket, remaining
+ * params (attention, shared experts, lm_head) use BF16 — or FP8 for
+ * FP4-native checkpoints like DeepSeek-V4 (see nonRoutedBytesPerParam).
  *
  * This is the TOTAL model size — use for VRAM capacity (does the model fit?).
  * For decode throughput, use getActiveModelMemory instead.
@@ -73,7 +90,8 @@ export function getModelMemory(model: Model, precision: Precision): number | nul
 
   if (model.routed_expert_params_b !== null && precision === "int4") {
     const quantizedMem = model.routed_expert_params_b * BYTES_PER_PARAM["int4"];
-    const nonQuantizedMem = (params - model.routed_expert_params_b) * BYTES_PER_PARAM["bf16"];
+    const nonQuantizedMem =
+      (params - model.routed_expert_params_b) * nonRoutedBytesPerParam(model);
     return quantizedMem + nonQuantizedMem;
   }
 
@@ -98,11 +116,15 @@ export function getActiveModelMemory(model: Model, precision: Precision): number
   const params = model.learnable_params_b;
   if (params === null) return null;
 
-  // MoE with INT4 mixed precision: routed experts at INT4, rest at BF16
+  // MoE with mixed precision: active routed experts at int4, rest at BF16
+  // (or FP8 for FP4-native checkpoints like DeepSeek-V4).
   if (model.routed_expert_params_b !== null && precision === "int4") {
     const nonRoutedParams = params - model.routed_expert_params_b;
     const activeRoutedParams = model.active_params_b - nonRoutedParams;
-    return activeRoutedParams * BYTES_PER_PARAM["int4"] + nonRoutedParams * BYTES_PER_PARAM["bf16"];
+    return (
+      activeRoutedParams * BYTES_PER_PARAM["int4"] +
+      nonRoutedParams * nonRoutedBytesPerParam(model)
+    );
   }
 
   // MoE with uniform precision
@@ -293,8 +315,11 @@ export function calcPpBubbleEfficiency(pp: number, batchSize: number): number {
  * Calculate KV cache memory per token in GB.
  *
  * Uses architecture-aware formulas:
- * - MLA: layers × (kv_lora_rank + qk_rope_head_dim) × kvPrecisionBytes
- * - GQA: 2 × layers × num_kv_heads × head_dim × kvPrecisionBytes
+ * - MLA:  layers × (kv_lora_rank + qk_rope_head_dim) × kvPrecisionBytes
+ * - GQA:  2 × layers × num_kv_heads × head_dim × kvPrecisionBytes
+ * - DSV4: kv_elems_per_token × kvPrecisionBytes (per-token element width
+ *         precomputed in the pipeline; DeepSeek-V4's compressed + sparse-
+ *         indexed KV is per-layer-variable and not expressible as MLA)
  *
  * @param kvPrecisionBytes — 1 for FP8, 2 for FP16 (default: 2 for backward compat)
  * Returns 0 if required fields are missing.
@@ -314,6 +339,12 @@ export function calcKvCachePerToken(model: Model, kvPrecisionBytes: 1 | 2 = 2): 
   } else if (model.attention_type === "GQA") {
     if (model.num_kv_heads === null || model.head_dim === null) return 0;
     bytesPerToken = 2 * kvLayers * model.num_kv_heads * model.head_dim * kvPrecisionBytes;
+  } else if (model.attention_type === "DSV4") {
+    // DeepSeek-V4: per-token KV element width is precomputed in the pipeline
+    // (Σ head_dim/ratio over compressed layers + sparse-indexer width). The
+    // constant sliding-window term is omitted (negligible at long context).
+    if (model.kv_elems_per_token === null) return 0;
+    bytesPerToken = model.kv_elems_per_token * kvPrecisionBytes;
   } else {
     return 0;
   }

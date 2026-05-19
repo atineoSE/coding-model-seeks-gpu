@@ -11,6 +11,7 @@ from pipeline.sources.param_counter import (
     KNOWN_ARCHITECTURES,
     AttentionType,
     count_params_from_config,
+    deepseek_v4_kv_elems_per_token,
     detect_precision,
     resolve_text_config,
 )
@@ -215,11 +216,19 @@ def fetch_model(model_name: str, hf_id: str, *, model_url: str | None = None) ->
     kv_lora_rank: int | None = None
     qk_rope_head_dim: int | None = None
     num_kv_layers: int | None = None
+    kv_elems_per_token: int | None = None
 
     if config_result and config_result.num_attention_layers > 0:
         num_kv_layers = config_result.num_attention_layers
 
-    if attn_type == AttentionType.GQA:
+    if model_type == "deepseek_v4":
+        # Not standard MLA: registered as MLA only for the AttentionType lookup
+        # above.  KV cache is per-layer-compressed + sparse-indexed, so the
+        # web uses a precomputed per-token element width instead of the MLA
+        # (kv_lora_rank + qk_rope_head_dim) formula.
+        attention_type_str = "DSV4"
+        kv_elems_per_token = deepseek_v4_kv_elems_per_token(effective_config)
+    elif attn_type == AttentionType.GQA:
         num_kv_heads = effective_config.get("num_key_value_heads")
         if num_kv_heads is None:
             raise ValueError(f"Missing 'num_key_value_heads' in GQA config for {hf_id}")
@@ -275,6 +284,7 @@ def fetch_model(model_name: str, hf_id: str, *, model_url: str | None = None) ->
         head_dim=head_dim_val,
         kv_lora_rank=kv_lora_rank,
         qk_rope_head_dim=qk_rope_head_dim,
+        kv_elems_per_token=kv_elems_per_token,
         hf_model_id=None if model_url else hf_id,
         model_url=model_url,
         license_name=license_name,
