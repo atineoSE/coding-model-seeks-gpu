@@ -230,7 +230,7 @@ requires-dist = [
     { name = "beautifulsoup4", marker = "extra == 'pipeline'", specifier = ">=4.12" },
     { name = "dbgpu", marker = "extra == 'pipeline'", specifier = ">=2025.12" },
     { name = "gpu-cost-pipeline", extras = ["pipeline", "dev"], marker = "extra == 'all'" },
-    { name = "gpuhunt", marker = "extra == 'pipeline'", specifier = ">=0.1" },
+    { name = "gpuhunt", marker = "extra == 'pipeline'", specifier = ">=0.1.22" },
     { name = "httpx", marker = "extra == 'pipeline'", specifier = ">=0.27" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.7" },
     { name = "pydantic", marker = "extra == 'pipeline'", specifier = ">=2.7" },
@@ -242,15 +242,15 @@ provides-extras = ["pipeline", "dev", "all"]
 
 [[package]]
 name = "gpuhunt"
-version = "0.1.20"
+version = "0.1.22"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/65/f31234645c6e86acab38ec74374df0caaa3581bb193065e89757ca0da188/gpuhunt-0.1.20.tar.gz", hash = "sha256:ed59e37ecea25e22c8914996d98e5e8e41964ae8e9368dc282f55533f01e2d54", size = 72160, upload-time = "2026-04-16T06:21:11.501Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/f3/fb534abbd60979441452136b4bf672902169a148fe794be19202f5c60534/gpuhunt-0.1.22.tar.gz", hash = "sha256:fc1f72b54104f0f334d4e0e6874e82d81f1b736ec67922ffcb7d5fb39d68b498", size = 75352, upload-time = "2026-05-21T07:29:03.533Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/61/4e90322192a51e43663d05abb8c31cfd6f46ae1b14a075bcd21e22aa17d1/gpuhunt-0.1.20-py3-none-any.whl", hash = "sha256:355afb17c6b02235809980cc5ff5c078fb68a824191b2d3517ee8d8d248bf5c3", size = 92382, upload-time = "2026-04-16T06:21:10.236Z" },
+    { url = "https://files.pythonhosted.org/packages/25/f7/c651ee6992dc7043ffa9aa4611dbcf0c21c6e6aeec9924ca095a130979a4/gpuhunt-0.1.22-py3-none-any.whl", hash = "sha256:47f06dbba1c7347733cae7ffa00382c48d068cda9abf6b521a900c6ea7aa34a4", size = 96778, upload-time = "2026-05-21T07:29:02.144Z" },
 ]
 
 [[package]]
