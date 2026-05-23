@@ -33,6 +33,7 @@
       "fast": 6.0
     },
     "supports_minimal_reasoning_effort": true,
+    "supports_output_config": true,
     "model_name": "claude-opus-4-7",
     "lab": "anthropic",
     "litellm_id": "claude-opus-4-7",
