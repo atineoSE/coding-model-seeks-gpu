@@ -1,5 +1,15 @@
 # Release Notes
 
+## 0.6.0 — 2026-06-03
+
+- **Clearer trend-chart copy.** Retitled the cost-trend chart to "Is It
+  Getting Cheaper to Self-Host the Best Open-Source Model?" and the
+  efficiency chart to "Are API costs per task lowering?" (tab shorthand
+  "Efficiency" → "API costs"), with a subtitle clarifying these are
+  API-metered (pay-per-token) costs rather than self-hosting. The scaling
+  chart subtitle now reads "Monthly self-hosting costs…" to disambiguate it
+  from the API-metered view.
+
 ## 0.5.1 — 2026-05-11
 
 - **Snapshot dedup baseline fix.** `run_snapshot_export` now walks existing
