@@ -29,12 +29,12 @@
     "supports_max_reasoning_effort": true,
     "provider_specific_entry": {
       "us": 1.1,
-      "fast": 6.0
+      "fast": 2.0
     },
     "supports_output_config": true,
-    "model_name": "claude-opus-4-7",
+    "model_name": "claude-opus-4-8",
     "lab": "anthropic",
-    "litellm_id": "claude-opus-4-7",
+    "litellm_id": "claude-opus-4-8",
     "context_window": 1000000
   },
   {
