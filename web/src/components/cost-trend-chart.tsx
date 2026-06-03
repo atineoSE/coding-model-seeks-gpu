@@ -129,7 +129,7 @@ export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: C
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Is It Getting Cheaper to Run the Best?</CardTitle>
+          <CardTitle>Is It Getting Cheaper to Self-Host the Best Open-Source Model?</CardTitle>
           <CardDescription>
             Not enough data for this category.
           </CardDescription>
@@ -150,7 +150,7 @@ export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: C
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Is It Getting Cheaper to Run the Best?</CardTitle>
+        <CardTitle>Is It Getting Cheaper to Self-Host the Best Open-Source Model?</CardTitle>
         <CardDescription>
           Monthly cloud cost for the top open source coding LLM over time (5 concurrent streams).
         </CardDescription>

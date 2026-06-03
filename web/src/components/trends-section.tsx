@@ -174,7 +174,7 @@ export function TrendsSection({
           { value: "cost", label: "Cost Trend", content: <CostTrendChart data={costData} referenceCosts={referenceCosts} currencySymbol={currencySymbol} /> },
           { value: "sota", label: "% of SOTA", content: <SotaPercentChart data={sotaPercentData} /> },
           { value: "size", label: "Model Size", content: <ModelSizeChart data={modelSizeData} categoryDisplayName={categoryDisplayName} /> },
-          { value: "efficiency", label: "Efficiency", content: <EfficiencyChart data={efficiencyData} categoryDisplayName={categoryDisplayName} /> },
+          { value: "efficiency", label: "API costs", content: <EfficiencyChart data={efficiencyData} categoryDisplayName={categoryDisplayName} /> },
           {
             value: "scaling",
             label: "Scaling Cost",

@@ -140,7 +140,7 @@ export function EfficiencyChart({ data, categoryDisplayName }: EfficiencyChartPr
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Are Models Getting More Efficient?</CardTitle>
+          <CardTitle>Are API costs per task lowering?</CardTitle>
           <CardDescription>
             Not enough data for this category.
           </CardDescription>
@@ -156,9 +156,9 @@ export function EfficiencyChart({ data, categoryDisplayName }: EfficiencyChartPr
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Are Models Getting More Efficient?</CardTitle>
+        <CardTitle>Are API costs per task lowering?</CardTitle>
         <CardDescription>
-          API cost per task for the best models on {categoryDisplayName} (as reported by OpenHands Index).
+          API-metered cost per task (pay-per-token, not self-hosting) for the best models on {categoryDisplayName} (as reported by OpenHands Index).
         </CardDescription>
       </CardHeader>
       <CardContent>
