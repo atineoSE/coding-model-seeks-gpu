@@ -231,6 +231,27 @@
     "license_url": "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE"
   },
   {
+    "model_name": "MiniMax-M3",
+    "learnable_params_b": 228.7,
+    "active_params_b": 11.1,
+    "architecture": "MoE",
+    "context_length": 196608,
+    "precision": "FP8",
+    "attention_type": "GQA",
+    "num_hidden_layers": 62,
+    "num_kv_layers": null,
+    "num_kv_heads": 8,
+    "head_dim": 128,
+    "routed_expert_params_b": 224.7,
+    "kv_lora_rank": null,
+    "qk_rope_head_dim": null,
+    "kv_elems_per_token": null,
+    "hf_model_id": null,
+    "model_url": "https://github.com/MiniMax-AI/MiniMax-M3",
+    "license_name": "MiniMax Non-Commercial License",
+    "license_url": "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE"
+  },
+  {
     "model_name": "Nemotron-3-Nano",
     "learnable_params_b": 31.5,
     "active_params_b": 3.5,

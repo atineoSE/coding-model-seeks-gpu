@@ -47,6 +47,8 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
 # from MODEL_ALT_URL (if provided).
 MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {
     "MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.5",
+    # M3's size/architecture are not yet public; borrow M2.7's config source.
+    "MiniMax-M3": "MiniMaxAI/MiniMax-M2.5",
 }
 
 # Alternative link URL for models that have no HF page.
@@ -54,6 +56,7 @@ MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {
 # Only used when the model is in MODEL_ARCH_SOURCE_HF_ID.
 MODEL_ALT_URL: dict[str, str] = {
     "MiniMax-M2.7": "https://github.com/MiniMax-AI/MiniMax-M2.7",
+    "MiniMax-M3": "https://github.com/MiniMax-AI/MiniMax-M3",
 }
 
 # Explicit license info per model name.
@@ -97,6 +100,11 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
         "https://huggingface.co/MiniMaxAI/MiniMax-M2.5/blob/main/LICENSE-MODEL",
     ),
     "MiniMax-M2.7": (
+        "MiniMax Non-Commercial License",
+        "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE",
+    ),
+    # M3's license is not yet public; mirror M2.7's license as a placeholder.
+    "MiniMax-M3": (
         "MiniMax Non-Commercial License",
         "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE",
     ),
