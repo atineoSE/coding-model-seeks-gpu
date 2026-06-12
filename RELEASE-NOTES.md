@@ -1,5 +1,24 @@
 # Release Notes
 
+## 0.6.1 — 2026-06-12
+
+- **Budget persona crash fix.** The Budget view built its default GPU config
+  with `buildGpuPresets(...)[0]` and dereferenced it unconditionally
+  (`gpuConfig.vramPerGpu` / `.gpuCount`). In regions whose catalog has no pod
+  large enough for the current top models — e.g. North America / Asia Pacific /
+  Global, where the only {1,4,8}-count pods are 80 GB-class — `buildGpuPresets`
+  correctly returns `[]`, so the default config was `undefined` and the view
+  threw `TypeError: Cannot read properties of undefined (reading 'vramPerGpu')`.
+  `BudgetFlow` now treats the config as nullable, short-circuits the chart memo,
+  and renders "No GPU configuration in {region} can host the current top
+  models" instead of crashing.
+- **Region switch no longer keeps a stale GPU config.** Switching region now
+  re-derives the default GPU config — preserving the current selection when it
+  is still offered, otherwise falling back to the new region's default (or the
+  empty state when none can host the top models).
+- **Regression test.** Added `gpu-presets.test.ts` covering the empty-region
+  case (`buildGpuPresets` returns `[]`) that produced the crash.
+
 ## 0.6.0 — 2026-06-03
 
 - **Clearer trend-chart copy.** Retitled the cost-trend chart to "Is It

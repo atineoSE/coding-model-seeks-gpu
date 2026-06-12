@@ -236,6 +236,7 @@ export default function Home() {
               benchmarkCategory={benchmarkCategory}
               settings={settings}
               currencySymbol={data.gpuSource.currency_symbol}
+              location={location}
             />
           </div>
         )}

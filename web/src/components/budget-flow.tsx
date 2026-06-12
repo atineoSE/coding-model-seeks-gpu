@@ -29,6 +29,7 @@ interface BudgetFlowProps {
   benchmarkCategory: string;
   settings: AdvancedSettings;
   currencySymbol?: string;
+  location?: string;
 }
 
 export function BudgetFlow({
@@ -39,25 +40,42 @@ export function BudgetFlow({
   benchmarkCategory,
   settings,
   currencySymbol = "$",
+  location,
 }: BudgetFlowProps) {
   const gpuPresets = useMemo(() => buildGpuPresets(gpus, models, benchmarks), [gpus, models, benchmarks]);
-  const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig>(() => buildGpuPresets(gpus, models, benchmarks)[0]);
+  const [gpuConfig, setGpuConfig] = useState<PresetGpuConfig | null>(() => gpuPresets[0] ?? null);
   const [memoryUtilization, setMemoryUtilization] = useState(90);
   const [configExpanded, setConfigExpanded] = useState(false);
+
+  // When the available presets change (e.g. the user switches region), keep the
+  // current selection if it's still offered, otherwise fall back to the new
+  // region's default. Adjusting state during render avoids a stale config — and
+  // the resulting render flicker of an effect — when switching into a region
+  // whose catalog can't host the previously selected GPU.
+  const [prevPresets, setPrevPresets] = useState(gpuPresets);
+  if (prevPresets !== gpuPresets) {
+    setPrevPresets(gpuPresets);
+    const stillOffered = gpuConfig !== null && gpuPresets.some((p) => p.label === gpuConfig.label);
+    if (!stillOffered) {
+      setGpuConfig(gpuPresets[0] ?? null);
+    }
+  }
 
   const { pricing: closedPricing, loading: apiPricingLoading } = useApiPricing();
 
   const chartData = useMemo(
     () =>
-      calculateBudgetChartData(
-        gpuConfig,
-        models,
-        benchmarks,
-        sotaScores,
-        benchmarkCategory,
-        memoryUtilization / 100,
-        settings,
-      ),
+      gpuConfig
+        ? calculateBudgetChartData(
+            gpuConfig,
+            models,
+            benchmarks,
+            sotaScores,
+            benchmarkCategory,
+            memoryUtilization / 100,
+            settings,
+          )
+        : [],
     [gpuConfig, models, benchmarks, sotaScores, benchmarkCategory, memoryUtilization, settings],
   );
 
@@ -72,6 +90,24 @@ export function BudgetFlow({
         .filter((x): x is { model: Model; sotaPercent: number } => x !== null),
     [chartData, models],
   );
+
+  // No preset GPU config can host the top models in this region (e.g. a region
+  // whose catalog only has small-VRAM pods). Short-circuit instead of crashing.
+  if (!gpuConfig) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Serving Capacity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            No GPU configuration{location ? ` in ${location}` : ""} can host the
+            current top models. Try a different region.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const interconnectLabel = isNvLink(gpuConfig.interconnect) ? " NVLink" : "";
 
