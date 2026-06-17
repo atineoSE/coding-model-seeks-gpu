@@ -4,7 +4,7 @@ import {
   calculatePerformanceMatrix,
   calculateBudgetMatrix,
   calculateBudgetChartData,
-  calculateUnrankedModelRows,
+  calculateUnrankedMatrix,
   DEFAULT_ADVANCED_SETTINGS,
 } from "../matrix-calculator";
 import { WEIGHT_OVERHEAD_FACTOR, gpusNeeded, getModelMemory } from "../calculations";
@@ -477,20 +477,35 @@ describe("per-stream throughput with PP > 1", () => {
 });
 
 // ---------------------------------------------------------------------------
-// calculateUnrankedModelRows
+// calculateUnrankedMatrix
 // ---------------------------------------------------------------------------
 
-describe("calculateUnrankedModelRows", () => {
+describe("calculateUnrankedMatrix", () => {
   // No benchmark scores in the "frontend" category → both models are unranked there.
   const models = [GLM_47, MINIMAX_M25];
   const gpus = [H100_OFFERING];
 
-  it("returns one row per sized, unranked model", () => {
-    const rows = calculateUnrankedModelRows(gpus, models, [], "frontend");
-    expect(rows.map((r) => r.model.model_name).sort()).toEqual(["GLM-4.7", "MiniMax-M2.5"]);
-    // One GPU-setup slot per concurrency tier.
+  it("returns one matrix row per sized, unranked model, one cell per tier", () => {
+    const rows = calculateUnrankedMatrix(gpus, models, [], "frontend");
+    expect(rows.map((row) => row[0].model.model_name).sort()).toEqual([
+      "GLM-4.7",
+      "MiniMax-M2.5",
+    ]);
     for (const row of rows) {
-      expect(row.tierSetups).toHaveLength(CONCURRENCY_TIERS.length);
+      expect(row).toHaveLength(CONCURRENCY_TIERS.length);
+    }
+  });
+
+  it("marks cells unranked with no score fields (never faked)", () => {
+    const rows = calculateUnrankedMatrix(gpus, models, [], "frontend");
+    for (const row of rows) {
+      for (const cell of row) {
+        expect(cell.isUnranked).toBe(true);
+        expect(cell.benchmark).toBeNull();
+        expect(cell.percentOfSota).toBeNull();
+        expect(cell.sotaScore).toBeNull();
+        expect(cell.totalBenchmarkCost).toBeNull();
+      }
     }
   });
 
@@ -498,15 +513,15 @@ describe("calculateUnrankedModelRows", () => {
     const benchmarks: BenchmarkScore[] = [
       { ...BENCHMARK_GLM, benchmark_name: "frontend" },
     ];
-    const rows = calculateUnrankedModelRows(gpus, models, benchmarks, "frontend");
+    const rows = calculateUnrankedMatrix(gpus, models, benchmarks, "frontend");
     // GLM-4.7 now has a frontend score → only MiniMax-M2.5 remains unranked.
-    expect(rows.map((r) => r.model.model_name)).toEqual(["MiniMax-M2.5"]);
+    expect(rows.map((row) => row[0].model.model_name)).toEqual(["MiniMax-M2.5"]);
   });
 
-  it("sorts by minimum VRAM ascending (sizing proxy)", () => {
-    const rows = calculateUnrankedModelRows(gpus, models, [], "frontend");
-    // MiniMax-M2.5 (228.7b @ FP8) needs less VRAM than GLM-4.7 (352.8b @ BF16).
-    expect(rows[0].model.model_name).toBe("MiniMax-M2.5");
-    expect(rows[1].model.model_name).toBe("GLM-4.7");
+  it("sorts by minimum VRAM descending (biggest first)", () => {
+    const rows = calculateUnrankedMatrix(gpus, models, [], "frontend");
+    // GLM-4.7 (352.8b @ BF16) needs more VRAM than MiniMax-M2.5 (228.7b @ FP8).
+    expect(rows[0][0].model.model_name).toBe("GLM-4.7");
+    expect(rows[1][0].model.model_name).toBe("MiniMax-M2.5");
   });
 });

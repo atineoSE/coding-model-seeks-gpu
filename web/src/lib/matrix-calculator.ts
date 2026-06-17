@@ -309,6 +309,7 @@ export function calculatePerformanceMatrix(
         utilization: cheapest
           ? Math.min(tier.midpoint / cheapest.maxConcurrentStreams, 1.0)
           : null,
+        isUnranked: false,
       };
     });
   });
@@ -430,6 +431,7 @@ export function calculateBudgetMatrix(
         utilization: stats.maxConcurrentStreams > 0
           ? Math.min(tier.midpoint / stats.maxConcurrentStreams, 1.0)
           : null,
+        isUnranked: false,
       };
     });
   });
@@ -568,52 +570,62 @@ export function calculateBudgetChartData(
 // Unranked Models (Performance persona)
 // ============================================================================
 
-export interface UnrankedModelRow {
-  model: Model;
-  // Cheapest GPU setup that serves each concurrency tier (same ordering as
-  // CONCURRENCY_TIERS). `null` when even an 8-GPU scaled config can't serve it.
-  tierSetups: (GpuSetupOption | null)[];
-}
-
 /**
- * Build the Performance persona's unranked-models section.
+ * Build a recommendation matrix for unranked models, reusing the same row/cell
+ * shape (and therefore the same `RecommendationMatrix` UI) as the ranked Top
+ * Coding Models table.
  *
- * The Performance matrix is ranking-first and iterates benchmark scores, so it
- * can't place unranked models (no score to rank by). This sizing-first helper
- * surfaces them separately: iterate the MODEL list, keep the ones that are
- * sized but unranked in this category, and compute the cheapest GPU setup per
- * concurrency tier (real offerings first, then the same 8-GPU scaled fallback
- * the matrix uses). No score is computed or faked.
+ * The ranked matrix is ranking-first and iterates benchmark scores, so it can't
+ * place unranked models (no score to rank by). This sizing-first helper instead
+ * iterates the MODEL list, keeps the ones that are sized but unranked in this
+ * category, and computes the cheapest GPU setup per concurrency tier (real
+ * offerings first, then the same 8-GPU scaled fallback). Score-dependent cell
+ * fields (benchmark, percentOfSota, sotaScore, totalBenchmarkCost) are left
+ * null — the UI renders them as gaps; nothing is faked.
  *
- * Sorted by minimum VRAM ascending — a sizing proxy, consistent with the
- * Budget chart's unranked ordering.
+ * Rows are sorted by minimum VRAM descending (biggest first).
  */
-export function calculateUnrankedModelRows(
+export function calculateUnrankedMatrix(
   allGpus: GpuOffering[],
   allModels: Model[],
   benchmarks: BenchmarkScore[],
   benchmarkCategory: string,
   settings: AdvancedSettings = DEFAULT_ADVANCED_SETTINGS,
-): UnrankedModelRow[] {
-  const rows: UnrankedModelRow[] = [];
+): MatrixCell[][] {
+  const unrankedModels = allModels.filter(
+    (model) =>
+      minVramForModel(model) !== null &&
+      isUnranked(model, benchmarkCategory, benchmarks),
+  );
 
-  for (const model of allModels) {
-    // Sizing-first: skip models we can't size, and models that are ranked
-    // (they belong in the main matrix, not here).
-    if (minVramForModel(model) === null) continue;
-    if (!isUnranked(model, benchmarkCategory, benchmarks)) continue;
+  // Biggest VRAM footprint first.
+  unrankedModels.sort(
+    (a, b) => (minVramForModel(b) ?? 0) - (minVramForModel(a) ?? 0),
+  );
 
-    const tierSetups = CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig) => {
-      let setups = findGpuSetups(model, allGpus, tier.midpoint, settings);
-      if (setups.length === 0) {
-        setups = findScaledGpuSetups(model, allGpus, tier.midpoint, settings);
+  return unrankedModels.map((model) =>
+    CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig): MatrixCell => {
+      let gpuSetups = findGpuSetups(model, allGpus, tier.midpoint, settings);
+      if (gpuSetups.length === 0) {
+        gpuSetups = findScaledGpuSetups(model, allGpus, tier.midpoint, settings);
       }
-      return setups[0] ?? null;
-    });
+      const cheapest = gpuSetups.length > 0 ? gpuSetups[0] : null;
 
-    rows.push({ model, tierSetups });
-  }
-
-  rows.sort((a, b) => (minVramForModel(a.model) ?? 0) - (minVramForModel(b.model) ?? 0));
-  return rows;
+      return {
+        model,
+        benchmark: null,
+        sotaScore: null,
+        percentOfSota: null,
+        totalBenchmarkCost: null,
+        gpuSetups,
+        costPerStreamPerMonth: cheapest?.costPerStreamPerMonth ?? null,
+        exceedsCapacity: gpuSetups.length === 0,
+        decodeThroughputTokS: cheapest?.decodeThroughputTokS ?? null,
+        utilization: cheapest
+          ? Math.min(tier.midpoint / cheapest.maxConcurrentStreams, 1.0)
+          : null,
+        isUnranked: true,
+      };
+    }),
+  );
 }

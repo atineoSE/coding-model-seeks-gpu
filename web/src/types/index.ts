@@ -92,15 +92,19 @@ export interface GpuSetupOption {
 
 export interface MatrixCell {
   model: Model;
-  benchmark: BenchmarkScore;
+  // null for unranked models (sized, no OpenHands Index score yet).
+  benchmark: BenchmarkScore | null;
   sotaScore: SotaScore | null;
-  percentOfSota: number;
+  // null for unranked models — never coerce a missing score to a number.
+  percentOfSota: number | null;
   totalBenchmarkCost: number | null;
   gpuSetups: GpuSetupOption[];
   costPerStreamPerMonth: number | null;
   exceedsCapacity: boolean;
   decodeThroughputTokS: number | null;
   utilization: number | null;
+  // True when the model has no benchmark score in this category (partial-model-data skill).
+  isUnranked: boolean;
 }
 
 export interface PresetGpuConfig {
