@@ -1,5 +1,23 @@
 # Release Notes
 
+## 0.7.0 — 2026-06-17
+
+- **MiniMax-M3 support.** M3 ships as a vision-language model (`model_type`
+  `minimax_m3_vl`) with a new sparse text backbone, so the pipeline had been
+  skipping it as an unsupported architecture and the catalog fell back to
+  tentative figures borrowed from MiniMax-M2.5. It now resolves to its real
+  architecture: **~427B total / ~23B active params, 1M context, BF16**. The
+  pipeline unwraps the VL wrapper to the text backbone (which carries no
+  `model_type` of its own), counts params with a dedicated counter (dense/MoE
+  split from `moe_layer_freq`, distinct `dense_intermediate_size`, GQA with
+  per-head QK-norm, MTP modules), and falls back to the top-level config for
+  precision detection (the wrapper declares `torch_dtype` there).
+- **MiniMax Sparse Attention (MSA) KV sizing.** New `attention_type` `"MSA"`.
+  Per the M3 technical report, MSA's 1M context comes from compute/bandwidth
+  savings (block selection — each KV block read once) "rather than KV cache
+  compression", so KV memory is **not** reduced: the web sizes M3 as a full
+  GQA KV cache plus a small per-token block-selection indexer key cache.
+
 ## 0.6.1 — 2026-06-12
 
 - **Budget persona crash fix.** The Budget view built its default GPU config
