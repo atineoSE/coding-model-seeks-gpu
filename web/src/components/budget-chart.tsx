@@ -147,15 +147,13 @@ export function BudgetChart({ data }: BudgetChartProps) {
         )}
 
         {hasUnranked && (
-          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={unrankedOnly}
-              onChange={(e) => setUnrankedOnly(e.target.checked)}
-              className="size-3.5 cursor-pointer accent-[var(--muted-foreground)]"
-            />
-            <span className="text-muted-foreground whitespace-nowrap">Unranked models</span>
-          </label>
+          <button
+            onClick={() => setUnrankedOnly((u) => !u)}
+            aria-pressed={unrankedOnly}
+            className={`rounded-md border px-3 py-1.5 text-sm transition-colors cursor-pointer whitespace-nowrap ${unrankedOnly ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+          >
+            Unranked models
+          </button>
         )}
 
         {sourceData.length > ZOOMED_MODEL_COUNT && (
