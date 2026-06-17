@@ -101,6 +101,61 @@ in `tests/test_license.py` also enforces this.
 
 ---
 
+## Adding an unranked model
+
+A model often becomes known to us **before** it has an OpenHands Index result: it's
+announced with open weights, but no benchmark score has landed yet. We call this state
+**unranked** — sizing is known, score is not. The product surfaces these models
+deliberately rather than hiding them; see the design rules in
+`.claude/skills/partial-model-data/SKILL.md` (the canonical "unranked" vs "ranked"
+terminology and the per-persona contract live there).
+
+**You do not do anything special to add an unranked model.** Follow the
+[New Open-Weights Model checklist](#checklist-for-a-new-open-weights-model) above:
+
+1. Add the HuggingFace mapping (`MODEL_NAME_TO_HF_ID`, or `MODEL_ARCH_SOURCE_HF_ID`
+   when the model has no usable `config.json` of its own).
+2. Add the mandatory `MODEL_LICENSE_INFO` entry — this is enforced even for unranked
+   models, since they flow through the exact same pipeline.
+
+That's it. Because sizing (`models.json`) and performance (`snapshots/<date>/benchmarks.json`)
+are produced by **separate pipeline stages joined by name**, a model with a HF mapping
+but no matching Index entry simply has its score fields left `null`. It is **not** a
+side channel and **not** a special record — just a normal model with a missing
+performance dimension.
+
+### What you get automatically
+
+- The model appears in every **sizing-first** view its data supports: the Budget
+  persona's Serving Capacity chart, and the Trends → Model Size chart's unranked band.
+  These iterate the model list and treat the score as an optional left join (see
+  `scoreFor` / `isUnranked` / `minVramForModel` in `web/src/lib/model-data.ts`).
+- Wherever a score would appear, the UI renders an explicit gap ("Unranked" / "—",
+  muted style) — never a faked `0`.
+- It stays out of **ranking-first** views that have nothing to rank it by: the
+  Performance persona and the Budget API-vs-Self-Hosting chart are ranked-only by design.
+
+### Convergence — becoming ranked
+
+No migration step is needed when the score arrives. The day the model's **canonical
+name** lands on the OpenHands Index, the name-based join reunites its sizing with its new
+score and it becomes **ranked** automatically across all views. This is why getting the
+name right matters — keep the display-name mapping (`METADATA_NAME_OVERRIDES`) and
+`alias_map.py` authoritative (see step 1 of the checklist above) so the names actually
+match.
+
+### Not yet supported: estimated sizing
+
+The inverse seeding path — a model that is **announced but has no open weights or
+`config.json` yet**, sized from a manual/estimated spec — is **not supported today**. An
+unranked model must currently have real architecture data the pipeline can fetch (directly
+via `MODEL_NAME_TO_HF_ID`, or borrowed via `MODEL_ARCH_SOURCE_HF_ID`). The
+`partial-model-data` skill describes the intended "estimated sizing" handling (manually
+entered values, visibly flagged, auto-replaced once real config lands) for when it is
+added.
+
+---
+
 ## Checklist for a New Architecture
 
 When a new model introduces a `model_type` not yet known to the pipeline,

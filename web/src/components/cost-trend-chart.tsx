@@ -75,42 +75,45 @@ const REFERENCE_COLORS = [
   "var(--muted-foreground)",
 ];
 
-export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: CostTrendChartProps) {
-  function CustomTooltip({ active, payload, label }: {
-    active?: boolean;
-    payload?: Array<{
-      value: number;
-      payload: CostTrendPoint;
-    }>;
-    label?: string;
-  }) {
-    if (!active || !payload?.length) return null;
-    const point = payload[0].payload;
+interface CostTrendTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    payload: CostTrendPoint;
+  }>;
+  label?: string;
+  currencySymbol: string;
+}
 
-    return (
-      <div className="rounded-lg border bg-background p-3 shadow-sm">
-        <p className="text-sm font-medium mb-1.5">{label}</p>
-        <div className="space-y-1 text-sm">
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: "var(--chart-3)" }}
-            />
-            <span className="font-medium">
-              {currencySymbol}{point.monthlyCost.toLocaleString("en-US", { maximumFractionDigits: 0 })}/mo
-            </span>
-          </div>
-          <p className="text-muted-foreground">
-            {formatModelName(point.modelName)} &middot; {point.gpuSetup}
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Score: {point.score.toFixed(1)} &middot; Weights: {point.modelMemoryGb.toFixed(0)} GB
-          </p>
+function CustomTooltip({ active, payload, label, currencySymbol }: CostTrendTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+
+  return (
+    <div className="rounded-lg border bg-background p-3 shadow-sm">
+      <p className="text-sm font-medium mb-1.5">{label}</p>
+      <div className="space-y-1 text-sm">
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: "var(--chart-3)" }}
+          />
+          <span className="font-medium">
+            {currencySymbol}{point.monthlyCost.toLocaleString("en-US", { maximumFractionDigits: 0 })}/mo
+          </span>
         </div>
+        <p className="text-muted-foreground">
+          {formatModelName(point.modelName)} &middot; {point.gpuSetup}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          Score: {point.score.toFixed(1)} &middot; Weights: {point.modelMemoryGb.toFixed(0)} GB
+        </p>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
+export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: CostTrendChartProps) {
   const chartData = useMemo(() => {
     return data.map((p, i): ChartPoint => ({
       ...p,
@@ -193,7 +196,7 @@ export function CostTrendChart({ data, referenceCosts, currencySymbol = "$" }: C
                 `${currencySymbol}${(v / 1000).toFixed(v >= 1000 ? 0 : 1)}k`
               }
             />
-            <ChartTooltip content={<CustomTooltip />} />
+            <ChartTooltip content={<CustomTooltip currencySymbol={currencySymbol} />} />
             {referenceCosts.map((ref, i) => (
               <ReferenceLine
                 key={ref.label}

@@ -42,48 +42,52 @@ interface ScalingChartProps {
   currencySymbol?: string;
 }
 
-export function ScalingChart({ data, referenceCosts, modelName, categoryDisplayName, currencySymbol = "$" }: ScalingChartProps) {
-  function CustomTooltip({ active, payload, label }: {
-    active?: boolean;
-    payload?: Array<{
-      dataKey: string;
-      value: number;
-      payload: ScalingCurvePoint;
-    }>;
-    label?: string;
-  }) {
-    if (!active || !payload?.length) return null;
-    const point = payload[0].payload;
+interface ScalingTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    dataKey: string;
+    value: number;
+    payload: ScalingCurvePoint;
+  }>;
+  label?: string;
+  currencySymbol: string;
+}
 
-    return (
-      <div className="rounded-lg border bg-background p-3 shadow-sm">
-        <div className="space-y-1 text-sm">
-          <p className="font-medium">
-            {label} concurrent stream{Number(label) !== 1 ? "s" : ""}
-          </p>
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: "var(--chart-4)" }}
-            />
-            <span className="font-medium">
-              {currencySymbol}{point.monthlyCost.toLocaleString("en-US", { maximumFractionDigits: 0 })}/mo
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: "var(--chart-5)" }}
-            />
-            <span className="font-medium">
-              {point.gpuUtilisation}% utilisation
-            </span>
-          </div>
-          <p className="text-muted-foreground">{point.gpuSetup}</p>
+function CustomTooltip({ active, payload, label, currencySymbol }: ScalingTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+
+  return (
+    <div className="rounded-lg border bg-background p-3 shadow-sm">
+      <div className="space-y-1 text-sm">
+        <p className="font-medium">
+          {label} concurrent stream{Number(label) !== 1 ? "s" : ""}
+        </p>
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: "var(--chart-4)" }}
+          />
+          <span className="font-medium">
+            {currencySymbol}{point.monthlyCost.toLocaleString("en-US", { maximumFractionDigits: 0 })}/mo
+          </span>
         </div>
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: "var(--chart-5)" }}
+          />
+          <span className="font-medium">
+            {point.gpuUtilisation}% utilisation
+          </span>
+        </div>
+        <p className="text-muted-foreground">{point.gpuSetup}</p>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+export function ScalingChart({ data, referenceCosts, modelName, categoryDisplayName, currencySymbol = "$" }: ScalingChartProps) {
   if (data.length === 0) {
     return (
       <Card>
@@ -153,7 +157,7 @@ export function ScalingChart({ data, referenceCosts, modelName, categoryDisplayN
               domain={[0, 100]}
               tickFormatter={(v: number) => `${v}%`}
             />
-            <ChartTooltip content={<CustomTooltip />} />
+            <ChartTooltip content={<CustomTooltip currencySymbol={currencySymbol} />} />
             {visibleReferenceCosts.map((ref) => (
               <ReferenceLine
                 key={ref.label}

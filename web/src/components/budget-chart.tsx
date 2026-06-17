@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   ComposedChart,
   Bar,
@@ -78,18 +78,15 @@ export function BudgetChart({ data }: BudgetChartProps) {
   const visibleData = zoomed ? data : data.slice(0, ZOOMED_MODEL_COUNT);
   const nonFittingModels = visibleData.filter((d) => !d.fits);
 
-  const chartData = useMemo(() =>
-    visibleData.map((d) => {
-      let displayValue = 0;
-      if (d.fits && d.requestsPerHour !== null) {
-        displayValue = mode === "request"
-          ? d.requestsPerHour
-          : Math.floor(d.requestsPerHour / reqPerDevPerHour);
-      }
-      return { ...d, modelLabel: truncateModel(formatModelName(d.modelName)), displayValue };
-    }),
-    [visibleData, mode, reqPerDevPerHour],
-  );
+  const chartData = visibleData.map((d) => {
+    let displayValue = 0;
+    if (d.fits && d.requestsPerHour !== null) {
+      displayValue = mode === "request"
+        ? d.requestsPerHour
+        : Math.floor(d.requestsPerHour / reqPerDevPerHour);
+    }
+    return { ...d, modelLabel: truncateModel(formatModelName(d.modelName)), displayValue };
+  });
 
   if (chartData.length === 0) {
     return (
@@ -211,8 +208,9 @@ export function BudgetChart({ data }: BudgetChartProps) {
           <Legend content={<BudgetLegend mode={mode} />} />
 
           <Bar dataKey="displayValue" yAxisId="left" name="displayValue" barSize={28}>
-            {chartData.map((_, i) => (
-              <Cell key={i} fill="var(--chart-1)" />
+            {chartData.map((d, i) => (
+              // Unranked models render in a muted fill so the eye reads them as provisional.
+              <Cell key={i} fill={d.isUnranked ? "var(--muted-foreground)" : "var(--chart-1)"} />
             ))}
           </Bar>
 
@@ -224,6 +222,7 @@ export function BudgetChart({ data }: BudgetChartProps) {
             strokeWidth={2}
             dot={{ r: 3 }}
             name="percentOfSota"
+            connectNulls={false}
           />
         </ComposedChart>
       </ChartContainer>
@@ -279,8 +278,14 @@ function BudgetTooltip({ active, payload, mode, reqPerDevPerHour }: {
               )}
             </div>
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground pt-1 border-t">
-              <span>% of SOTA:</span>
-              <span className="font-medium text-foreground">{point.percentOfSota.toFixed(1)}%</span>
+              {point.isUnranked ? (
+                <span className="col-span-2">Unranked — no OpenHands Index result yet</span>
+              ) : (
+                <>
+                  <span>% of SOTA:</span>
+                  <span className="font-medium text-foreground">{point.percentOfSota?.toFixed(1)}%</span>
+                </>
+              )}
               <span>Streams:</span>
               <span className="font-medium text-foreground">{point.maxConcurrentStreams}</span>
               <span>Memory:</span>
@@ -307,6 +312,10 @@ function BudgetLegend({ mode }: { mode: "request" | "team" }) {
       <div className="flex items-center gap-1.5">
         <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "var(--chart-1)" }} />
         <span className="text-muted-foreground">{mode === "request" ? "Requests / h" : "Team size"}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "var(--muted-foreground)" }} />
+        <span className="text-muted-foreground">Unranked</span>
       </div>
       <div className="flex items-center gap-1.5">
         <div className="h-0.5 w-4 rounded" style={{ backgroundColor: "var(--chart-2)" }} />

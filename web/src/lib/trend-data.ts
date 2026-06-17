@@ -8,11 +8,8 @@ import type {
   GpuSetupOption,
 } from "@/types";
 import { findGpuSetups, findScaledGpuSetups } from "./matrix-calculator";
-import {
-  getModelMemory,
-  resolveModelPrecision,
-  WEIGHT_OVERHEAD_FACTOR,
-} from "./calculations";
+import { getModelMemory, resolveModelPrecision } from "./calculations";
+import { minVramForModel } from "./model-data";
 
 // ---------------------------------------------------------------------------
 // Model alias map — ported from pipeline/pipeline/snapshots/alias_map.py
@@ -530,17 +527,48 @@ export interface ModelSizeScorePoint {
 }
 
 /**
- * Latest-snapshot cross section of open-source models: min VRAM needed to
- * serve each model (including WEIGHT_OVERHEAD_FACTOR) paired with its score
- * on the selected benchmark category. Deduplicated to the highest score per
- * model. Skips models without a score, params, or computable memory.
+ * An open model whose size is known but which has no score in the selected
+ * category — **unranked** in the sense of the `partial-model-data` skill. It is
+ * plotted by VRAM only (no Y/score), so it carries no `score` or `params`.
+ */
+export interface UnrankedModelSizePoint {
+  modelName: string;
+  minVramGb: number;
+}
+
+/**
+ * Two-series cross section of open-source models for the Model Size chart:
+ * - `ranked`: models with a score in the selected category (size vs. score).
+ * - `unranked`: models that are sized but have no score in that category.
+ */
+export interface ModelSizeScoreData {
+  ranked: ModelSizeScorePoint[];
+  unranked: UnrankedModelSizePoint[];
+}
+
+/**
+ * Latest-snapshot cross section of open-source models for the Model Size chart.
+ *
+ * The chart is **sizing-first**: a model belongs on it as soon as we can size
+ * it, score or not (see `partial-model-data` skill). So we build two series:
+ *
+ * - `ranked` — min VRAM (incl. weight overhead) paired with the model's score
+ *   on the selected category, deduplicated to the highest score per model.
+ *   Skips models without a score, params, or computable memory.
+ * - `unranked` — open models with computable VRAM but **no score** in the
+ *   selected category. Iterates the MODEL list (not benchmarks), treating the
+ *   score as an optional left join: a missing score never drops the model and
+ *   is never coerced to a number. A model already in `ranked` (matched via
+ *   alias resolution) is never repeated here.
  */
 export function computeModelSizeScore(
   benchmarks: BenchmarkScore[],
   openSourceNames: Set<string>,
   models: Model[],
   category: string,
-): ModelSizeScorePoint[] {
+): ModelSizeScoreData {
+  // Ranked series — iterate benchmarks (ranking-first within this series),
+  // keeping the highest score per resolved open-source model name.
   const bestScores = new Map<string, number>();
   for (const b of benchmarks) {
     if (b.benchmark_name !== category || b.score === null) continue;
@@ -552,22 +580,34 @@ export function computeModelSizeScore(
     }
   }
 
-  const points: ModelSizeScorePoint[] = [];
+  const ranked: ModelSizeScorePoint[] = [];
   for (const [modelName, score] of bestScores) {
     const model = models.find((m) => m.model_name === modelName);
     if (!model) continue;
     if (model.learnable_params_b === null) continue;
-    const memGb = getModelMemory(model, resolveModelPrecision(model));
-    if (memGb === null) continue;
-    points.push({
+    const minVramGb = minVramForModel(model);
+    if (minVramGb === null) continue;
+    ranked.push({
       modelName,
       score,
-      minVramGb: Math.ceil(memGb * WEIGHT_OVERHEAD_FACTOR),
+      minVramGb,
       params: model.learnable_params_b,
     });
   }
 
-  return points;
+  // Unranked series — iterate the MODEL list; the score is an optional left
+  // join. Anything already ranked (incl. via alias) is skipped, as is anything
+  // closed-source or without computable sizing.
+  const unranked: UnrankedModelSizePoint[] = [];
+  for (const model of models) {
+    if (!openSourceNames.has(model.model_name)) continue;
+    if (bestScores.has(model.model_name)) continue;
+    const minVramGb = minVramForModel(model);
+    if (minVramGb === null) continue;
+    unranked.push({ modelName: model.model_name, minVramGb });
+  }
+
+  return { ranked, unranked };
 }
 
 // ---------------------------------------------------------------------------
