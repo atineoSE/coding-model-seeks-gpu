@@ -64,9 +64,7 @@ function SizeTooltip({ active, payload }: {
       <p className="text-sm font-medium mb-1.5">{formatModelName(point.modelName)}</p>
       <div className="space-y-1 text-sm">
         {isUnranked ? (
-          <p className="text-muted-foreground">
-            Unranked — no OpenHands Index result yet.
-          </p>
+          <p className="text-muted-foreground">Unranked</p>
         ) : (
           <div className="flex items-center gap-2">
             <span

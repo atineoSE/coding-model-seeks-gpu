@@ -304,7 +304,7 @@ function BudgetTooltip({ active, payload, mode, reqPerDevPerHour }: {
             </div>
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground pt-1 border-t">
               {point.isUnranked ? (
-                <span className="col-span-2">Unranked — no OpenHands Index result yet</span>
+                <span className="col-span-2">Unranked</span>
               ) : (
                 <>
                   <span>% of SOTA:</span>

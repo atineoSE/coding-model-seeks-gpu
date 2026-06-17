@@ -78,23 +78,9 @@ function SotaBarCell({
   isFirst: boolean;
   isLast: boolean;
 }) {
-  // Unranked rows have no score — render a muted dot with no gradient strip
-  // rather than coercing the missing score to a (red) 0%.
-  if (percentOfSota === null) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              className="relative z-10 w-2 h-2 rounded-full cursor-help shrink-0"
-              style={{ backgroundColor: "var(--muted-foreground)" }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>Unranked — no OpenHands Index result yet</TooltipContent>
-        </Tooltip>
-      </div>
-    );
-  }
+  // Unranked rows have no score — drop the SOTA bar entirely (the surrounding
+  // w-8 column keeps the spacing so rows still align with the ranked table).
+  if (percentOfSota === null) return null;
 
   const color = sotaColor(percentOfSota);
   // Midpoint colors at each row boundary — used as the shared meeting point so
@@ -246,7 +232,7 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
         {/* SOTA percentage + API cost — or an explicit gap for unranked models */}
         <div className="text-xs text-muted-foreground mt-0.5">
           {cell.isUnranked || cell.percentOfSota === null ? (
-            "Unranked — no OpenHands Index result yet"
+            "Unranked"
           ) : (
             <>
               {formatPercent(cell.percentOfSota)} of SOTA
@@ -506,13 +492,14 @@ function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax,
                 className={`rounded-lg border overflow-hidden ${cell.exceedsCapacity ? "bg-muted/20" : heatmap}`}
               >
                 <div className="flex">
-                  {/* SOTA gradient left strip — muted for unranked (no score) */}
+                  {/* SOTA gradient left strip — dropped for unranked (no score),
+                      but the 4px column is kept so cards still align. */}
                   <div
                     className="w-[4px] shrink-0"
                     style={{
                       backgroundColor:
                         cell0.percentOfSota === null
-                          ? "var(--muted-foreground)"
+                          ? "transparent"
                           : sotaColor(cell0.percentOfSota),
                     }}
                   />
