@@ -6,7 +6,7 @@
  * `pipeline/pipeline/sources/litellm_source.py`.
  */
 
-import type { BenchmarkScore } from "@/types";
+import type { BenchmarkScore, Model } from "@/types";
 
 // Prefix-based lab detection — mirrors LAB_PATTERNS in
 // pipeline/pipeline/sources/litellm_source.py. New models are picked up
@@ -49,6 +49,10 @@ export interface MatrixModel {
   lab: string | null; // null for open-weights models
   overallScore: number | null;
   scores: Record<string, number | null>; // benchmark_name → score
+  // True when the model has no usable benchmark score in the snapshot — a
+  // sized open-weights model that has not landed on the OpenHands Index yet
+  // (partial-model-data skill). Closed best-in-lab models are never unranked.
+  unranked: boolean;
 }
 
 /**
@@ -91,12 +95,19 @@ export function findBestModelsPerLab(
 /**
  * Build the list of models to display in the snapshot matrix.
  *
- * - All open-weights models
+ * - All open-weights models that appear in the snapshot (ranked)
+ * - Open-weights models from `models` (models.json) that have no snapshot
+ *   benchmark entry yet (unranked — sized, no OpenHands Index result)
  * - Best closed model per lab (Anthropic, OpenAI, Google)
  *
- * Sorted by overall score descending; models without overall go to the bottom.
+ * Sorted by overall score descending; models without a usable score (unranked)
+ * go to the bottom. Each model carries an `unranked` flag so the caller can
+ * group ranked vs unranked open-weights models separately.
  */
-export function getMatrixModels(benchmarks: BenchmarkScore[]): MatrixModel[] {
+export function getMatrixModels(
+  benchmarks: BenchmarkScore[],
+  models: Model[] = [],
+): MatrixModel[] {
   const bestPerLab = findBestModelsPerLab(benchmarks);
   const selectedClosedModels = new Set(Object.values(bestPerLab));
 
@@ -116,6 +127,13 @@ export function getMatrixModels(benchmarks: BenchmarkScore[]): MatrixModel[] {
     }
   }
 
+  // Add open-weights models from models.json. These are all self-hostable open
+  // models (closed models are never in models.json); any that have no snapshot
+  // benchmark entry surface here as unranked (their scores stay null).
+  for (const m of models) {
+    qualifiedModels.add(m.model_name);
+  }
+
   // Build MatrixModel for each qualified model
   const modelMap = new Map<string, MatrixModel>();
   for (const name of qualifiedModels) {
@@ -124,6 +142,7 @@ export function getMatrixModels(benchmarks: BenchmarkScore[]): MatrixModel[] {
       lab: modelToLab[name] ?? null,
       overallScore: null,
       scores: {},
+      unranked: false,
     });
   }
 
@@ -137,6 +156,15 @@ export function getMatrixModels(benchmarks: BenchmarkScore[]): MatrixModel[] {
     model.scores[entry.benchmark_name] = entry.score;
   }
 
+  // A model is unranked when it has no usable score anywhere in the snapshot —
+  // no `overall` and no non-null category score.
+  for (const model of modelMap.values()) {
+    const hasScore =
+      model.overallScore != null ||
+      Object.values(model.scores).some((v) => v != null);
+    model.unranked = !hasScore;
+  }
+
   const avgScore = (m: MatrixModel): number | null => {
     const vals = Object.entries(m.scores)
       .filter(([k]) => k !== "overall")
@@ -146,8 +174,8 @@ export function getMatrixModels(benchmarks: BenchmarkScore[]): MatrixModel[] {
   };
 
   // Sort by overall score if available, otherwise by average of available scores
-  const models = Array.from(modelMap.values());
-  models.sort((a, b) => {
+  const matrixModels = Array.from(modelMap.values());
+  matrixModels.sort((a, b) => {
     const scoreA = a.overallScore ?? avgScore(a);
     const scoreB = b.overallScore ?? avgScore(b);
     if (scoreA != null && scoreB != null) return scoreB - scoreA;
@@ -156,5 +184,5 @@ export function getMatrixModels(benchmarks: BenchmarkScore[]): MatrixModel[] {
     return a.modelName.localeCompare(b.modelName);
   });
 
-  return models;
+  return matrixModels;
 }

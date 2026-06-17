@@ -44,51 +44,39 @@ interface ModelSizeChartProps {
   categoryDisplayName: string;
 }
 
-function RankedTooltip({ active, payload }: {
+// A point plotted on the unranked baseline (score forced to 0 = on the x-axis).
+// `unranked` discriminates it from a ranked point in the shared tooltip; the
+// `score: 0` is a plotting position, never a real score.
+type UnrankedPlotPoint = UnrankedModelSizePoint & { score: number; unranked: true };
+
+function SizeTooltip({ active, payload }: {
   active?: boolean;
   payload?: Array<{
-    payload: ModelSizeScorePoint;
+    payload: ModelSizeScorePoint | UnrankedPlotPoint;
   }>;
 }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
+  const isUnranked = "unranked" in point && point.unranked;
 
   return (
     <div className="rounded-lg border bg-background p-3 shadow-sm">
       <p className="text-sm font-medium mb-1.5">{formatModelName(point.modelName)}</p>
       <div className="space-y-1 text-sm">
-        <div className="flex items-center gap-2">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: "var(--chart-2)" }}
-          />
-          <span className="text-muted-foreground">Score:</span>
-          <span className="font-medium">{point.score.toFixed(1)}</span>
-        </div>
-        <p className="text-muted-foreground text-xs">
-          min {point.minVramGb} GB VRAM
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function UnrankedTooltip({ active, payload }: {
-  active?: boolean;
-  payload?: Array<{
-    payload: UnrankedModelSizePoint;
-  }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0].payload;
-
-  return (
-    <div className="rounded-lg border bg-background p-3 shadow-sm">
-      <p className="text-sm font-medium mb-1.5">{formatModelName(point.modelName)}</p>
-      <div className="space-y-1 text-sm">
-        <p className="text-muted-foreground">
-          Unranked — no OpenHands Index result yet.
-        </p>
+        {isUnranked ? (
+          <p className="text-muted-foreground">
+            Unranked — no OpenHands Index result yet.
+          </p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: "var(--chart-2)" }}
+            />
+            <span className="text-muted-foreground">Score:</span>
+            <span className="font-medium">{point.score.toFixed(1)}</span>
+          </div>
+        )}
         <p className="text-muted-foreground text-xs">
           min {point.minVramGb} GB VRAM
         </p>
@@ -215,10 +203,11 @@ export function ModelSizeChart({ data, categoryDisplayName }: ModelSizeChartProp
     return computeLabelOffsets(positions);
   }, [unranked, xDomain]);
 
-  // The unranked series carries no score, so every point sits on a single
-  // baseline; `y` is a constant placeholder, never a faked score.
-  const unrankedBandData = useMemo(
-    () => unranked.map((p) => ({ ...p, y: 1 })),
+  // The unranked series carries no score, so every point is plotted on the
+  // x-axis baseline (`score: 0` is a position, never a faked score). The
+  // `unranked` flag lets the shared tooltip tell the two series apart.
+  const unrankedPlotData = useMemo<UnrankedPlotPoint[]>(
+    () => unranked.map((p) => ({ ...p, score: 0, unranked: true })),
     [unranked],
   );
 
@@ -242,8 +231,7 @@ export function ModelSizeChart({ data, categoryDisplayName }: ModelSizeChartProp
         <CardDescription>
           Minimum VRAM needed to serve each open-source model. Ranked models are
           placed by their score on {categoryDisplayName}; unranked models (size
-          known, no OpenHands Index result yet) sit in the strip below, by size
-          only.
+          known, no OpenHands Index result yet) sit on the x-axis, by size only.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -291,7 +279,7 @@ export function ModelSizeChart({ data, categoryDisplayName }: ModelSizeChartProp
             />
             <ChartTooltip
               cursor={{ strokeDasharray: "3 3" }}
-              content={<RankedTooltip />}
+              content={<SizeTooltip />}
             />
             <Scatter
               name="Ranked"
@@ -306,42 +294,12 @@ export function ModelSizeChart({ data, categoryDisplayName }: ModelSizeChartProp
                 ) as unknown as React.ReactElement}
               />
             </Scatter>
-          </ScatterChart>
-        </ChartContainer>
-
-        {unranked.length > 0 && (
-          <ChartContainer
-            config={chartConfig}
-            className="aspect-auto h-[90px] w-full"
-          >
-            <ScatterChart
-              margin={{ top: 24, right: 30, bottom: 5, left: 10 }}
-              accessibilityLayer
-            >
-              <XAxis
-                type="number"
-                dataKey="minVramGb"
-                name="Min VRAM"
-                domain={xDomain}
-                hide
-              />
-              {/* Width matches the ranked chart's YAxis so the two share an X scale. */}
-              <YAxis
-                type="number"
-                dataKey="y"
-                width={60}
-                domain={[0, 2]}
-                tick={false}
-                tickLine={false}
-                axisLine={false}
-              />
-              <ChartTooltip
-                cursor={{ strokeDasharray: "3 3" }}
-                content={<UnrankedTooltip />}
-              />
+            {/* Unranked models plotted directly on the x-axis (score baseline),
+                by size only — muted so the eye reads them as provisional. */}
+            {unranked.length > 0 && (
               <Scatter
                 name="Unranked"
-                data={unrankedBandData}
+                data={unrankedPlotData}
                 fill="var(--muted-foreground)"
                 fillOpacity={0.6}
               >
@@ -353,16 +311,16 @@ export function ModelSizeChart({ data, categoryDisplayName }: ModelSizeChartProp
                   ) as unknown as React.ReactElement}
                 />
               </Scatter>
-            </ScatterChart>
-          </ChartContainer>
-        )}
+            )}
+          </ScatterChart>
+        </ChartContainer>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           <LegendItem color="var(--chart-2)" label="Ranked — size vs. score" />
           {unranked.length > 0 && (
             <LegendItem
               color="var(--muted-foreground)"
-              label="Unranked — size known, score pending"
+              label="Unranked — on the x-axis, size only"
             />
           )}
         </div>

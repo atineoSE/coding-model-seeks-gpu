@@ -142,7 +142,10 @@ export default function Home() {
               </span>
             </h1>
             <div className="flex items-center gap-2 shrink-0">
-              <SnapshotMatrixDialog benchmarks={data?.benchmarks ?? []} />
+              <SnapshotMatrixDialog
+                benchmarks={data?.benchmarks ?? []}
+                models={data?.models ?? []}
+              />
               <AdvancedSettingsDialog
                 settings={settings}
                 onSettingsChange={setSettings}
