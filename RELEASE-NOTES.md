@@ -1,5 +1,23 @@
 # Release Notes
 
+## 0.8.0 — 2026-06-17
+
+- **Unranked models.** Models whose architecture and sizing are known but that
+  don't yet have an OpenHands Index benchmark score are now first-class: they're
+  sized, fit to GPUs, and surfaced across the capacity, size, and coverage views
+  rather than dropped for lacking a rank. The Performance persona gets a
+  dedicated **Unranked Models** section (a toggle, reusing the Top Models matrix
+  UI) that omits the SOTA bar since there's no score to compare against. Adds
+  **GLM-5.2**, **GLM-5.2-FP8**, and **MiniMax-M3-MXFP8** as unranked entries.
+- **MXFP8 sizing fix.** `resolveModelPrecision` had no case for `"MXFP8"`, so it
+  hit the conservative fp16 fallback (2 bytes/param). MiniMax-M3-MXFP8 (~426B)
+  was sized at ~853 GB → 13 H100s and reported as not fitting 8×H100,
+  contradicting the vLLM recipe page. MXFP8 is an 8-bit format (~1.03 effective
+  bytes/param); it now maps to the fp8 bucket and sizes at ~426 GB → 7 H100s,
+  which fits. Since this is the single sizing chokepoint, the fix propagates to
+  every view. Added a regression test.
+- **Default avg input tokens 40k → 50k.**
+
 ## 0.7.0 — 2026-06-17
 
 - **MiniMax-M3 support.** M3 ships as a vision-language model (`model_type`
