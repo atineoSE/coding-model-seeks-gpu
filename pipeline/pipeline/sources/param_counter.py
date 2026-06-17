@@ -1087,6 +1087,14 @@ def detect_precision(raw_config: dict) -> PrecisionInfo:
             return PrecisionInfo(bytes_per_param=0.5625, dtype_str="FP4", is_mixed=True)
         return PrecisionInfo(bytes_per_param=1.0, dtype_str="FP8")
 
+    if method == "mxfp8":
+        # Microscaling FP8 (e.g. MiniMax-M3-MXFP8): 8-bit weights with a shared
+        # E8M0 block scale every 32 values (weight_block_size [1, 32]).  Unlike
+        # plain FP8's large [128, 128] blocks (negligible scale overhead), the
+        # 32-wide micro-blocks add a real 1 byte / 32 vals = 0.03125, so the
+        # effective width is 1 + 1/32 = 1.03125 bytes/param.
+        return PrecisionInfo(bytes_per_param=1.03125, dtype_str="MXFP8")
+
     if method == "compressed-tensors":
         groups = quant_config.get("config_groups", {})
         for group in groups.values():

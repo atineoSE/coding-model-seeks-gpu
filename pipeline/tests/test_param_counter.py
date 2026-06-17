@@ -562,6 +562,21 @@ class TestPrecision:
         assert info.dtype_str == "FP8"
         assert info.bytes_per_param == 1.0
 
+    def test_mxfp8(self):
+        # MiniMax-M3-MXFP8: microscaling FP8 (8-bit weights + E8M0 scale every
+        # 32 vals → 1 + 1/32 = 1.03125 effective bytes/param).
+        config = {
+            "quantization_config": {
+                "quant_method": "mxfp8",
+                "activation_scheme": "dynamic",
+                "weight_block_size": [1, 32],
+            }
+        }
+        info = detect_precision(config)
+        assert info.dtype_str == "MXFP8"
+        assert info.bytes_per_param == 1.03125
+        assert not info.is_mixed
+
     def test_modelopt_mixed_fp8_fp4(self):
         # Nemotron-3-Super: FP8 for Mamba/attention, FP4 for routed experts
         config = {
