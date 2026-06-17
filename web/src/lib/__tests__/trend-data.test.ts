@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { BenchmarkScore, SotaScore, Model, GpuOffering, AdvancedSettings } from "@/types";
+import type { BenchmarkScore, Model, GpuOffering, AdvancedSettings } from "@/types";
 import {
   resolveModelName,
   isOpenSourceModel,
@@ -500,13 +500,15 @@ describe("computeModelSizeScore", () => {
       "overall",
     );
 
-    expect(result).toHaveLength(1);
-    expect(result[0].modelName).toBe("OpenLarge");
-    expect(result[0].score).toBe(45);
-    expect(result[0].params).toBe(100);
+    expect(result.ranked).toHaveLength(1);
+    expect(result.ranked[0].modelName).toBe("OpenLarge");
+    expect(result.ranked[0].score).toBe(45);
+    expect(result.ranked[0].params).toBe(100);
     // 100 * 2 = 200 GB raw; 200 * 1.15 = 230 GB
     const expected = Math.ceil(100 * 2 * WEIGHT_OVERHEAD_FACTOR);
-    expect(result[0].minVramGb).toBe(expected);
+    expect(result.ranked[0].minVramGb).toBe(expected);
+    // ClosedX is closed-source: never in the unranked band either.
+    expect(result.unranked).toHaveLength(0);
   });
 
   it("drops models with missing params, missing scores, or no model entry", () => {
@@ -538,9 +540,11 @@ describe("computeModelSizeScore", () => {
       "overall",
     );
 
-    // Only "Fine" survives
-    expect(result).toHaveLength(1);
-    expect(result[0].modelName).toBe("Fine");
+    // Only "Fine" survives as ranked. "NoParams" has a score but no sizing
+    // (unsized, not unranked) so it appears in neither series.
+    expect(result.ranked).toHaveLength(1);
+    expect(result.ranked[0].modelName).toBe("Fine");
+    expect(result.unranked).toHaveLength(0);
   });
 
   it("picks the highest score per model when duplicates exist", () => {
@@ -560,8 +564,8 @@ describe("computeModelSizeScore", () => {
       [model],
       "overall",
     );
-    expect(result).toHaveLength(1);
-    expect(result[0].score).toBe(55);
+    expect(result.ranked).toHaveLength(1);
+    expect(result.ranked[0].score).toBe(55);
   });
 
   it("resolves aliases before matching against open-source names", () => {
@@ -578,9 +582,11 @@ describe("computeModelSizeScore", () => {
       [model],
       "overall",
     );
-    expect(result).toHaveLength(1);
-    expect(result[0].modelName).toBe("MiniMax-M2.5");
-    expect(result[0].score).toBe(44);
+    expect(result.ranked).toHaveLength(1);
+    expect(result.ranked[0].modelName).toBe("MiniMax-M2.5");
+    expect(result.ranked[0].score).toBe(44);
+    // Matched via alias → ranked, so it must NOT also show as unranked.
+    expect(result.unranked).toHaveLength(0);
   });
 
   it("skips benchmarks in other categories", () => {
@@ -599,7 +605,73 @@ describe("computeModelSizeScore", () => {
       [model],
       "overall",
     );
-    expect(result).toHaveLength(1);
-    expect(result[0].score).toBe(30);
+    expect(result.ranked).toHaveLength(1);
+    expect(result.ranked[0].score).toBe(30);
+  });
+
+  it("returns sized-but-unscored open models in the unranked band", () => {
+    const ranked = makeModel({
+      model_name: "Ranked",
+      learnable_params_b: 30,
+      precision: "BF16",
+    });
+    // Sized, but absent from the benchmark list entirely → unranked.
+    const fresh = makeModel({
+      model_name: "FreshDrop",
+      learnable_params_b: 70,
+      precision: "BF16",
+    });
+    const benchmarks = [makeBenchmark("Ranked", 50)];
+    const result = computeModelSizeScore(
+      benchmarks,
+      new Set(["Ranked", "FreshDrop"]),
+      [ranked, fresh],
+      "overall",
+    );
+
+    expect(result.ranked).toHaveLength(1);
+    expect(result.ranked[0].modelName).toBe("Ranked");
+
+    expect(result.unranked).toHaveLength(1);
+    expect(result.unranked[0].modelName).toBe("FreshDrop");
+    expect(result.unranked[0].minVramGb).toBe(
+      Math.ceil(70 * 2 * WEIGHT_OVERHEAD_FACTOR),
+    );
+    // No score is faked onto an unranked entry.
+    expect(result.unranked[0]).not.toHaveProperty("score");
+  });
+
+  it("treats a model scored only in another category as unranked here", () => {
+    // Scored on `frontend` but asked about `overall`: unranked for `overall`.
+    const model = makeModel({
+      model_name: "FrontendOnly",
+      learnable_params_b: 10,
+      precision: "BF16",
+    });
+    const benchmarks = [makeBenchmark("FrontendOnly", 80, "frontend")];
+    const result = computeModelSizeScore(
+      benchmarks,
+      new Set(["FrontendOnly"]),
+      [model],
+      "overall",
+    );
+    expect(result.ranked).toHaveLength(0);
+    expect(result.unranked).toHaveLength(1);
+    expect(result.unranked[0].modelName).toBe("FrontendOnly");
+  });
+
+  it("omits unscored models whose size is unknown", () => {
+    const model = makeModel({
+      model_name: "NoSize",
+      learnable_params_b: null,
+    });
+    const result = computeModelSizeScore(
+      [],
+      new Set(["NoSize"]),
+      [model],
+      "overall",
+    );
+    expect(result.ranked).toHaveLength(0);
+    expect(result.unranked).toHaveLength(0);
   });
 });

@@ -72,12 +72,16 @@ function SotaBarCell({
   isFirst,
   isLast,
 }: {
-  percentOfSota: number;
+  percentOfSota: number | null;
   prevPercentOfSota: number | null;
   nextPercentOfSota: number | null;
   isFirst: boolean;
   isLast: boolean;
 }) {
+  // Unranked rows have no score — drop the SOTA bar entirely (the surrounding
+  // w-8 column keeps the spacing so rows still align with the ranked table).
+  if (percentOfSota === null) return null;
+
   const color = sotaColor(percentOfSota);
   // Midpoint colors at each row boundary — used as the shared meeting point so
   // the bottom of row N and the top of row N+1 start/end at the exact same color.
@@ -174,12 +178,16 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
 
   return (
     <div className="flex items-start gap-2">
-      <Badge
-        variant="outline"
-        className={`shrink-0 text-xs font-bold ${RANK_COLORS[rowIdx] ?? ""}`}
-      >
-        #{rowIdx + 1}
-      </Badge>
+      {/* Rank medal only for ranked rows — unranked rows are ordered by size,
+          not quality, so a #N medal would be misleading. */}
+      {!cell.isUnranked && (
+        <Badge
+          variant="outline"
+          className={`shrink-0 text-xs font-bold ${RANK_COLORS[rowIdx] ?? ""}`}
+        >
+          #{rowIdx + 1}
+        </Badge>
+      )}
       <div className="min-w-0">
         {/* Model name — HF link, fallback URL, or plain text */}
         <div className="font-semibold text-sm truncate">
@@ -221,11 +229,17 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
           )}
         </div>
 
-        {/* SOTA percentage + API cost */}
+        {/* SOTA percentage + API cost — or an explicit gap for unranked models */}
         <div className="text-xs text-muted-foreground mt-0.5">
-          {formatPercent(cell.percentOfSota)} of SOTA
-          {cell.totalBenchmarkCost !== null && (
-            <> · {formatCurrency(cell.totalBenchmarkCost)} in API costs</>
+          {cell.isUnranked || cell.percentOfSota === null ? (
+            "Unranked"
+          ) : (
+            <>
+              {formatPercent(cell.percentOfSota)} of SOTA
+              {cell.totalBenchmarkCost !== null && (
+                <> · {formatCurrency(cell.totalBenchmarkCost)} in API costs</>
+              )}
+            </>
           )}
         </div>
 
@@ -478,10 +492,16 @@ function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax,
                 className={`rounded-lg border overflow-hidden ${cell.exceedsCapacity ? "bg-muted/20" : heatmap}`}
               >
                 <div className="flex">
-                  {/* SOTA gradient left strip */}
+                  {/* SOTA gradient left strip — dropped for unranked (no score),
+                      but the 4px column is kept so cards still align. */}
                   <div
                     className="w-[4px] shrink-0"
-                    style={{ backgroundColor: sotaColor(cell0.percentOfSota) }}
+                    style={{
+                      backgroundColor:
+                        cell0.percentOfSota === null
+                          ? "transparent"
+                          : sotaColor(cell0.percentOfSota),
+                    }}
                   />
                   <div className="flex-1 p-3">
                     <ModelInfo cell={cell0} rowIdx={rowIdx} />

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Grid2X2Check } from "lucide-react";
-import type { BenchmarkScore } from "@/types";
+import type { BenchmarkScore, Model } from "@/types";
 import {
   getMatrixModels,
   BENCHMARK_CATEGORIES,
@@ -22,9 +22,37 @@ import {
 
 interface SnapshotMatrixDialogProps {
   benchmarks: BenchmarkScore[];
+  models: Model[];
 }
 
 type MatrixModel = ReturnType<typeof getMatrixModels>[number];
+
+function MatrixSection({
+  title,
+  models,
+  colSpan,
+}: {
+  title: string;
+  models: MatrixModel[];
+  colSpan: number;
+}) {
+  if (models.length === 0) return null;
+  return (
+    <tbody>
+      <tr>
+        <td
+          colSpan={colSpan}
+          className="pt-5 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
+          {title}
+        </td>
+      </tr>
+      {models.map((model) => (
+        <ModelRow key={model.modelName} model={model} />
+      ))}
+    </tbody>
+  );
+}
 
 function ModelRow({ model }: { model: MatrixModel }) {
   return (
@@ -57,11 +85,12 @@ function ModelRow({ model }: { model: MatrixModel }) {
   );
 }
 
-export function SnapshotMatrixDialog({ benchmarks }: SnapshotMatrixDialogProps) {
+export function SnapshotMatrixDialog({ benchmarks, models }: SnapshotMatrixDialogProps) {
   const [open, setOpen] = useState(false);
-  const allModels = open ? getMatrixModels(benchmarks) : [];
+  const allModels = open ? getMatrixModels(benchmarks, models) : [];
   const closedModels = allModels.filter((m) => m.lab !== null);
-  const openModels = allModels.filter((m) => m.lab === null);
+  const rankedOpenModels = allModels.filter((m) => m.lab === null && !m.unranked);
+  const unrankedOpenModels = allModels.filter((m) => m.lab === null && m.unranked);
   const colSpan = BENCHMARK_CATEGORIES.length + 1;
 
   return (
@@ -75,7 +104,8 @@ export function SnapshotMatrixDialog({ benchmarks }: SnapshotMatrixDialogProps) 
         <DialogHeader>
           <DialogTitle>Snapshot Coverage Matrix</DialogTitle>
           <DialogDescription>
-            Benchmark scores for each model in the latest snapshot. Gaps indicate missing data.
+            Benchmark scores for each model in the latest snapshot. Gaps indicate missing data;
+            unranked open-weights models are sized but have no OpenHands Index result yet.
           </DialogDescription>
         </DialogHeader>
         <div className="overflow-auto flex-1 -mx-6 px-6">
@@ -106,32 +136,21 @@ export function SnapshotMatrixDialog({ benchmarks }: SnapshotMatrixDialogProps) 
               </tbody>
             ) : (
               <>
-                <tbody>
-                  <tr>
-                    <td
-                      colSpan={colSpan}
-                      className="pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      Leading Closed API Models
-                    </td>
-                  </tr>
-                  {closedModels.map((model) => (
-                    <ModelRow key={model.modelName} model={model} />
-                  ))}
-                </tbody>
-                <tbody>
-                  <tr>
-                    <td
-                      colSpan={colSpan}
-                      className="pt-6 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      Open Weights Models
-                    </td>
-                  </tr>
-                  {openModels.map((model) => (
-                    <ModelRow key={model.modelName} model={model} />
-                  ))}
-                </tbody>
+                <MatrixSection
+                  title="Leading Closed API Models"
+                  models={closedModels}
+                  colSpan={colSpan}
+                />
+                <MatrixSection
+                  title="Ranked Open Weights Models"
+                  models={rankedOpenModels}
+                  colSpan={colSpan}
+                />
+                <MatrixSection
+                  title="Unranked Open Weights Models"
+                  models={unrankedOpenModels}
+                  colSpan={colSpan}
+                />
               </>
             )}
           </table>

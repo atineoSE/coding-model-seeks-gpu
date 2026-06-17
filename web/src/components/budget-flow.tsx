@@ -82,10 +82,14 @@ export function BudgetFlow({
   const fittingModels = useMemo(
     () =>
       chartData
-        .filter((d) => d.fits)
+        // Unranked models have no benchmark score, so there is no cost-vs-API
+        // comparison to make — exclude them from the API-vs-Self-Hosting chart.
+        // Serving Capacity (BudgetChart) still shows them.
+        .filter((d) => d.fits && !d.isUnranked)
         .map((d) => {
           const model = models.find((m) => m.model_name === d.modelName);
-          return model ? { model, sotaPercent: d.percentOfSota } : null;
+          if (!model || d.percentOfSota === null) return null;
+          return { model, sotaPercent: d.percentOfSota };
         })
         .filter((x): x is { model: Model; sotaPercent: number } => x !== null),
     [chartData, models],

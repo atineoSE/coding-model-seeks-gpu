@@ -3,8 +3,11 @@ import type { Model, GpuOffering, BenchmarkScore, SotaScore } from "@/types";
 import {
   calculatePerformanceMatrix,
   calculateBudgetMatrix,
+  calculateBudgetChartData,
+  calculateUnrankedMatrix,
+  DEFAULT_ADVANCED_SETTINGS,
 } from "../matrix-calculator";
-import { WEIGHT_OVERHEAD_FACTOR, gpusNeeded, getModelMemory, resolveModelPrecision } from "../calculations";
+import { WEIGHT_OVERHEAD_FACTOR, gpusNeeded, getModelMemory } from "../calculations";
 import { CONCURRENCY_TIERS } from "../concurrency-tiers";
 
 // ---------------------------------------------------------------------------
@@ -330,6 +333,119 @@ describe("performance persona scaled fallback", () => {
 });
 
 // ---------------------------------------------------------------------------
+// calculateBudgetChartData — sizing-first, includes unranked models
+// ---------------------------------------------------------------------------
+
+describe("calculateBudgetChartData (unranked models)", () => {
+  // A small, sized model with NO benchmark entry → unranked. 14B dense BF16:
+  // 28 GB weights × 1.15 ≈ 33 GB → fits a single H100.
+  const SMALL_UNRANKED: Model = {
+    model_name: "Tiny-14B",
+    learnable_params_b: 14,
+    active_params_b: null,
+    architecture: "Dense",
+    context_length: 131072,
+    precision: "BF16",
+    routed_expert_params_b: null,
+    attention_type: "GQA",
+    num_hidden_layers: 40,
+    num_kv_layers: null,
+    num_kv_heads: 8,
+    head_dim: 128,
+    kv_lora_rank: null,
+    qk_rope_head_dim: null,
+    hf_model_id: null,
+    model_url: null,
+  };
+
+  const gpuConfig = {
+    label: "12×H100",
+    gpuName: "H100",
+    gpuCount: 12,
+    vramPerGpu: 80,
+    totalVramGb: 960,
+    interconnect: "nvlink" as const,
+  };
+  // GLM (72.3) and MiniMax (65.0) are ranked; Tiny-14B has no benchmark.
+  const allModels = [GLM_47, MINIMAX_M25, SMALL_UNRANKED];
+  const benchmarks = [BENCHMARK_GLM, BENCHMARK_MINIMAX];
+  const sotaScores = [SOTA];
+
+  function build() {
+    return calculateBudgetChartData(
+      gpuConfig,
+      allModels,
+      benchmarks,
+      sotaScores,
+      "swe_bench_verified",
+      0.9,
+      DEFAULT_ADVANCED_SETTINGS,
+    );
+  }
+
+  it("includes a fitting model that has no benchmark and flags it unranked", () => {
+    const data = build();
+    const tiny = data.find((d) => d.modelName === "Tiny-14B");
+    expect(tiny).toBeDefined();
+    expect(tiny!.isUnranked).toBe(true);
+    expect(tiny!.fits).toBe(true);
+  });
+
+  it("never emits a 0 score for an unranked model (null, not 0)", () => {
+    const data = build();
+    const tiny = data.find((d) => d.modelName === "Tiny-14B")!;
+    expect(tiny.benchmarkScore).toBeNull();
+    expect(tiny.percentOfSota).toBeNull();
+    // Explicitly: the missing score must not be coerced to 0.
+    expect(tiny.benchmarkScore).not.toBe(0);
+    expect(tiny.percentOfSota).not.toBe(0);
+  });
+
+  it("orders unranked models after ranked ones", () => {
+    const data = build();
+    const tinyIdx = data.findIndex((d) => d.modelName === "Tiny-14B");
+    const glmIdx = data.findIndex((d) => d.modelName === "GLM-4.7");
+    const miniIdx = data.findIndex((d) => d.modelName === "MiniMax-M2.5");
+    expect(glmIdx).toBeGreaterThanOrEqual(0);
+    expect(miniIdx).toBeGreaterThanOrEqual(0);
+    expect(tinyIdx).toBeGreaterThan(glmIdx);
+    expect(tinyIdx).toBeGreaterThan(miniIdx);
+    // Ranked models keep score-descending order (GLM 72.3 > MiniMax 65.0).
+    expect(glmIdx).toBeLessThan(miniIdx);
+  });
+
+  it("keeps the ≥50%-of-SOTA filter for ranked models but not unranked", () => {
+    // A ranked model well below 50% of SOTA (80) should be dropped...
+    const lowRanked: BenchmarkScore = {
+      ...BENCHMARK_MINIMAX,
+      model_name: "MiniMax-M2.5",
+      score: 20.0, // 25% of SOTA → excluded
+    };
+    const data = calculateBudgetChartData(
+      gpuConfig,
+      allModels,
+      [BENCHMARK_GLM, lowRanked],
+      sotaScores,
+      "swe_bench_verified",
+      0.9,
+      DEFAULT_ADVANCED_SETTINGS,
+    );
+    expect(data.some((d) => d.modelName === "MiniMax-M2.5")).toBe(false);
+    // ...while the unranked model is still surfaced.
+    expect(data.some((d) => d.modelName === "Tiny-14B")).toBe(true);
+  });
+
+  it("computes a real % of SOTA for ranked models", () => {
+    const data = build();
+    const glm = data.find((d) => d.modelName === "GLM-4.7")!;
+    expect(glm.isUnranked).toBe(false);
+    expect(glm.benchmarkScore).toBe(72.3);
+    // 72.3 / 80 = 90.375%
+    expect(glm.percentOfSota).toBeCloseTo(90.375, 3);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Per-stream throughput with pipeline parallelism
 // ---------------------------------------------------------------------------
 
@@ -357,5 +473,55 @@ describe("per-stream throughput with PP > 1", () => {
     for (let i = 1; i < throughputs.length; i++) {
       expect(throughputs[i]).toBeGreaterThanOrEqual(throughputs[i - 1]);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calculateUnrankedMatrix
+// ---------------------------------------------------------------------------
+
+describe("calculateUnrankedMatrix", () => {
+  // No benchmark scores in the "frontend" category → both models are unranked there.
+  const models = [GLM_47, MINIMAX_M25];
+  const gpus = [H100_OFFERING];
+
+  it("returns one matrix row per sized, unranked model, one cell per tier", () => {
+    const rows = calculateUnrankedMatrix(gpus, models, [], "frontend");
+    expect(rows.map((row) => row[0].model.model_name).sort()).toEqual([
+      "GLM-4.7",
+      "MiniMax-M2.5",
+    ]);
+    for (const row of rows) {
+      expect(row).toHaveLength(CONCURRENCY_TIERS.length);
+    }
+  });
+
+  it("marks cells unranked with no score fields (never faked)", () => {
+    const rows = calculateUnrankedMatrix(gpus, models, [], "frontend");
+    for (const row of rows) {
+      for (const cell of row) {
+        expect(cell.isUnranked).toBe(true);
+        expect(cell.benchmark).toBeNull();
+        expect(cell.percentOfSota).toBeNull();
+        expect(cell.sotaScore).toBeNull();
+        expect(cell.totalBenchmarkCost).toBeNull();
+      }
+    }
+  });
+
+  it("excludes models that are ranked in the category", () => {
+    const benchmarks: BenchmarkScore[] = [
+      { ...BENCHMARK_GLM, benchmark_name: "frontend" },
+    ];
+    const rows = calculateUnrankedMatrix(gpus, models, benchmarks, "frontend");
+    // GLM-4.7 now has a frontend score → only MiniMax-M2.5 remains unranked.
+    expect(rows.map((row) => row[0].model.model_name)).toEqual(["MiniMax-M2.5"]);
+  });
+
+  it("sorts by minimum VRAM descending (biggest first)", () => {
+    const rows = calculateUnrankedMatrix(gpus, models, [], "frontend");
+    // GLM-4.7 (352.8b @ BF16) needs more VRAM than MiniMax-M2.5 (228.7b @ FP8).
+    expect(rows[0][0].model.model_name).toBe("GLM-4.7");
+    expect(rows[1][0].model.model_name).toBe("MiniMax-M2.5");
   });
 });

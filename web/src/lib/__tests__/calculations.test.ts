@@ -274,6 +274,13 @@ describe("resolveModelPrecision", () => {
     expect(resolveModelPrecision(QWEN3_CODER)).toBe("bf16");
   });
 
+  it("resolves MXFP8 to fp8 (8-bit format, 1 byte/param)", () => {
+    // MiniMax-M3-MXFP8: 426.3B at MXFP8 must size as 8-bit (~426 GB), not
+    // fall back to fp16 (~853 GB) which would wrongly need 13 H100s vs 7.
+    const m = { ...DEEPSEEK_V32, precision: "MXFP8" };
+    expect(resolveModelPrecision(m)).toBe("fp8");
+  });
+
   it("resolves INT4 to int4", () => {
     expect(resolveModelPrecision(KIMI_K2)).toBe("int4");
   });

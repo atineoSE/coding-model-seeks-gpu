@@ -28,6 +28,9 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "GLM-4.7": "zai-org/GLM-4.7",
     "GLM-5": "zai-org/GLM-5.1",
     "GLM-5.1": "zai-org/GLM-5",
+    "GLM-5.2": "zai-org/GLM-5.2",
+    "GLM-5.2-FP8": "zai-org/GLM-5.2-FP8",
+    "MiniMax-M3-MXFP8": "MiniMaxAI/MiniMax-M3-MXFP8",
     "Kimi-K2.5": "moonshotai/Kimi-K2.5",
     "Kimi-K2.6": "moonshotai/Kimi-K2.6",
     "Kimi-K2-Thinking": "moonshotai/Kimi-K2-Thinking",
@@ -79,6 +82,14 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
         "MIT",
         "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
     ),
+    "GLM-5.2": (
+        "MIT",
+        "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
+    ),
+    "GLM-5.2-FP8": (
+        "MIT",
+        "https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/mit.md",
+    ),
     "Kimi-K2.5": (
         "Modified MIT",
         "https://huggingface.co/moonshotai/Kimi-K2.5/blob/main/LICENSE",
@@ -106,6 +117,10 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
     "MiniMax-M3": (
         "MiniMax Community License",
         "https://huggingface.co/MiniMaxAI/MiniMax-M3/blob/main/LICENSE",
+    ),
+    "MiniMax-M3-MXFP8": (
+        "MiniMax Community License",
+        "https://huggingface.co/MiniMaxAI/MiniMax-M3-MXFP8/blob/main/LICENSE",
     ),
     "Qwen3-Coder-480B": (
         "Apache 2.0",

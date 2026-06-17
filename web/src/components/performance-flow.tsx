@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { GpuOffering, Model, BenchmarkScore, SotaScore, AdvancedSettings } from "@/types";
-import { calculatePerformanceMatrix } from "@/lib/matrix-calculator";
+import { calculatePerformanceMatrix, calculateUnrankedMatrix } from "@/lib/matrix-calculator";
 import { computeTotalBenchmarkCost } from "@/lib/benchmark-costs";
 import { RecommendationMatrix } from "@/components/recommendation-matrix";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -37,6 +37,11 @@ export function PerformanceFlow({
         settings,
       ),
     [gpus, models, benchmarks, sotaScores, benchmarkCategory, settings],
+  );
+
+  const unrankedMatrix = useMemo(
+    () => calculateUnrankedMatrix(gpus, models, benchmarks, benchmarkCategory, settings),
+    [gpus, models, benchmarks, benchmarkCategory, settings],
   );
 
   const sota = sotaScores.find((s) => s.benchmark_name === benchmarkCategory) ?? null;
@@ -76,6 +81,26 @@ export function PerformanceFlow({
           />
         </CardContent>
       </Card>
+
+      {unrankedMatrix.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Unranked Models</CardTitle>
+            <CardDescription>
+              Open models with known size but no OpenHands Index result yet, so they can&apos;t
+              be ranked above. Listed biggest first by VRAM, with the cheapest GPU setup per
+              concurrency level and links to their license and HuggingFace page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RecommendationMatrix
+              rows={unrankedMatrix}
+              persona="performance"
+              currencySymbol={currencySymbol}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

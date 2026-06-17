@@ -20,6 +20,7 @@ import {
   WEIGHT_OVERHEAD_FACTOR,
 } from "./calculations";
 import { computeTotalBenchmarkCost } from "./benchmark-costs";
+import { scoreFor, minVramForModel, isUnranked } from "./model-data";
 
 
 const HOURS_PER_MONTH = 720;
@@ -34,7 +35,7 @@ const HOURS_PER_MONTH = 720;
 export const DEFAULT_MEMORY_UTILIZATION = 0.90;
 
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
-  avgInputTokens: 40_000,
+  avgInputTokens: 50_000,
   avgOutputTokens: 1000,
   minTokPerStream: 20,
 };
@@ -308,6 +309,7 @@ export function calculatePerformanceMatrix(
         utilization: cheapest
           ? Math.min(tier.midpoint / cheapest.maxConcurrentStreams, 1.0)
           : null,
+        isUnranked: false,
       };
     });
   });
@@ -429,6 +431,7 @@ export function calculateBudgetMatrix(
         utilization: stats.maxConcurrentStreams > 0
           ? Math.min(tier.midpoint / stats.maxConcurrentStreams, 1.0)
           : null,
+        isUnranked: false,
       };
     });
   });
@@ -442,12 +445,15 @@ export interface BudgetChartDataPoint {
   modelName: string;
   maxConcurrentStreams: number;
   requestsPerHour: number | null;
-  percentOfSota: number;
+  // null for unranked models — never coerce a missing score to a number.
+  percentOfSota: number | null;
   modelMemoryGb: number;
   fits: boolean;
   doesntFitReason: string | null;
   decodeThroughputTokS: number | null;
   benchmarkScore: number | null;
+  // Sized but with no OpenHands Index score yet (partial-model-data skill).
+  isUnranked: boolean;
 }
 
 export function calculateBudgetChartData(
@@ -459,29 +465,44 @@ export function calculateBudgetChartData(
   memoryUtilization: number,
   settings: AdvancedSettings,
 ): BudgetChartDataPoint[] {
-  // Filter benchmarks for the selected category
-  const categoryBenchmarks = benchmarks.filter(
-    (b) => b.benchmark_name === benchmarkCategory,
-  );
-
-  // Match benchmarks to models and sort by score descending
-  const modelScores: { model: Model; benchmark: BenchmarkScore }[] = [];
-  for (const b of categoryBenchmarks) {
-    if (b.score === null) continue;
-    const model = allModels.find((m) => m.model_name === b.model_name);
-    if (!model) continue;
-    modelScores.push({ model, benchmark: b });
-  }
-  modelScores.sort((a, b) => (b.benchmark.score ?? 0) - (a.benchmark.score ?? 0));
-
-  // Pre-compute SOTA percentages and filter to models with at least 50% of SOTA
   const sota = sotaScores.find((s) => s.benchmark_name === benchmarkCategory) ?? null;
-  const filteredModelScores = modelScores.filter(({ benchmark: b }) => {
-    if (!sota || b.score === null || sota.sota_score <= 0) return false;
-    return (b.score / sota.sota_score) * 100 >= 50;
+
+  // Budget is a sizing-first persona: iterate the MODEL list and treat the
+  // benchmark score as an optional left join (partial-model-data skill). Ranked
+  // models must clear a ≥50%-of-SOTA quality bar; unranked models (sized, no
+  // score) are always included. Unsized models can't be placed here at all.
+  const entries: { model: Model; benchmark: BenchmarkScore | null }[] = [];
+  for (const model of allModels) {
+    // Skip models we can't size — Budget excludes unsized models by design.
+    if (minVramForModel(model) === null) continue;
+
+    const benchmark = scoreFor(model, benchmarkCategory, benchmarks);
+    if (benchmark === null) {
+      // Unranked: sized but no score yet — always surfaced.
+      entries.push({ model, benchmark: null });
+      continue;
+    }
+
+    // Ranked: keep only models at ≥50% of SOTA (same bar as before).
+    if (!sota || benchmark.score === null || sota.sota_score <= 0) continue;
+    if ((benchmark.score / sota.sota_score) * 100 < 50) continue;
+    entries.push({ model, benchmark });
+  }
+
+  // Sort ranked first by score descending, then unranked grouped after, ordered
+  // by minimum VRAM ascending (a sizing proxy). Never let a null score sort as 0.
+  entries.sort((a, b) => {
+    const aRanked = a.benchmark !== null;
+    const bRanked = b.benchmark !== null;
+    if (aRanked && bRanked) {
+      return (b.benchmark!.score ?? 0) - (a.benchmark!.score ?? 0);
+    }
+    if (aRanked !== bRanked) return aRanked ? -1 : 1;
+    return (minVramForModel(a.model) ?? 0) - (minVramForModel(b.model) ?? 0);
   });
 
-  return filteredModelScores.map(({ model, benchmark }): BudgetChartDataPoint => {
+  return entries.map(({ model, benchmark }): BudgetChartDataPoint => {
+    const isUnranked = benchmark === null;
     const precision = resolveModelPrecision(model);
     const modelMemoryGb = getModelMemory(model, precision);
 
@@ -491,9 +512,9 @@ export function calculateBudgetChartData(
       : false;
 
     const percentOfSota =
-      sota && benchmark.score !== null && sota.sota_score > 0
+      benchmark !== null && benchmark.score !== null && sota && sota.sota_score > 0
         ? (benchmark.score / sota.sota_score) * 100
-        : 0;
+        : null;
 
     if (!physicallyFits || modelMemoryGb === null) {
       return {
@@ -505,7 +526,8 @@ export function calculateBudgetChartData(
         fits: false,
         doesntFitReason: "Not enough VRAM",
         decodeThroughputTokS: null,
-        benchmarkScore: benchmark.score,
+        benchmarkScore: benchmark?.score ?? null,
+        isUnranked,
       };
     }
 
@@ -538,7 +560,72 @@ export function calculateBudgetChartData(
       fits,
       doesntFitReason,
       decodeThroughputTokS: stats.decodeThroughputTokS,
-      benchmarkScore: benchmark.score,
+      benchmarkScore: benchmark?.score ?? null,
+      isUnranked,
     };
   });
+}
+
+// ============================================================================
+// Unranked Models (Performance persona)
+// ============================================================================
+
+/**
+ * Build a recommendation matrix for unranked models, reusing the same row/cell
+ * shape (and therefore the same `RecommendationMatrix` UI) as the ranked Top
+ * Coding Models table.
+ *
+ * The ranked matrix is ranking-first and iterates benchmark scores, so it can't
+ * place unranked models (no score to rank by). This sizing-first helper instead
+ * iterates the MODEL list, keeps the ones that are sized but unranked in this
+ * category, and computes the cheapest GPU setup per concurrency tier (real
+ * offerings first, then the same 8-GPU scaled fallback). Score-dependent cell
+ * fields (benchmark, percentOfSota, sotaScore, totalBenchmarkCost) are left
+ * null — the UI renders them as gaps; nothing is faked.
+ *
+ * Rows are sorted by minimum VRAM descending (biggest first).
+ */
+export function calculateUnrankedMatrix(
+  allGpus: GpuOffering[],
+  allModels: Model[],
+  benchmarks: BenchmarkScore[],
+  benchmarkCategory: string,
+  settings: AdvancedSettings = DEFAULT_ADVANCED_SETTINGS,
+): MatrixCell[][] {
+  const unrankedModels = allModels.filter(
+    (model) =>
+      minVramForModel(model) !== null &&
+      isUnranked(model, benchmarkCategory, benchmarks),
+  );
+
+  // Biggest VRAM footprint first.
+  unrankedModels.sort(
+    (a, b) => (minVramForModel(b) ?? 0) - (minVramForModel(a) ?? 0),
+  );
+
+  return unrankedModels.map((model) =>
+    CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig): MatrixCell => {
+      let gpuSetups = findGpuSetups(model, allGpus, tier.midpoint, settings);
+      if (gpuSetups.length === 0) {
+        gpuSetups = findScaledGpuSetups(model, allGpus, tier.midpoint, settings);
+      }
+      const cheapest = gpuSetups.length > 0 ? gpuSetups[0] : null;
+
+      return {
+        model,
+        benchmark: null,
+        sotaScore: null,
+        percentOfSota: null,
+        totalBenchmarkCost: null,
+        gpuSetups,
+        costPerStreamPerMonth: cheapest?.costPerStreamPerMonth ?? null,
+        exceedsCapacity: gpuSetups.length === 0,
+        decodeThroughputTokS: cheapest?.decodeThroughputTokS ?? null,
+        utilization: cheapest
+          ? Math.min(tier.midpoint / cheapest.maxConcurrentStreams, 1.0)
+          : null,
+        isUnranked: true,
+      };
+    }),
+  );
 }

@@ -1,10 +1,34 @@
 import { describe, it, expect } from "vitest";
-import type { BenchmarkScore } from "@/types";
+import type { BenchmarkScore, Model } from "@/types";
 import {
   findBestModelsPerLab,
   getMatrixModels,
   BENCHMARK_CATEGORIES,
 } from "../snapshot-matrix";
+
+function makeModel(name: string): Model {
+  return {
+    model_name: name,
+    learnable_params_b: 100,
+    active_params_b: 10,
+    architecture: "MoE",
+    context_length: 128000,
+    precision: "BF16",
+    routed_expert_params_b: null,
+    attention_type: "GQA",
+    num_hidden_layers: 60,
+    num_kv_layers: null,
+    num_kv_heads: 8,
+    head_dim: 128,
+    kv_lora_rank: null,
+    qk_rope_head_dim: null,
+    kv_elems_per_token: null,
+    hf_model_id: `org/${name}`,
+    model_url: null,
+    license_name: "MIT",
+    license_url: "https://example.com/license",
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -163,6 +187,40 @@ describe("getMatrixModels", () => {
 
   it("returns empty array for empty input", () => {
     expect(getMatrixModels([])).toEqual([]);
+  });
+
+  it("marks benchmarked models as ranked (unranked=false)", () => {
+    const models = getMatrixModels(benchmarks);
+    const deepseek = models.find((m) => m.modelName === "DeepSeek-V3")!;
+    const claude = models.find((m) => m.modelName === "claude-opus-4-6")!;
+    const qwen = models.find((m) => m.modelName === "Qwen3-Coder-480B")!;
+    expect(deepseek.unranked).toBe(false);
+    expect(claude.unranked).toBe(false);
+    // Has a frontend score but no overall — still ranked.
+    expect(qwen.unranked).toBe(false);
+  });
+
+  it("surfaces models.json open-weights models with no snapshot entry as unranked", () => {
+    const models = getMatrixModels(benchmarks, [
+      makeModel("GLM-5.2"),
+      makeModel("DeepSeek-V3"), // already ranked via benchmarks — must not duplicate
+    ]);
+
+    const glm = models.filter((m) => m.modelName === "GLM-5.2");
+    expect(glm).toHaveLength(1);
+    expect(glm[0].unranked).toBe(true);
+    expect(glm[0].lab).toBeNull();
+    expect(glm[0].scores["frontend"]).toBeUndefined();
+
+    // DeepSeek-V3 stays ranked and is not duplicated by the models.json entry.
+    const deepseek = models.filter((m) => m.modelName === "DeepSeek-V3");
+    expect(deepseek).toHaveLength(1);
+    expect(deepseek[0].unranked).toBe(false);
+  });
+
+  it("sorts unranked models (no score) to the bottom", () => {
+    const models = getMatrixModels(benchmarks, [makeModel("GLM-5.2")]);
+    expect(models[models.length - 1].modelName).toBe("GLM-5.2");
   });
 
   it("models without overall are sorted by average available score descending", () => {

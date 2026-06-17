@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   ComposedChart,
   Bar,
@@ -74,27 +74,35 @@ export function BudgetChart({ data }: BudgetChartProps) {
   const [mode, setMode] = useState<"request" | "team">("request");
   const [reqPerDevPerHour, setReqPerDevPerHour] = useState(DEFAULT_REQ_PER_DEV_HOUR);
   const [zoomed, setZoomed] = useState(false);
+  const [unrankedOnly, setUnrankedOnly] = useState(false);
 
-  const visibleData = zoomed ? data : data.slice(0, ZOOMED_MODEL_COUNT);
+  const hasUnranked = data.some((d) => d.isUnranked);
+
+  // "Unranked models" view drops the benchmark axis + % of SOTA series and
+  // plots only the unranked models (sized, no OpenHands Index score yet).
+  // Gate on hasUnranked so switching to a category with no unranked models
+  // (which hides the toggle) can't strand the user on an empty filtered view.
+  const unrankedView = unrankedOnly && hasUnranked;
+  const sourceData = unrankedView ? data.filter((d) => d.isUnranked) : data;
+  const visibleData = zoomed ? sourceData : sourceData.slice(0, ZOOMED_MODEL_COUNT);
   const nonFittingModels = visibleData.filter((d) => !d.fits);
 
-  const chartData = useMemo(() =>
-    visibleData.map((d) => {
-      let displayValue = 0;
-      if (d.fits && d.requestsPerHour !== null) {
-        displayValue = mode === "request"
-          ? d.requestsPerHour
-          : Math.floor(d.requestsPerHour / reqPerDevPerHour);
-      }
-      return { ...d, modelLabel: truncateModel(formatModelName(d.modelName)), displayValue };
-    }),
-    [visibleData, mode, reqPerDevPerHour],
-  );
+  const chartData = visibleData.map((d) => {
+    let displayValue = 0;
+    if (d.fits && d.requestsPerHour !== null) {
+      displayValue = mode === "request"
+        ? d.requestsPerHour
+        : Math.floor(d.requestsPerHour / reqPerDevPerHour);
+    }
+    return { ...d, modelLabel: truncateModel(formatModelName(d.modelName)), displayValue };
+  });
 
   if (chartData.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No models available for the selected benchmark category.
+        {unrankedView
+          ? "No unranked models fit the current GPU setup."
+          : "No models available for the selected benchmark category."}
       </div>
     );
   }
@@ -138,7 +146,17 @@ export function BudgetChart({ data }: BudgetChartProps) {
           </div>
         )}
 
-        {data.length > ZOOMED_MODEL_COUNT && (
+        {hasUnranked && (
+          <button
+            onClick={() => setUnrankedOnly((u) => !u)}
+            aria-pressed={unrankedOnly}
+            className={`rounded-md border px-3 py-1.5 text-sm transition-colors cursor-pointer whitespace-nowrap ${unrankedOnly ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+          >
+            Unranked models
+          </button>
+        )}
+
+        {sourceData.length > ZOOMED_MODEL_COUNT && (
           <button
             onClick={() => setZoomed((z) => !z)}
             className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -190,41 +208,47 @@ export function BudgetChart({ data }: BudgetChartProps) {
               fill: "var(--muted-foreground)",
             }}
           />
-          <YAxis
-            yAxisId="sota"
-            orientation="right"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            domain={[0, 100]}
-            tickFormatter={(v: number) => `${v}%`}
-            label={{
-              value: "Benchmark score",
-              angle: 90,
-              position: "insideRight",
-              offset: 12,
-              fontSize: 12,
-              fill: "var(--muted-foreground)",
-            }}
-          />
+          {!unrankedView && (
+            <YAxis
+              yAxisId="sota"
+              orientation="right"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              domain={[0, 100]}
+              tickFormatter={(v: number) => `${v}%`}
+              label={{
+                value: "Benchmark score",
+                angle: 90,
+                position: "insideRight",
+                offset: 12,
+                fontSize: 12,
+                fill: "var(--muted-foreground)",
+              }}
+            />
+          )}
           <ChartTooltip content={<BudgetTooltip mode={mode} reqPerDevPerHour={reqPerDevPerHour} />} />
-          <Legend content={<BudgetLegend mode={mode} />} />
+          <Legend content={<BudgetLegend mode={mode} unrankedOnly={unrankedView} />} />
 
           <Bar dataKey="displayValue" yAxisId="left" name="displayValue" barSize={28}>
-            {chartData.map((_, i) => (
-              <Cell key={i} fill="var(--chart-1)" />
+            {chartData.map((d, i) => (
+              // Unranked models render in a muted fill so the eye reads them as provisional.
+              <Cell key={i} fill={d.isUnranked ? "var(--muted-foreground)" : "var(--chart-1)"} />
             ))}
           </Bar>
 
-          <Line
-            yAxisId="sota"
-            type="monotone"
-            dataKey="percentOfSota"
-            stroke="var(--chart-2)"
-            strokeWidth={2}
-            dot={{ r: 3 }}
-            name="percentOfSota"
-          />
+          {!unrankedView && (
+            <Line
+              yAxisId="sota"
+              type="monotone"
+              dataKey="percentOfSota"
+              stroke="var(--chart-2)"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              name="percentOfSota"
+              connectNulls={false}
+            />
+          )}
         </ComposedChart>
       </ChartContainer>
 
@@ -279,8 +303,14 @@ function BudgetTooltip({ active, payload, mode, reqPerDevPerHour }: {
               )}
             </div>
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground pt-1 border-t">
-              <span>% of SOTA:</span>
-              <span className="font-medium text-foreground">{point.percentOfSota.toFixed(1)}%</span>
+              {point.isUnranked ? (
+                <span className="col-span-2">Unranked</span>
+              ) : (
+                <>
+                  <span>% of SOTA:</span>
+                  <span className="font-medium text-foreground">{point.percentOfSota?.toFixed(1)}%</span>
+                </>
+              )}
               <span>Streams:</span>
               <span className="font-medium text-foreground">{point.maxConcurrentStreams}</span>
               <span>Memory:</span>
@@ -301,17 +331,28 @@ function BudgetTooltip({ active, payload, mode, reqPerDevPerHour }: {
   );
 }
 
-function BudgetLegend({ mode }: { mode: "request" | "team" }) {
+function BudgetLegend({ mode, unrankedOnly }: { mode: "request" | "team"; unrankedOnly: boolean }) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-4 pt-3 text-xs">
       <div className="flex items-center gap-1.5">
-        <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "var(--chart-1)" }} />
+        <div
+          className="h-2.5 w-2.5 rounded-sm"
+          style={{ backgroundColor: unrankedOnly ? "var(--muted-foreground)" : "var(--chart-1)" }}
+        />
         <span className="text-muted-foreground">{mode === "request" ? "Requests / h" : "Team size"}</span>
       </div>
-      <div className="flex items-center gap-1.5">
-        <div className="h-0.5 w-4 rounded" style={{ backgroundColor: "var(--chart-2)" }} />
-        <span className="text-muted-foreground">% of SOTA</span>
-      </div>
+      {!unrankedOnly && (
+        <>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "var(--muted-foreground)" }} />
+            <span className="text-muted-foreground">Unranked</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-0.5 w-4 rounded" style={{ backgroundColor: "var(--chart-2)" }} />
+            <span className="text-muted-foreground">% of SOTA</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
