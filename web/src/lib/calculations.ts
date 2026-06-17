@@ -49,7 +49,9 @@ const BYTES_PER_PARAM: Record<Precision, number> = {
  */
 export function resolveModelPrecision(model: Model): Precision {
   const raw = (model.precision ?? "").toUpperCase().trim();
-  if (raw === "FP8" || raw === "FLOAT8") return "fp8";
+  // MXFP8 is an 8-bit format (8-bit values + a shared E8M0 scale per 32-value
+  // block, ~1.03 effective bytes/param); size it in the 1-byte fp8 bucket.
+  if (raw === "FP8" || raw === "FLOAT8" || raw === "MXFP8") return "fp8";
   if (raw === "BF16") return "bf16";
   if (raw === "FP16") return "fp16";
   if (raw === "FP32") return "fp32";
