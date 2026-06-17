@@ -35,7 +35,7 @@ const HOURS_PER_MONTH = 720;
 export const DEFAULT_MEMORY_UTILIZATION = 0.90;
 
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
-  avgInputTokens: 40_000,
+  avgInputTokens: 50_000,
   avgOutputTokens: 1000,
   minTokPerStream: 20,
 };
