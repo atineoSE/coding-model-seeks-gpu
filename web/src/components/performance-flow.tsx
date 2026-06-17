@@ -5,6 +5,7 @@ import type { GpuOffering, Model, BenchmarkScore, SotaScore, AdvancedSettings } 
 import { calculatePerformanceMatrix } from "@/lib/matrix-calculator";
 import { computeTotalBenchmarkCost } from "@/lib/benchmark-costs";
 import { RecommendationMatrix } from "@/components/recommendation-matrix";
+import { UnrankedModelsSection } from "@/components/unranked-models-section";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 interface PerformanceFlowProps {
@@ -76,6 +77,15 @@ export function PerformanceFlow({
           />
         </CardContent>
       </Card>
+
+      <UnrankedModelsSection
+        gpus={gpus}
+        models={models}
+        benchmarks={benchmarks}
+        benchmarkCategory={benchmarkCategory}
+        settings={settings}
+        currencySymbol={currencySymbol}
+      />
     </div>
   );
 }

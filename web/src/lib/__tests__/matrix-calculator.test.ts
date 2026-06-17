@@ -4,6 +4,7 @@ import {
   calculatePerformanceMatrix,
   calculateBudgetMatrix,
   calculateBudgetChartData,
+  calculateUnrankedModelRows,
   DEFAULT_ADVANCED_SETTINGS,
 } from "../matrix-calculator";
 import { WEIGHT_OVERHEAD_FACTOR, gpusNeeded, getModelMemory } from "../calculations";
@@ -472,5 +473,40 @@ describe("per-stream throughput with PP > 1", () => {
     for (let i = 1; i < throughputs.length; i++) {
       expect(throughputs[i]).toBeGreaterThanOrEqual(throughputs[i - 1]);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calculateUnrankedModelRows
+// ---------------------------------------------------------------------------
+
+describe("calculateUnrankedModelRows", () => {
+  // No benchmark scores in the "frontend" category → both models are unranked there.
+  const models = [GLM_47, MINIMAX_M25];
+  const gpus = [H100_OFFERING];
+
+  it("returns one row per sized, unranked model", () => {
+    const rows = calculateUnrankedModelRows(gpus, models, [], "frontend");
+    expect(rows.map((r) => r.model.model_name).sort()).toEqual(["GLM-4.7", "MiniMax-M2.5"]);
+    // One GPU-setup slot per concurrency tier.
+    for (const row of rows) {
+      expect(row.tierSetups).toHaveLength(CONCURRENCY_TIERS.length);
+    }
+  });
+
+  it("excludes models that are ranked in the category", () => {
+    const benchmarks: BenchmarkScore[] = [
+      { ...BENCHMARK_GLM, benchmark_name: "frontend" },
+    ];
+    const rows = calculateUnrankedModelRows(gpus, models, benchmarks, "frontend");
+    // GLM-4.7 now has a frontend score → only MiniMax-M2.5 remains unranked.
+    expect(rows.map((r) => r.model.model_name)).toEqual(["MiniMax-M2.5"]);
+  });
+
+  it("sorts by minimum VRAM ascending (sizing proxy)", () => {
+    const rows = calculateUnrankedModelRows(gpus, models, [], "frontend");
+    // MiniMax-M2.5 (228.7b @ FP8) needs less VRAM than GLM-4.7 (352.8b @ BF16).
+    expect(rows[0].model.model_name).toBe("MiniMax-M2.5");
+    expect(rows[1].model.model_name).toBe("GLM-4.7");
   });
 });

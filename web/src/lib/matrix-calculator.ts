@@ -20,7 +20,7 @@ import {
   WEIGHT_OVERHEAD_FACTOR,
 } from "./calculations";
 import { computeTotalBenchmarkCost } from "./benchmark-costs";
-import { scoreFor, minVramForModel } from "./model-data";
+import { scoreFor, minVramForModel, isUnranked } from "./model-data";
 
 
 const HOURS_PER_MONTH = 720;
@@ -562,4 +562,58 @@ export function calculateBudgetChartData(
       isUnranked,
     };
   });
+}
+
+// ============================================================================
+// Unranked Models (Performance persona)
+// ============================================================================
+
+export interface UnrankedModelRow {
+  model: Model;
+  // Cheapest GPU setup that serves each concurrency tier (same ordering as
+  // CONCURRENCY_TIERS). `null` when even an 8-GPU scaled config can't serve it.
+  tierSetups: (GpuSetupOption | null)[];
+}
+
+/**
+ * Build the Performance persona's unranked-models section.
+ *
+ * The Performance matrix is ranking-first and iterates benchmark scores, so it
+ * can't place unranked models (no score to rank by). This sizing-first helper
+ * surfaces them separately: iterate the MODEL list, keep the ones that are
+ * sized but unranked in this category, and compute the cheapest GPU setup per
+ * concurrency tier (real offerings first, then the same 8-GPU scaled fallback
+ * the matrix uses). No score is computed or faked.
+ *
+ * Sorted by minimum VRAM ascending — a sizing proxy, consistent with the
+ * Budget chart's unranked ordering.
+ */
+export function calculateUnrankedModelRows(
+  allGpus: GpuOffering[],
+  allModels: Model[],
+  benchmarks: BenchmarkScore[],
+  benchmarkCategory: string,
+  settings: AdvancedSettings = DEFAULT_ADVANCED_SETTINGS,
+): UnrankedModelRow[] {
+  const rows: UnrankedModelRow[] = [];
+
+  for (const model of allModels) {
+    // Sizing-first: skip models we can't size, and models that are ranked
+    // (they belong in the main matrix, not here).
+    if (minVramForModel(model) === null) continue;
+    if (!isUnranked(model, benchmarkCategory, benchmarks)) continue;
+
+    const tierSetups = CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig) => {
+      let setups = findGpuSetups(model, allGpus, tier.midpoint, settings);
+      if (setups.length === 0) {
+        setups = findScaledGpuSetups(model, allGpus, tier.midpoint, settings);
+      }
+      return setups[0] ?? null;
+    });
+
+    rows.push({ model, tierSetups });
+  }
+
+  rows.sort((a, b) => (minVramForModel(a.model) ?? 0) - (minVramForModel(b.model) ?? 0));
+  return rows;
 }
