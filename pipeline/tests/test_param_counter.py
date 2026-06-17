@@ -10,6 +10,8 @@ from pipeline.sources.param_counter import (
     count_params_from_config,
     deepseek_v4_kv_elems_per_token,
     detect_precision,
+    minimax_m3_kv_elems_per_token,
+    resolve_text_config,
 )
 
 # ---------------------------------------------------------------------------
@@ -329,6 +331,44 @@ DEEPSEEK_V4_CONFIG = {
 }
 
 
+# MiniMax-M3 is multimodal (VL): config wraps the text backbone in text_config,
+# and that text backbone carries NO model_type of its own (it lives in bundled
+# custom modeling code), so resolve_text_config tags it "minimax_m3".  M3 mixes
+# 3 dense layers (using dense_intermediate_size) with 57 MoE layers, GQA +
+# MiniMax Sparse Attention (MSA), and 7 MTP modules.  ~428B total / ~23B
+# activated (the vendor figure excludes embeddings/lm_head; this tool's active
+# convention includes them).  Layer-frequency arrays mirror the released config.
+MINIMAX_M3_VL_CONFIG = {
+    "model_type": "minimax_m3_vl",
+    # dtype is declared on the top-level wrapper, not the text backbone
+    "torch_dtype": "bfloat16",
+    "text_config": {
+        # no model_type — exercises the synthetic-tag injection path
+        "hidden_size": 6144,
+        "intermediate_size": 3072,
+        "dense_intermediate_size": 12288,
+        "num_hidden_layers": 60,
+        "num_attention_heads": 64,
+        "num_key_value_heads": 4,
+        "head_dim": 128,
+        "vocab_size": 200064,
+        "num_local_experts": 128,
+        "num_experts_per_tok": 4,
+        "n_shared_experts": 1,
+        "shared_intermediate_size": 3072,
+        "num_mtp_modules": 7,
+        "moe_layer_freq": [0, 0, 0] + [1] * 57,
+        "sparse_attention_config": {
+            "sparse_index_dim": 128,
+            "sparse_num_index_heads": 4,
+            "sparse_attention_freq": [0, 0, 0] + [1] * 57,
+        },
+        "max_position_embeddings": 1048576,
+        "tie_word_embeddings": False,
+    },
+}
+
+
 # ===================================================================
 # Ground truth validation
 # ===================================================================
@@ -606,6 +646,85 @@ class TestDeepSeekV4:
         assert info.dtype_str == "FP4"
         assert info.is_mixed
         assert info.bytes_per_param == 0.5625
+
+
+# ===================================================================
+# MiniMax-M3 dedicated counter tests
+# ===================================================================
+
+
+class TestMiniMaxM3:
+    """Validate the bespoke minimax_m3 counter (multimodal VL wrapper, GQA +
+    per-head QK-norm + MiniMax Sparse Attention (MSA), mixed dense/MoE layers
+    from moe_layer_freq with a distinct dense FFN width, MTP modules)."""
+
+    def test_multimodal_unwrap_tags_text_backbone(self):
+        """text_config has no model_type; resolve_text_config injects it."""
+        text = resolve_text_config(MINIMAX_M3_VL_CONFIG)
+        assert text["model_type"] == "minimax_m3"
+        # original config dict must not be mutated
+        assert "model_type" not in MINIMAX_M3_VL_CONFIG["text_config"]
+
+    def test_model_type_and_layers(self):
+        result = count_params_from_config(MINIMAX_M3_VL_CONFIG)
+        assert result.model_type == "minimax_m3"
+        assert result.num_layers == 60
+        assert result.num_dense_layers == 3
+        assert result.num_moe_layers == 57
+
+    def test_total_params(self):
+        """~428B total (published) within 2%."""
+        total_b = count_params_from_config(MINIMAX_M3_VL_CONFIG).total_params / 1e9
+        assert abs(total_b - 428) / 428 < 0.02, f"total={total_b:.1f}B, expected ~428B"
+
+    def test_active_params(self):
+        """MiniMax publishes ~23B "activated"; that figure excludes the
+        embedding/lm_head and MTP modules.  This tool's active convention
+        includes them (consistent with every other model), giving ~26B."""
+        active_b = count_params_from_config(MINIMAX_M3_VL_CONFIG).active_params / 1e9
+        assert abs(active_b - 26) / 26 < 0.10, f"active={active_b:.1f}B, expected ~26B"
+
+    def test_active_matches_vendor_excluding_embeddings(self):
+        """Cross-check against the published ~23B: subtract embedding + lm_head
+        + MTP (the terms MiniMax's "activated" figure omits)."""
+        text = resolve_text_config(MINIMAX_M3_VL_CONFIG)
+        hidden, vocab = text["hidden_size"], text["vocab_size"]
+        mtp = text["num_mtp_modules"] * (2 * hidden * hidden + 4 * hidden)
+        result = count_params_from_config(MINIMAX_M3_VL_CONFIG)
+        core_active = result.active_params - 2 * vocab * hidden - mtp
+        core_b = core_active / 1e9
+        assert abs(core_b - 23) / 23 < 0.10, f"core active={core_b:.1f}B, expected ~23B"
+
+    def test_is_moe_and_routed_experts_dominate(self):
+        result = count_params_from_config(MINIMAX_M3_VL_CONFIG)
+        assert result.num_moe_layers > 0
+        assert result.active_params < result.total_params
+        frac = result.routed_expert_params / result.total_params
+        assert frac > 0.9, f"routed experts only {frac:.1%} of total"
+
+    def test_kv_elems_per_token(self):
+        """Full GQA KV (MSA retains the cache, not compresses it):
+        60 layers × (2 × 4 KV heads × 128) + 57 MSA layers × 128 indexer
+        = 60 × 1024 + 57 × 128 = 61440 + 7296 = 68736 elements/token."""
+        assert minimax_m3_kv_elems_per_token(MINIMAX_M3_VL_CONFIG) == 68736
+
+    def test_precision_from_top_level_dtype(self):
+        """torch_dtype lives on the VL wrapper, not the text backbone."""
+        info = detect_precision(MINIMAX_M3_VL_CONFIG)
+        assert info.dtype_str == "BF16"
+        assert info.bytes_per_param == 2.0
+        assert not info.is_mixed
+
+    def test_moe_layer_freq_length_mismatch(self):
+        bad = {
+            "model_type": "minimax_m3_vl",
+            "text_config": {
+                **MINIMAX_M3_VL_CONFIG["text_config"],
+                "moe_layer_freq": [0, 0, 0],
+            },
+        }
+        with pytest.raises(ValueError, match="moe_layer_freq length"):
+            count_params_from_config(bad)
 
 
 # ===================================================================

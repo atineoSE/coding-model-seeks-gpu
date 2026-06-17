@@ -320,6 +320,10 @@ export function calcPpBubbleEfficiency(pp: number, batchSize: number): number {
  * - DSV4: kv_elems_per_token × kvPrecisionBytes (per-token element width
  *         precomputed in the pipeline; DeepSeek-V4's compressed + sparse-
  *         indexed KV is per-layer-variable and not expressible as MLA)
+ * - MSA:  kv_elems_per_token × kvPrecisionBytes (MiniMax-M3 Sparse Attention
+ *         keeps a full GQA KV cache plus a per-token block-selection indexer
+ *         key cache — MSA saves compute, not KV memory; precomputed in the
+ *         pipeline)
  *
  * @param kvPrecisionBytes — 1 for FP8, 2 for FP16 (default: 2 for backward compat)
  * Returns 0 if required fields are missing.
@@ -339,10 +343,11 @@ export function calcKvCachePerToken(model: Model, kvPrecisionBytes: 1 | 2 = 2): 
   } else if (model.attention_type === "GQA") {
     if (model.num_kv_heads === null || model.head_dim === null) return 0;
     bytesPerToken = 2 * kvLayers * model.num_kv_heads * model.head_dim * kvPrecisionBytes;
-  } else if (model.attention_type === "DSV4") {
-    // DeepSeek-V4: per-token KV element width is precomputed in the pipeline
-    // (Σ head_dim/ratio over compressed layers + sparse-indexer width). The
-    // constant sliding-window term is omitted (negligible at long context).
+  } else if (model.attention_type === "DSV4" || model.attention_type === "MSA") {
+    // Precomputed per-token KV element width from the pipeline. DSV4 =
+    // compressed + sparse-indexed KV; MSA (MiniMax-M3) = full GQA KV + block-
+    // selection indexer key cache. Both are per-layer-variable and not
+    // expressible as plain GQA.
     if (model.kv_elems_per_token === null) return 0;
     bytesPerToken = model.kv_elems_per_token * kvPrecisionBytes;
   } else {

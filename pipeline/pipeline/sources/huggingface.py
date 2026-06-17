@@ -13,6 +13,7 @@ from pipeline.sources.param_counter import (
     count_params_from_config,
     deepseek_v4_kv_elems_per_token,
     detect_precision,
+    minimax_m3_kv_elems_per_token,
     resolve_text_config,
 )
 
@@ -102,7 +103,6 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
         "MiniMax Non-Commercial License",
         "https://github.com/MiniMax-AI/MiniMax-M2.7/blob/main/LICENSE",
     ),
-    # M3's license is not yet public; mirror M2.7's license as a placeholder.
     "MiniMax-M3": (
         "MiniMax Community License",
         "https://huggingface.co/MiniMaxAI/MiniMax-M3/blob/main/LICENSE",
@@ -264,6 +264,14 @@ def fetch_model(model_name: str, hf_id: str, *, model_url: str | None = None) ->
         if qk_rope_head_dim is None:
             raise ValueError(f"Missing 'qk_rope_head_dim' in MLA config for {hf_id}")
         qk_rope_head_dim = int(qk_rope_head_dim)
+
+    if model_type == "minimax_m3":
+        # GQA base attention (num_kv_heads/head_dim populated above) plus
+        # MiniMax Sparse Attention (MSA) block selection; the web uses a
+        # precomputed per-token element width (full GQA KV + MSA indexer keys)
+        # instead of plain GQA.
+        attention_type_str = "MSA"
+        kv_elems_per_token = minimax_m3_kv_elems_per_token(effective_config)
 
     # 9. Detect precision
     precision_str = None

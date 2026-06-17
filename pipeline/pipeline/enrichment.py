@@ -16,7 +16,7 @@ class ModelSpec(BaseModel):
     precision: str | None = Field(
         None, description="Published precision, e.g. FP8, BF16, INT4-mixed"
     )
-    attention_type: str | None = Field(None, description="'MLA', 'GQA', or 'DSV4'")
+    attention_type: str | None = Field(None, description="'MLA', 'GQA', 'DSV4', or 'MSA'")
     num_hidden_layers: int | None = Field(None, description="Number of transformer layers")
     num_kv_layers: int | None = Field(None, description="Layers with KV cache (None = all layers)")
     num_kv_heads: int | None = Field(None, description="Number of KV heads (GQA only)")

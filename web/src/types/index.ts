@@ -27,7 +27,7 @@ export interface Model {
   context_length: number | null;
   precision: string | null;
   routed_expert_params_b: number | null;
-  attention_type: "MLA" | "GQA" | "DSV4" | null;
+  attention_type: "MLA" | "GQA" | "DSV4" | "MSA" | null;
   num_hidden_layers: number | null;
   num_kv_layers: number | null;
   num_kv_heads: number | null;

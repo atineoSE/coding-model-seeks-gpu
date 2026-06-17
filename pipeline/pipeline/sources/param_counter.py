@@ -58,11 +58,19 @@ class PrecisionInfo:
 # Multimodal wrapper handling
 # ---------------------------------------------------------------------------
 
-MULTIMODAL_MODEL_TYPES = {"kimi_k25", "qwen3_5_moe"}
+MULTIMODAL_MODEL_TYPES = {"kimi_k25", "qwen3_5_moe", "minimax_m3_vl"}
+
+# Some multimodal wrappers ship a text backbone whose config carries no
+# model_type of its own (the architecture lives in bundled custom modeling
+# code).  Tag the unwrapped text config with a synthetic model_type so the
+# architecture registry below can recognize it.
+MULTIMODAL_TEXT_MODEL_TYPE: dict[str, str] = {
+    "minimax_m3_vl": "minimax_m3",
+}
 
 
 def resolve_text_config(config: dict) -> dict:
-    """Unwrap multimodal configs (e.g. Kimi-K2.5) to get the text backbone."""
+    """Unwrap multimodal configs (e.g. Kimi-K2.5, MiniMax-M3 VL) to get the text backbone."""
     model_type = config.get("model_type", "")
     if model_type in MULTIMODAL_MODEL_TYPES:
         text_config = config.get("text_config")
@@ -71,6 +79,9 @@ def resolve_text_config(config: dict) -> dict:
                 f"model_type='{model_type}' requires 'text_config' dict, "
                 f"but it is {'missing' if text_config is None else type(text_config).__name__}"
             )
+        synthetic = MULTIMODAL_TEXT_MODEL_TYPE.get(model_type)
+        if synthetic and not text_config.get("model_type"):
+            text_config = {**text_config, "model_type": synthetic}
         return text_config
     return config
 
@@ -144,6 +155,25 @@ KNOWN_ARCHITECTURES: dict[str, tuple[AttentionType, MoEFieldMapping]] = {
         ),
     ),
     "minimax_m2": (
+        AttentionType.GQA,
+        MoEFieldMapping(
+            expert_count_key="num_local_experts",
+            shared_expert_key="shared_intermediate_size",
+            shared_expert_is_count=False,
+            expert_intermediate_key="intermediate_size",
+            dense_layers_key=None,
+            mtp_key="num_mtp_modules",
+        ),
+    ),
+    # MiniMax-M3: GQA base attention + per-head QK-norm + MiniMax Sparse
+    # Attention (MSA), with a mix of dense (dense_intermediate_size) and MoE
+    # layers chosen by moe_layer_freq.  The generic counter can't express the
+    # dense/MoE split (it lives in an array, not first_k_dense_replace) nor the
+    # distinct dense FFN width, so count_params_from_config dispatches to
+    # _count_minimax_m3_params().  The mapping below is only used for the
+    # AttentionType lookup in fetch_model(); its field keys are not consumed by
+    # the dedicated counter.
+    "minimax_m3": (
         AttentionType.GQA,
         MoEFieldMapping(
             expert_count_key="num_local_experts",
@@ -748,6 +778,157 @@ def _count_deepseek_v4_params(config: dict) -> ParamCountResult:
 
 
 # ---------------------------------------------------------------------------
+# MiniMax-M3 — dedicated counter
+# ---------------------------------------------------------------------------
+#
+# M3's text backbone (HF arch ``MiniMaxM3SparseForCausalLM``, exposed under the
+# multimodal wrapper ``model_type="minimax_m3_vl"``) needs a bespoke counter
+# because the generic path cannot express three things:
+#
+#   1. Dense vs MoE split lives in the per-layer ``moe_layer_freq`` array
+#      (1 = MoE, 0 = dense) rather than a ``first_k_dense_replace`` scalar.
+#   2. Dense layers use ``dense_intermediate_size`` for their FFN, distinct
+#      from the experts' ``intermediate_size``.
+#   3. MiniMax Sparse Attention (MSA) adds a per-layer block-selection indexer
+#      on the subset of layers flagged by
+#      ``sparse_attention_config.sparse_attention_freq``.
+#
+# Attention is GQA with per-head QK-norm.  MTP modules are counted with the
+# same light projection estimate as the generic counter (consistent convention).
+
+
+def _minimax_m3_indexer_params(hidden: int, sac: dict) -> int:
+    """MSA block-selection indexer params for one sparse layer (0 if absent)."""
+    index_dim = int(sac.get("sparse_index_dim", 0) or 0)
+    index_heads = int(sac.get("sparse_num_index_heads", 0) or 0)
+    if not index_dim or not index_heads:
+        return 0
+    # wq: hidden -> index_heads*index_dim ; wk: hidden -> index_dim ;
+    # weights_proj: (index_heads*index_dim) -> index_heads
+    return (
+        hidden * (index_heads * index_dim)
+        + hidden * index_dim
+        + (index_heads * index_dim) * index_heads
+    )
+
+
+def minimax_m3_kv_elems_per_token(config: dict) -> int:
+    """Per-token KV-cache element width for MiniMax-M3, summed over all layers.
+
+    M3 uses MiniMax Sparse Attention (MSA): per the M3 technical report the 1M
+    context is "enabled by MSA's efficiency improvements rather than KV cache
+    compression techniques" — MSA partitions the KV into blocks and reads only
+    the selected blocks (a compute/bandwidth saving), but the full KV cache is
+    retained.  So the cache is a standard GQA KV cache plus a small per-token
+    block-selection indexer key cache on the MSA (sparse) layers:
+
+        base GQA : 2 * num_key_value_heads * head_dim   (every attention layer)
+        indexer  : sparse_index_dim                      (MSA layers only)
+
+    Returns the precision-agnostic element count; callers multiply by the
+    KV-cache bytes-per-element (consistent with the GQA/MLA/DSV4 formulas).
+    """
+    config = resolve_text_config(config)
+    n_layers = _require(config, "num_hidden_layers")
+    n_kv = _require(config, "num_key_value_heads")
+    head_dim = config.get("head_dim") or (
+        _require(config, "hidden_size") // _require(config, "num_attention_heads")
+    )
+    base = 2 * n_kv * head_dim
+
+    sac = config.get("sparse_attention_config") or {}
+    index_dim = int(sac.get("sparse_index_dim", 0) or 0)
+    sparse_freq = sac.get("sparse_attention_freq") or []
+
+    total = n_layers * base
+    for layer_id in range(n_layers):
+        if layer_id < len(sparse_freq) and sparse_freq[layer_id]:
+            total += index_dim
+    return total
+
+
+def _count_minimax_m3_params(config: dict) -> ParamCountResult:
+    hidden = _require(config, "hidden_size")
+    vocab = _require(config, "vocab_size")
+    n_layers = _require(config, "num_hidden_layers")
+    n_heads = _require(config, "num_attention_heads")
+    head_dim = config.get("head_dim", hidden // n_heads)
+    n_kv = _require(config, "num_key_value_heads")
+    expert_inter = _require(config, "intermediate_size")
+    dense_inter = _require(config, "dense_intermediate_size")
+    n_experts = _require(config, "num_local_experts")
+    n_active = _require(config, "num_experts_per_tok")
+    n_shared = _require(config, "n_shared_experts")
+    shared_inter = _require(config, "shared_intermediate_size")
+    n_mtp = int(config.get("num_mtp_modules", 0) or 0)
+
+    moe_freq = config.get("moe_layer_freq") or []
+    if len(moe_freq) != n_layers:
+        raise ValueError(
+            f"moe_layer_freq length ({len(moe_freq)}) != num_hidden_layers ({n_layers})"
+        )
+
+    sac = config.get("sparse_attention_config") or {}
+    sparse_freq = sac.get("sparse_attention_freq") or []
+
+    # Attention (GQA) + per-head QK RMSNorm (q_norm + k_norm weights)
+    q_proj = hidden * (n_heads * head_dim)
+    kv_proj = 2 * hidden * (n_kv * head_dim)
+    o_proj = (n_heads * head_dim) * hidden
+    qk_norm = 2 * head_dim
+    attn = q_proj + kv_proj + o_proj + qk_norm
+    norms = 2 * hidden  # input_layernorm + post_attention_layernorm
+
+    indexer = _minimax_m3_indexer_params(hidden, sac)
+
+    dense_ffn = _dense_mlp_params(hidden, dense_inter)
+    router = hidden * n_experts
+    shared = n_shared * _dense_mlp_params(hidden, shared_inter)
+    expert = _dense_mlp_params(hidden, expert_inter)
+    moe_ffn_total = n_experts * expert + router + shared
+    moe_ffn_active = n_active * expert + router + shared
+
+    embed = vocab * hidden
+    lm_head = 0 if config.get("tie_word_embeddings", False) else vocab * hidden
+    final_norm = hidden
+
+    total = embed + lm_head + final_norm
+    active = embed + lm_head + final_norm
+    routed_expert_params = 0
+    num_dense = 0
+    num_moe = 0
+
+    for layer_id in range(n_layers):
+        idx = indexer if (layer_id < len(sparse_freq) and sparse_freq[layer_id]) else 0
+        block = attn + norms + idx
+        if moe_freq[layer_id] == 0:
+            total += block + dense_ffn
+            active += block + dense_ffn
+            num_dense += 1
+        else:
+            total += block + moe_ffn_total
+            active += block + moe_ffn_active
+            routed_expert_params += n_experts * expert
+            num_moe += 1
+
+    # MTP modules: light projection estimate (matches the generic counter)
+    if n_mtp > 0:
+        mtp_per_module = 2 * hidden * hidden + 4 * hidden
+        total += n_mtp * mtp_per_module
+        active += n_mtp * mtp_per_module
+
+    return ParamCountResult(
+        total_params=total,
+        active_params=active,
+        routed_expert_params=routed_expert_params,
+        model_type=config.get("model_type", ""),
+        num_layers=n_layers,
+        num_moe_layers=num_moe,
+        num_dense_layers=num_dense,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main entry point — parameter counting
 # ---------------------------------------------------------------------------
 
@@ -770,6 +951,11 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
     # first_k_dense_replace) that the generic path below cannot handle.
     if model_type == "deepseek_v4":
         return _count_deepseek_v4_params(config)
+
+    # MiniMax-M3: dense/MoE split from moe_layer_freq + distinct dense FFN width
+    # + sparse lightning indexer — not expressible by the generic mapping.
+    if model_type == "minimax_m3":
+        return _count_minimax_m3_params(config)
 
     # Hybrid architectures (Mamba2 + Attention + MoE) have a per-layer pattern
     if "hybrid_override_pattern" in config:
@@ -866,11 +1052,19 @@ def detect_precision(raw_config: dict) -> PrecisionInfo:
     Raises ``ValueError`` for unknown dtypes or quant methods.
     """
     config = resolve_text_config(raw_config)
-    quant_config = config.get("quantization_config")
+    # Multimodal wrappers (e.g. MiniMax-M3 VL) declare quantization / dtype on
+    # the top-level config rather than the text backbone, so fall back to the
+    # raw wrapper when the unwrapped text config omits them.
+    quant_config = config.get("quantization_config") or raw_config.get("quantization_config")
 
     if quant_config is None:
         # No quantization — use torch_dtype (or the "dtype" alias)
-        dtype = config.get("torch_dtype") or config.get("dtype")
+        dtype = (
+            config.get("torch_dtype")
+            or config.get("dtype")
+            or raw_config.get("torch_dtype")
+            or raw_config.get("dtype")
+        )
         dtype_map = {
             "bfloat16": (2.0, "BF16"),
             "float16": (2.0, "FP16"),
