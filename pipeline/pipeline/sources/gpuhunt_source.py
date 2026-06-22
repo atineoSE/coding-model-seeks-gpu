@@ -1,6 +1,7 @@
 """Fetch GPU prices from gpuhunt and return offerings + source metadata."""
 
 import logging
+import re
 
 from gpuhunt import Catalog
 
@@ -24,6 +25,57 @@ EXCLUDED_GPUS = {
 
 # A10 MIG slices (4/8/12 GB) are not full GPUs — only keep 24 GB
 MIN_VRAM_GB = 16
+
+# Datacenter GPUs whose standard multi-GPU form factor is SXM/NVLink (or
+# NVSwitch). Their PCIe variants always carry "PCIe" in the gpuhunt
+# instance_name (e.g. "NVIDIA H100 PCIe"), so an unlabelled offering for one
+# of these is assumed to be NVLink-connected.
+NVLINK_CLASS_GPUS = {
+    "V100",
+    "A100",
+    "H100",
+    "H100NVL",
+    "H200",
+    "B200",
+    "B300",
+    "GB200",
+    "GH200",
+}
+
+# Explicit interconnect signals found in gpu_name / instance_name strings.
+# PCIe is checked first and always wins — PCIe SKUs are reliably labelled.
+_PCIE_RE = re.compile(r"pcie", re.IGNORECASE)
+_NVLINK_RE = re.compile(r"sxm|hgx|dgx|nvlink|\bnvl", re.IGNORECASE)
+
+
+def classify_interconnect(gpu_name: str, instance_name: str, gpu_count: int) -> str | None:
+    """Best-effort interconnect classification for a GPU offering.
+
+    Returns "nvlink", "pcie", or None. gpuhunt exposes no dedicated
+    interconnect field, so we infer it from the gpu_name / instance_name
+    strings, falling back to the GPU's standard datacenter form factor.
+
+    Priority (first match wins):
+      1. Single GPU (count < 2) -> None: there is no inter-GPU link.
+      2. Explicit "PCIe" in the name -> "pcie" (PCIe SKUs are always labelled).
+      3. Explicit "SXM"/"HGX"/"DGX"/"NVLink"/"NVL" -> "nvlink" (confirmed).
+      4. SXM-class datacenter GPU -> "nvlink" (assumed; a PCIe variant would
+         have matched step 2).
+      5. Otherwise (consumer/workstation/unknown) -> "pcie" (conservative).
+
+    The downstream calculator only distinguishes NVLink from everything else,
+    so the conservative default never over-estimates throughput.
+    """
+    if gpu_count < 2:
+        return None
+    text = f"{gpu_name} {instance_name}"
+    if _PCIE_RE.search(text):
+        return "pcie"
+    if _NVLINK_RE.search(text):
+        return "nvlink"
+    if gpu_name in NVLINK_CLASS_GPUS:
+        return "nvlink"
+    return "pcie"
 
 
 def fetch_gpu_prices() -> tuple[list[dict], dict]:
@@ -82,7 +134,9 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
                 "provider": item.provider,
                 "instance_name": item.instance_name,
                 "location": item.location,
-                "interconnect": None,
+                "interconnect": classify_interconnect(
+                    gpu_name, item.instance_name, gpu_count
+                ),
             }
         )
 
@@ -91,7 +145,7 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
     source_metadata = {
         "service_name": "gpuhunt",
         "service_url": "https://github.com/dstackai/gpuhunt",
-        "description": "All regions considered. Throughput values may be underestimated, because interconnect data is missing.",
+        "description": "All regions considered. Interconnect (NVLink vs PCIe) is inferred from the instance name, falling back to the GPU's standard datacenter form factor.",
         "currency": "USD",
         "currency_symbol": "$",
     }
