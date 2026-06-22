@@ -33,6 +33,7 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "MiniMax-M3-MXFP8": "MiniMaxAI/MiniMax-M3-MXFP8",
     "Kimi-K2.5": "moonshotai/Kimi-K2.5",
     "Kimi-K2.6": "moonshotai/Kimi-K2.6",
+    "Kimi-K2.7-Code": "moonshotai/Kimi-K2.7-Code",
     "Kimi-K2-Thinking": "moonshotai/Kimi-K2-Thinking",
     "MiniMax-M2.5": "MiniMaxAI/MiniMax-M2.5",
     "MiniMax-M2.1": "MiniMaxAI/MiniMax-M2.1",
@@ -97,6 +98,10 @@ MODEL_LICENSE_INFO: dict[str, tuple[str, str]] = {
     "Kimi-K2.6": (
         "Modified MIT",
         "https://huggingface.co/moonshotai/Kimi-K2.6/blob/main/LICENSE",
+    ),
+    "Kimi-K2.7-Code": (
+        "Modified MIT",
+        "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/main/LICENSE",
     ),
     "Kimi-K2-Thinking": (
         "Modified MIT",
