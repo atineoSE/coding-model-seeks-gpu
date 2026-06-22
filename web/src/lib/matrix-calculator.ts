@@ -38,6 +38,9 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   avgInputTokens: 50_000,
   avgOutputTokens: 1000,
   minTokPerStream: 20,
+  // 2 bytes/elem: vLLM's `kv_cache_dtype=auto` follows the model's bf16/fp16
+  // compute dtype, not the GPU's FP8 capability. FP8 KV is opt-in ("auto").
+  kvCachePrecision: "fp16",
 };
 
 interface GpuSetupStats {
@@ -70,8 +73,10 @@ export function calcGpuSetupStats(
   );
   if (decodeThroughput === null) return { maxConcurrentStreams: 0, decodeThroughputTokS: null };
 
-  // Resolve KV cache precision — always auto (FP8 on supported GPUs)
-  const kvPrecisionBytes = resolveKvPrecisionBytes("auto", gpuName);
+  // Resolve KV cache precision from settings. Default "fp16" (2 B) mirrors
+  // vLLM's `kv_cache_dtype=auto`, which tracks the model's bf16/fp16 compute
+  // dtype; "auto" here opts into FP8 (1 B) on FP8-KV-capable GPUs.
+  const kvPrecisionBytes = resolveKvPrecisionBytes(settings.kvCachePrecision, gpuName);
 
   // Apply memory utilization to total VRAM (like vLLM's --gpu-memory-utilization)
   const usableVramGb = totalVramGb * memoryUtilization;

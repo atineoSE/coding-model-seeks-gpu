@@ -320,6 +320,7 @@ describe("computeCostTrend", () => {
     avgInputTokens: 40_000,
     avgOutputTokens: 1500,
     minTokPerStream: 20,
+    kvCachePrecision: "fp16",
   };
 
   it("produces matching cost points from gap trend points", () => {

@@ -5,6 +5,7 @@ import {
   calculateBudgetMatrix,
   calculateBudgetChartData,
   calculateUnrankedMatrix,
+  calcGpuSetupStats,
   DEFAULT_ADVANCED_SETTINGS,
 } from "../matrix-calculator";
 import { WEIGHT_OVERHEAD_FACTOR, gpusNeeded, getModelMemory } from "../calculations";
@@ -523,5 +524,32 @@ describe("calculateUnrankedMatrix", () => {
     // GLM-4.7 (352.8b @ BF16) needs more VRAM than MiniMax-M2.5 (228.7b @ FP8).
     expect(rows[0][0].model.model_name).toBe("GLM-4.7");
     expect(rows[1][0].model.model_name).toBe("MiniMax-M2.5");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calcGpuSetupStats — KV cache dtype setting
+// ---------------------------------------------------------------------------
+
+describe("calcGpuSetupStats — kvCachePrecision", () => {
+  it("defaults to 2 bytes (fp16) → matches vLLM kv_cache_dtype=auto bf16 reality", () => {
+    expect(DEFAULT_ADVANCED_SETTINGS.kvCachePrecision).toBe("fp16");
+  });
+
+  it("opting into 1-byte FP8 KV roughly doubles streams on a Hopper+ GPU", () => {
+    const args = [MINIMAX_M25, "H100", 12, 960, null] as const;
+    const fp16 = calcGpuSetupStats(...args, {
+      ...DEFAULT_ADVANCED_SETTINGS,
+      kvCachePrecision: "fp16",
+    });
+    const fp8 = calcGpuSetupStats(...args, {
+      ...DEFAULT_ADVANCED_SETTINGS,
+      kvCachePrecision: "auto",
+    });
+    // Only the KV denominator changes, so FP8 (1 B) ≈ 2× the fp16 (2 B) streams.
+    expect(fp16.maxConcurrentStreams).toBeGreaterThan(0);
+    expect(fp8.maxConcurrentStreams).toBeGreaterThan(fp16.maxConcurrentStreams);
+    // Decode is bandwidth-bound and KV-dtype-independent.
+    expect(fp8.decodeThroughputTokS).toBe(fp16.decodeThroughputTokS);
   });
 });

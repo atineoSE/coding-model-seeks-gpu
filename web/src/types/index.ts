@@ -122,6 +122,14 @@ export interface AdvancedSettings {
   avgInputTokens: number;
   avgOutputTokens: number;
   minTokPerStream: number;
+  /**
+   * KV cache precision used for VRAM/concurrency budgeting.
+   * - "fp16" → 2 bytes/elem (default; matches vLLM `kv_cache_dtype=auto`, which
+   *   follows the model's bf16/fp16 compute dtype regardless of weight quant)
+   * - "auto" → 1 byte/elem on FP8-KV-capable GPUs (Hopper+/Ada/Blackwell),
+   *   falling back to 2 bytes elsewhere (opt-in FP8 KV cache)
+   */
+  kvCachePrecision: KvCachePrecision;
 }
 
 export interface CostResult {

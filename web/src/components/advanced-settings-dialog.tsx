@@ -51,7 +51,8 @@ export function AdvancedSettingsDialog({
     }
   }
 
-  const fields: { key: keyof AdvancedSettings; label: string; description: string; step: string; min: string; max?: string }[] = [
+  type NumericField = "avgInputTokens" | "avgOutputTokens" | "minTokPerStream";
+  const fields: { key: NumericField; label: string; description: string; step: string; min: string; max?: string }[] = [
     {
       key: "avgInputTokens",
       label: "Avg input tokens",
@@ -109,6 +110,27 @@ export function AdvancedSettingsDialog({
               />
             </div>
           ))}
+          <div className="grid grid-cols-2 items-center gap-4">
+            <div>
+              <Label>KV cache dtype</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Bytes per KV cache element; 1 byte requires FP8 KV support (Hopper+).
+              </p>
+            </div>
+            <select
+              value={draft.kvCachePrecision}
+              onChange={(e) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  kvCachePrecision: e.target.value as AdvancedSettings["kvCachePrecision"],
+                }))
+              }
+              className={inputClass}
+            >
+              <option value="fp16">2 bytes (FP16/BF16)</option>
+              <option value="auto">1 byte (FP8, Hopper+)</option>
+            </select>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleReset}>
