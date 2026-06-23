@@ -1,5 +1,31 @@
 # Release Notes
 
+## 0.9.0 — 2026-06-23
+
+- **KV cache dtype setting (default 2 bytes).** The calculator hardcoded KV
+  precision to `auto`, which resolved to FP8 (1 B) on Hopper+/Ada/Blackwell. But
+  vLLM's `kv_cache_dtype=auto` follows the model's bf16/fp16 *compute* dtype, not
+  the GPU's FP8 capability — so real deployments store bf16 KV (2 B) regardless
+  of weight quantization. This over-predicted concurrent streams ~2× on
+  Hopper-class GPUs (e.g. MiniMax-M2.7 on 8×H100: 57 predicted vs ~28 measured).
+  Advanced Settings now has a **KV cache dtype** selector: **"2 bytes (FP16/BF16)"**
+  (new default, always 2 B) or **"1 byte (FP8, Hopper+)"** (opt-in 1 B on
+  FP8-capable GPUs only). The default flip halves stream counts on
+  Hopper+/Ada/Blackwell; A100 and older are unchanged. Decode tok/s is
+  unaffected (KV dtype doesn't enter the bandwidth roofline).
+- **GPU interconnect inference.** gpuhunt exposes no interconnect field, so
+  offerings were emitted with `interconnect=null` and the calculator treated
+  every multi-GPU setup as PCIe (TP≤4, higher all-reduce penalty), systematically
+  under-reporting throughput for SXM/NVLink datacenter nodes. The pipeline now
+  infers `nvlink`/`pcie` per offering from the instance name: explicit "PCIe"
+  wins, then SXM/HGX/DGX/NVL markers, then a datacenter-class fallback
+  (A100/H100/H200/B200/B300/V100/GB200/GH200 default to NVLink since their PCIe
+  variants are always labelled), otherwise PCIe. Single-GPU offerings stay null,
+  and the default never over-estimates throughput.
+- **Kimi-K2.7-Code added (unranked).** Adds `moonshotai/Kimi-K2.7-Code` (1T-param
+  MoE, 32B active, MLA, INT4). It enters as unranked — sized and fit to GPUs, with
+  no OpenHands Index score yet.
+
 ## 0.8.0 — 2026-06-17
 
 - **Unranked models.** Models whose architecture and sizing are known but that
