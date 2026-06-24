@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 
 interface AdvancedSettingsDialogProps {
   settings: AdvancedSettings;
@@ -110,6 +111,30 @@ export function AdvancedSettingsDialog({
               />
             </div>
           ))}
+          <div className="grid grid-cols-2 items-center gap-4">
+            <div>
+              <Label>Prefix reuse</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Fraction of the input prompt that is shared/cached prefix across streams.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Slider
+                aria-label="Prefix reuse"
+                value={[draft.prefixReuse]}
+                onValueChange={([v]) =>
+                  setDraft((prev) => ({ ...prev, prefixReuse: v }))
+                }
+                min={0}
+                max={1}
+                step={0.05}
+                className="flex-1"
+              />
+              <span className="text-sm tabular-nums w-10 text-right">
+                {Math.round(draft.prefixReuse * 100)}%
+              </span>
+            </div>
+          </div>
           <div className="grid grid-cols-2 items-center gap-4">
             <div>
               <Label>KV cache dtype</Label>

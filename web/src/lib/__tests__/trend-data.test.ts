@@ -294,13 +294,19 @@ describe("computeCostTrend", () => {
     routed_expert_params_b: null,
     attention_type: "GQA",
     num_hidden_layers: 62,
+    hidden_size: null,
     num_kv_layers: null,
     num_kv_heads: 8,
     head_dim: 128,
+    num_experts: null,
+    experts_per_token: null,
     kv_lora_rank: null,
     qk_rope_head_dim: null,
     hf_model_id: null,
     model_url: null,
+    kv_elems_per_token: null,
+    license_name: null,
+    license_url: null,
   };
 
   const TEST_GPU: GpuOffering = {
@@ -319,6 +325,7 @@ describe("computeCostTrend", () => {
   const TEST_SETTINGS: AdvancedSettings = {
     avgInputTokens: 40_000,
     avgOutputTokens: 1500,
+    prefixReuse: 0.5,
     minTokPerStream: 20,
     kvCachePrecision: "fp16",
   };
@@ -447,11 +454,15 @@ describe("computeModelSizeScore", () => {
       routed_expert_params_b: null,
       attention_type: "GQA",
       num_hidden_layers: null,
+      hidden_size: null,
       num_kv_layers: null,
       num_kv_heads: null,
       head_dim: null,
+      num_experts: null,
+      experts_per_token: null,
       kv_lora_rank: null,
       qk_rope_head_dim: null,
+      kv_elems_per_token: null,
       hf_model_id: null,
       model_url: null,
       license_name: null,

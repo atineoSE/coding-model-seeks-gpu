@@ -21,6 +21,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DeploymentEstimatePanel } from "@/components/deployment-estimate-panel";
 import { useIsDesktop } from "@/hooks/use-media-query";
 import { formatModelName } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
@@ -327,6 +328,13 @@ function CellContent({ cell, persona, currencySymbol = "$" }: { cell: MatrixCell
             ~{Math.round(cell.utilization * 100)}% utilized
           </div>
         )}
+
+        {/* First-principles deployment estimate (read-only) for the primary setup */}
+        {primary?.deploymentEstimate && (
+          <div className="pt-1 border-t border-border/50">
+            <DeploymentEstimatePanel estimate={primary.deploymentEstimate} />
+          </div>
+        )}
       </div>
     );
 
@@ -371,6 +379,7 @@ function CellContent({ cell, persona, currencySymbol = "$" }: { cell: MatrixCell
   }
 
   // Budget persona — hardware already secured, show throughput + utilization only
+  const budgetEstimate = cell.gpuSetups[0]?.deploymentEstimate ?? null;
   return (
     <div className="space-y-1">
       {/* Primary: throughput */}
@@ -384,6 +393,13 @@ function CellContent({ cell, persona, currencySymbol = "$" }: { cell: MatrixCell
       {cell.utilization !== null && (
         <div className="text-xs text-muted-foreground/50">
           ~{Math.round(cell.utilization * 100)}% utilized
+        </div>
+      )}
+
+      {/* First-principles deployment estimate (read-only) */}
+      {budgetEstimate && (
+        <div className="pt-1 border-t border-border/50">
+          <DeploymentEstimatePanel estimate={budgetEstimate} />
         </div>
       )}
     </div>

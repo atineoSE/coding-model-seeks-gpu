@@ -29,9 +29,16 @@ export interface Model {
   routed_expert_params_b: number | null;
   attention_type: "MLA" | "GQA" | "DSV4" | "MSA" | null;
   num_hidden_layers: number | null;
+  /** Transformer residual-stream width (HF config `hidden_size`). */
+  hidden_size: number | null;
   num_kv_layers: number | null;
   num_kv_heads: number | null;
   head_dim: number | null;
+  /** Total routed experts for MoE models (HF config `n_routed_experts`); null for dense. */
+  num_experts: number | null;
+  /** Experts activated per token / top-k (HF config `num_experts_per_tok`); null for dense. */
+  experts_per_token: number | null;
+  // MLA latent dimensions (DeepSeek-style multi-head latent attention).
   kv_lora_rank: number | null;
   qk_rope_head_dim: number | null;
   kv_elems_per_token: number | null;
@@ -88,6 +95,11 @@ export interface GpuSetupOption {
   decodeThroughputTokS: number | null;
   maxConcurrentStreams: number;
   isProjected?: boolean;
+  // First-principles throughput estimate for this (model, GPU layout), computed
+  // in the matrix calculator. null when GPU specs / model dims / layout make a
+  // first-principles estimate impossible. The result views render this
+  // read-only; they never recompute it.
+  deploymentEstimate: DeploymentEstimate | null;
 }
 
 export interface MatrixCell {
@@ -118,9 +130,23 @@ export interface PresetGpuConfig {
 
 export type KvCachePrecision = "auto" | "fp16" | "fp8";
 
+/**
+ * Normalized inter-GPU interconnect tier (derived from each GPU's NVLink/NVSwitch
+ * form factor):
+ * - "none"          → PCIe-only, no inter-GPU NVLink
+ * - "nvlink_paired" → NVLink bridge connecting GPUs in 2-way pairs
+ * - "nvswitch"      → SXM/superchip GPUs on an all-to-all NVSwitch fabric
+ */
+export type InterconnectTier = "none" | "nvlink_paired" | "nvswitch";
+
 export interface AdvancedSettings {
   avgInputTokens: number;
   avgOutputTokens: number;
+  /**
+   * Fraction (0–1) of the input prompt that is shared/cached prefix across
+   * streams, eligible for prefix-cache reuse. Default 0.5.
+   */
+  prefixReuse: number;
   minTokPerStream: number;
   /**
    * KV cache precision used for VRAM/concurrency budgeting.
@@ -140,6 +166,29 @@ export interface CostResult {
   gpuName: string | null;
   pricePerGpuHour: number | null;
   monthlyCost: number | null;
+}
+
+/**
+ * First-principles deployment throughput estimate for a (model, GPU layout)
+ * pairing. All figures are derived from public physical inputs — there are no
+ * fitted or measured constants here.
+ */
+export interface DeploymentEstimate {
+  /** Decode throughput (tok/s) for a single in-flight request. */
+  singleStreamTokS: number;
+  /** Concurrency the layout can sustain, as a low/high operating band. */
+  operatingStreams: { low: number; high: number };
+  /** Aggregate decode throughput (tok/s) across all operating streams. */
+  aggregateTokS: number;
+  /** The public assumptions the estimate was derived under. */
+  assumptions: {
+    /** Context window used: average input + output tokens, and prefix reuse. */
+    context: { avgInputTokens: number; avgOutputTokens: number; prefixReuse: number };
+    /** Inter-GPU interconnect tier of the GPU layout. */
+    interconnectTier: InterconnectTier;
+    /** Whether throughput was modeled as MoE (active params) or dense. */
+    moe: boolean;
+  };
 }
 
 export interface ApiPricingEntry {

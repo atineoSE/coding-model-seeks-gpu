@@ -178,13 +178,19 @@ const KIMI_K25: Model = {
   routed_expert_params_b: 1014.7,
   attention_type: "MLA",
   num_hidden_layers: 61,
+  hidden_size: null,
   num_kv_layers: null,
   num_kv_heads: null,
   head_dim: null,
+  num_experts: null,
+  experts_per_token: null,
   kv_lora_rank: 512,
   qk_rope_head_dim: 64,
   hf_model_id: null,
   model_url: null,
+  kv_elems_per_token: null,
+  license_name: null,
+  license_url: null,
 };
 
 const B300_X1: GpuOffering = {
@@ -265,13 +271,19 @@ const SMALL_MODEL: Model = {
   routed_expert_params_b: null,
   attention_type: "GQA",
   num_hidden_layers: 32,
+  hidden_size: null,
   num_kv_layers: null,
   num_kv_heads: 8,
   head_dim: 128,
+  num_experts: null,
+  experts_per_token: null,
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
   model_url: null,
+  kv_elems_per_token: null,
+  license_name: null,
+  license_url: null,
 };
 
 describe("computeSelfHostingCostForConfig", () => {

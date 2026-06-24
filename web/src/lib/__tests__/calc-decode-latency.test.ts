@@ -1,0 +1,79 @@
+import { describe, it, expect } from "vitest";
+import {
+  calcDecodeLatency,
+  bandwidthRooflineTokS,
+  type DecodeLatencyGpu,
+  type DecodeLatencyModelDims,
+} from "../calc-decode-latency";
+
+// A representative MoE model (DeepSeek-style) sharded across multiple GPUs.
+const MODEL: DecodeLatencyModelDims = {
+  numLayers: 61,
+  hiddenSize: 7168,
+  activeParamsB: 37,
+  bytesPerParam: 1, // fp8 serving
+  isMoe: true,
+  topK: 8,
+  numExperts: 256,
+  kvLoraRank: 512,
+  qkRopeHeadDim: 64,
+};
+
+// Same HBM bandwidth on both ends so the only difference is the interconnect.
+const HBM_TB_S = 3.35; // H100-class HBM3
+
+const NVSWITCH: DecodeLatencyGpu = {
+  hbmBandwidthTbS: HBM_TB_S,
+  interconnectTier: "nvswitch",
+  interconnectBandwidthGbS: 450, // NVLink 4 unidirectional
+};
+
+const NONE: DecodeLatencyGpu = {
+  hbmBandwidthTbS: HBM_TB_S,
+  interconnectTier: "none",
+  interconnectBandwidthGbS: 64, // PCIe 5.0 x16 unidirectional
+};
+
+const TP = 4;
+
+describe("calcDecodeLatency", () => {
+  it("(a) gives lower single-stream tok/s on 'none' than on 'nvswitch'", () => {
+    const none = calcDecodeLatency(NONE, MODEL, { tp: TP });
+    const nvswitch = calcDecodeLatency(NVSWITCH, MODEL, { tp: TP });
+    expect(none.singleStreamTokS).toBeLessThan(nvswitch.singleStreamTokS);
+  });
+
+  it("(b) lands strictly below the pure bandwidth roofline", () => {
+    for (const gpu of [NONE, NVSWITCH]) {
+      const result = calcDecodeLatency(gpu, MODEL, { tp: TP });
+      const roofline = bandwidthRooflineTokS(gpu, MODEL, TP);
+      expect(result.bandwidthRooflineTokS).toBeCloseTo(roofline, 6);
+      expect(result.singleStreamTokS).toBeLessThan(roofline);
+    }
+  });
+
+  it("stays strictly below the roofline even at tp=1 (launch overhead only)", () => {
+    const result = calcDecodeLatency(NVSWITCH, MODEL, { tp: 1 });
+    const roofline = bandwidthRooflineTokS(NVSWITCH, MODEL, 1);
+    expect(result.breakdown.tpAllReduceS).toBe(0);
+    expect(result.breakdown.epAllToAllS).toBe(0);
+    expect(result.breakdown.launchS).toBeGreaterThan(0);
+    expect(result.singleStreamTokS).toBeLessThan(roofline);
+  });
+
+  it("charges the EP all-to-all term only for MoE models", () => {
+    const dense: DecodeLatencyModelDims = { ...MODEL, isMoe: false, topK: null };
+    const moe = calcDecodeLatency(NVSWITCH, MODEL, { tp: TP });
+    const denseResult = calcDecodeLatency(NVSWITCH, dense, { tp: TP });
+    expect(moe.breakdown.epAllToAllS).toBeGreaterThan(0);
+    expect(denseResult.breakdown.epAllToAllS).toBe(0);
+  });
+
+  it("breakdown terms sum to the total per-token time", () => {
+    const { perTokenS, breakdown } = calcDecodeLatency(NONE, MODEL, { tp: TP });
+    const sum =
+      breakdown.weightReadS + breakdown.tpAllReduceS + breakdown.epAllToAllS + breakdown.launchS;
+    expect(sum).toBeCloseTo(perTokenS, 12);
+    expect(perTokenS).toBeGreaterThan(0);
+  });
+});

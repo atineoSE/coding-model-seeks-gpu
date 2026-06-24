@@ -6,9 +6,12 @@ import {
   calculateBudgetChartData,
   calculateUnrankedMatrix,
   calcGpuSetupStats,
+  calcDeploymentEstimate,
   DEFAULT_ADVANCED_SETTINGS,
+  DEFAULT_MEMORY_UTILIZATION,
 } from "../matrix-calculator";
 import { WEIGHT_OVERHEAD_FACTOR, gpusNeeded, getModelMemory } from "../calculations";
+import { getGpuThroughputSpec } from "../gpu-specs";
 import { CONCURRENCY_TIERS } from "../concurrency-tiers";
 
 // ---------------------------------------------------------------------------
@@ -25,13 +28,19 @@ const GLM_47: Model = {
   routed_expert_params_b: null,
   attention_type: "GQA",
   num_hidden_layers: 92,
+  hidden_size: null,
   num_kv_layers: null,
   num_kv_heads: 8,
   head_dim: 128,
+  num_experts: null,
+  experts_per_token: null,
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
   model_url: null,
+  kv_elems_per_token: null,
+  license_name: null,
+  license_url: null,
 };
 
 const MINIMAX_M25: Model = {
@@ -44,13 +53,19 @@ const MINIMAX_M25: Model = {
   routed_expert_params_b: null,
   attention_type: "GQA",
   num_hidden_layers: 62,
+  hidden_size: null,
   num_kv_layers: null,
   num_kv_heads: 8,
   head_dim: 128,
+  num_experts: null,
+  experts_per_token: null,
   kv_lora_rank: null,
   qk_rope_head_dim: null,
   hf_model_id: null,
   model_url: null,
+  kv_elems_per_token: null,
+  license_name: null,
+  license_url: null,
 };
 
 const BENCHMARK_GLM: BenchmarkScore = {
@@ -350,13 +365,19 @@ describe("calculateBudgetChartData (unranked models)", () => {
     routed_expert_params_b: null,
     attention_type: "GQA",
     num_hidden_layers: 40,
+    hidden_size: null,
     num_kv_layers: null,
     num_kv_heads: 8,
     head_dim: 128,
+    num_experts: null,
+    experts_per_token: null,
     kv_lora_rank: null,
     qk_rope_head_dim: null,
     hf_model_id: null,
     model_url: null,
+    kv_elems_per_token: null,
+    license_name: null,
+    license_url: null,
   };
 
   const gpuConfig = {
@@ -551,5 +572,273 @@ describe("calcGpuSetupStats — kvCachePrecision", () => {
     expect(fp8.maxConcurrentStreams).toBeGreaterThan(fp16.maxConcurrentStreams);
     // Decode is bandwidth-bound and KV-dtype-independent.
     expect(fp8.decodeThroughputTokS).toBe(fp16.decodeThroughputTokS);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calcDeploymentEstimate — topology + latency + capacity integration
+// ---------------------------------------------------------------------------
+
+describe("calcDeploymentEstimate", () => {
+  // A fully-dimensioned MoE model: enough public dims for the latency model
+  // (hidden/layers/top-k) and a GQA KV width for the capacity model.
+  const MOE: Model = {
+    model_name: "Test-MoE-235B",
+    learnable_params_b: 235,
+    active_params_b: 22,
+    architecture: "MoE",
+    context_length: 131072,
+    precision: "BF16",
+    routed_expert_params_b: null,
+    attention_type: "GQA",
+    num_hidden_layers: 94,
+    hidden_size: 4096,
+    num_kv_layers: null,
+    num_kv_heads: 8,
+    head_dim: 128,
+    num_experts: 128,
+    experts_per_token: 8,
+    kv_lora_rank: null,
+    qk_rope_head_dim: null,
+    hf_model_id: null,
+    model_url: null,
+    kv_elems_per_token: null,
+    license_name: null,
+    license_url: null,
+  };
+
+  // A dense model of the same dims minus the MoE routing — used to check the
+  // `moe` assumption flag flips and the EP all-to-all term drops out.
+  const DENSE: Model = {
+    ...MOE,
+    model_name: "Test-Dense-22B",
+    learnable_params_b: 22,
+    active_params_b: null,
+    architecture: "Dense",
+    num_experts: null,
+    experts_per_token: null,
+  };
+
+  // 8× H100 (nvswitch, 80 GB each) — 640 GB fits the 235B BF16 (~470 GB) MoE.
+  function offering(gpuCount: number, gpuName = "H100"): GpuOffering {
+    const vram = getGpuThroughputSpec(gpuName)!.memory_size_gb;
+    return {
+      gpu_name: gpuName,
+      vram_gb: vram,
+      gpu_count: gpuCount,
+      total_vram_gb: vram * gpuCount,
+      price_per_hour: 1,
+      currency: "USD",
+      provider: "test",
+      instance_name: "test",
+      location: "test",
+      interconnect: "nvlink",
+    };
+  }
+
+  // Smaller context than the 50k default so operating streams are clearly > 0.
+  const SETTINGS: typeof DEFAULT_ADVANCED_SETTINGS = {
+    ...DEFAULT_ADVANCED_SETTINGS,
+    avgInputTokens: 8000,
+    avgOutputTokens: 1000,
+  };
+
+  it("assembles a full estimate for a fitting MoE layout", () => {
+    const est = calcDeploymentEstimate(MOE, offering(8), SETTINGS);
+    expect(est).not.toBeNull();
+    expect(est!.singleStreamTokS).toBeGreaterThan(0);
+    expect(est!.aggregateTokS).toBeGreaterThan(0);
+    expect(est!.operatingStreams.high).toBeGreaterThanOrEqual(est!.operatingStreams.low);
+    expect(est!.operatingStreams.low).toBeGreaterThan(0);
+  });
+
+  it("passes through the interconnect tier, MoE flag, and context assumptions", () => {
+    const est = calcDeploymentEstimate(MOE, offering(8), SETTINGS)!;
+    expect(est.assumptions.interconnectTier).toBe("nvswitch"); // H100 → nvswitch
+    expect(est.assumptions.moe).toBe(true);
+    expect(est.assumptions.context).toEqual({
+      avgInputTokens: 8000,
+      avgOutputTokens: 1000,
+      prefixReuse: SETTINGS.prefixReuse,
+    });
+  });
+
+  it("aggregate (batched) throughput is the bonus over single-stream", () => {
+    const est = calcDeploymentEstimate(MOE, offering(8), SETTINGS)!;
+    // High operating batch amortizes the weight read, so the batched roofline
+    // clears the single-stream latency-bound rate.
+    expect(est.operatingStreams.high).toBeGreaterThanOrEqual(1);
+    expect(est.aggregateTokS).toBeGreaterThan(est.singleStreamTokS);
+  });
+
+  it("caps aggregate at the prefill compute roofline of the used GPUs", () => {
+    const est = calcDeploymentEstimate(MOE, offering(8), SETTINGS)!;
+    const spec = getGpuThroughputSpec("H100")!;
+    // gpusUsed = 8 (nvswitch spans all), 2 FLOPs/param/token forward pass.
+    const prefillCeiling = (8 * spec.fp16_tflops * 1e12) / (2 * MOE.active_params_b! * 1e9);
+    expect(est.aggregateTokS).toBeLessThanOrEqual(prefillCeiling + 1e-6);
+  });
+
+  it("flips the MoE assumption flag for a dense model", () => {
+    const est = calcDeploymentEstimate(DENSE, offering(2), SETTINGS)!;
+    expect(est).not.toBeNull();
+    expect(est.assumptions.moe).toBe(false);
+  });
+
+  it("widens the operating-streams band as VRAM (GPU count) grows", () => {
+    const small = calcDeploymentEstimate(MOE, offering(6), SETTINGS)!;
+    const large = calcDeploymentEstimate(MOE, offering(8), SETTINGS)!;
+    // More GPUs ⇒ more usable VRAM after the fixed weights ⇒ more streams.
+    expect(large.operatingStreams.high).toBeGreaterThan(small.operatingStreams.high);
+  });
+
+  it("admits at least as many streams under FP8 KV as under FP16 KV", () => {
+    const fp16 = calcDeploymentEstimate(MOE, offering(8), {
+      ...SETTINGS,
+      kvCachePrecision: "fp16",
+    })!;
+    const fp8 = calcDeploymentEstimate(MOE, offering(8), {
+      ...SETTINGS,
+      kvCachePrecision: "auto", // H100 (Hopper) ⇒ 1-byte FP8 KV
+    })!;
+    expect(fp8.operatingStreams.high).toBeGreaterThan(fp16.operatingStreams.high);
+    // Decode latency is KV-dtype-independent (bandwidth-bound weight read).
+    expect(fp8.singleStreamTokS).toBeCloseTo(fp16.singleStreamTokS, 9);
+  });
+
+  it("returns null when the layout cannot fit the weights", () => {
+    // 1× H100 (80 GB) cannot hold a 235B BF16 model (~470 GB).
+    expect(calcDeploymentEstimate(MOE, offering(1), SETTINGS)).toBeNull();
+  });
+
+  it("returns null when required public model dims are missing", () => {
+    const noHidden: Model = { ...MOE, hidden_size: null };
+    expect(calcDeploymentEstimate(noHidden, offering(8), SETTINGS)).toBeNull();
+  });
+
+  it("returns null for a GPU with no published specs", () => {
+    const unknown: GpuOffering = { ...offering(8), gpu_name: "NotARealGpu" };
+    expect(calcDeploymentEstimate(MOE, unknown, SETTINGS)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DeploymentEstimate is surfaced read-only on the view data structures
+// (so the result views can render it without recomputing).
+// ---------------------------------------------------------------------------
+
+describe("DeploymentEstimate surfaced on view data", () => {
+  // Fully-dimensioned MoE so calcDeploymentEstimate yields a non-null estimate
+  // (the swe_bench fixtures above have hidden_size === null on purpose).
+  const MOE: Model = {
+    model_name: "Test-MoE-235B",
+    learnable_params_b: 235,
+    active_params_b: 22,
+    architecture: "MoE",
+    context_length: 131072,
+    precision: "BF16",
+    routed_expert_params_b: null,
+    attention_type: "GQA",
+    num_hidden_layers: 94,
+    hidden_size: 4096,
+    num_kv_layers: null,
+    num_kv_heads: 8,
+    head_dim: 128,
+    num_experts: 128,
+    experts_per_token: 8,
+    kv_lora_rank: null,
+    qk_rope_head_dim: null,
+    hf_model_id: null,
+    model_url: null,
+    kv_elems_per_token: null,
+    license_name: null,
+    license_url: null,
+  };
+
+  const MOE_BENCHMARK: BenchmarkScore = {
+    model_name: "Test-MoE-235B",
+    benchmark_name: "swe_bench_verified",
+    benchmark_display_name: "SWE-bench Verified",
+    score: 70.0,
+    rank: 1,
+    cost_per_task: null,
+    benchmark_group: "coding",
+    benchmark_group_display: "Coding",
+  };
+
+  const SETTINGS: typeof DEFAULT_ADVANCED_SETTINGS = {
+    ...DEFAULT_ADVANCED_SETTINGS,
+    avgInputTokens: 8000,
+    avgOutputTokens: 1000,
+  };
+
+  const vram = getGpuThroughputSpec("H100")!.memory_size_gb;
+  // 8× H100 fits the 235B BF16 weights (~470 GB) with KV headroom.
+  const H100_X8: GpuOffering = {
+    gpu_name: "H100",
+    vram_gb: vram,
+    gpu_count: 8,
+    total_vram_gb: vram * 8,
+    price_per_hour: 1,
+    currency: "USD",
+    provider: "test",
+    instance_name: "test-x8",
+    location: "test",
+    interconnect: "nvlink",
+  };
+
+  it("calculatePerformanceMatrix attaches the estimate to each GPU setup", () => {
+    const matrix = calculatePerformanceMatrix(
+      [H100_X8], [MOE], [MOE_BENCHMARK], [SOTA], "swe_bench_verified", SETTINGS,
+    );
+    const direct = calcDeploymentEstimate(MOE, H100_X8, SETTINGS);
+    expect(direct).not.toBeNull();
+
+    const setupsWithEstimate = matrix
+      .flat()
+      .flatMap((cell) => cell.gpuSetups);
+    expect(setupsWithEstimate.length).toBeGreaterThan(0);
+    for (const setup of setupsWithEstimate) {
+      // Read-only: identical to a direct compute, never re-derived in the view.
+      expect(setup.deploymentEstimate).toEqual(direct);
+    }
+  });
+
+  it("calculateBudgetChartData surfaces the estimate at the configured utilization", () => {
+    const gpuConfig = {
+      label: "8×H100",
+      gpuName: "H100",
+      gpuCount: 8,
+      vramPerGpu: vram,
+      totalVramGb: vram * 8,
+      interconnect: "nvlink" as const,
+    };
+    const data = calculateBudgetChartData(
+      gpuConfig, [MOE], [], [], "swe_bench_verified", DEFAULT_MEMORY_UTILIZATION, SETTINGS,
+    );
+    const point = data.find((d) => d.modelName === MOE.model_name)!;
+    expect(point.fits).toBe(true);
+
+    const direct = calcDeploymentEstimate(
+      MOE, H100_X8, SETTINGS, DEFAULT_MEMORY_UTILIZATION,
+    );
+    expect(point.deploymentEstimate).toEqual(direct);
+  });
+
+  it("leaves the estimate null for a model that does not fit", () => {
+    const gpuConfig = {
+      label: "1×H100",
+      gpuName: "H100",
+      gpuCount: 1,
+      vramPerGpu: vram,
+      totalVramGb: vram,
+      interconnect: null,
+    };
+    const data = calculateBudgetChartData(
+      gpuConfig, [MOE], [], [], "swe_bench_verified", DEFAULT_MEMORY_UTILIZATION, SETTINGS,
+    );
+    const point = data.find((d) => d.modelName === MOE.model_name)!;
+    expect(point.fits).toBe(false);
+    expect(point.deploymentEstimate).toBeNull();
   });
 });

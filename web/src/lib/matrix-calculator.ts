@@ -8,10 +8,12 @@ import type {
   AdvancedSettings,
   PresetGpuConfig,
   ConcurrencyTierConfig,
+  DeploymentEstimate,
 } from "@/types";
 import { CONCURRENCY_TIERS } from "./concurrency-tiers";
 import {
   getModelMemory,
+  getActiveModelMemory,
   gpusNeeded,
   calcDecodeThroughput,
   calcMaxConcurrentRequests,
@@ -19,6 +21,14 @@ import {
   resolveKvPrecisionBytes,
   WEIGHT_OVERHEAD_FACTOR,
 } from "./calculations";
+import { calcTopology } from "./calc-topology";
+import {
+  calcDecodeLatency,
+  type DecodeLatencyGpu,
+  type DecodeLatencyModelDims,
+} from "./calc-decode-latency";
+import { calcRuntimeReserve, calcOperatingStreams } from "./calc-capacity";
+import { getGpuThroughputSpec } from "./gpu-specs";
 import { computeTotalBenchmarkCost } from "./benchmark-costs";
 import { scoreFor, minVramForModel, isUnranked } from "./model-data";
 
@@ -37,6 +47,7 @@ export const DEFAULT_MEMORY_UTILIZATION = 0.90;
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   avgInputTokens: 50_000,
   avgOutputTokens: 1000,
+  prefixReuse: 0.5,
   minTokPerStream: 20,
   // 2 bytes/elem: vLLM's `kv_cache_dtype=auto` follows the model's bf16/fp16
   // compute dtype, not the GPU's FP8 capability. FP8 KV is opt-in ("auto").
@@ -92,6 +103,194 @@ export function calcGpuSetupStats(
     maxConcurrentStreams,
     decodeThroughputTokS: decodeThroughput,
   };
+}
+
+/**
+ * Forward-pass FLOPs per parameter per token. A matmul costs one multiply plus
+ * one add per weight, so a single forward pass is ~2·N FLOPs per token for an
+ * N-parameter model. Standard transformer FLOP accounting (Kaplan et al. 2020,
+ * "Scaling Laws for Neural Language Models", Appendix; Hoffmann et al. 2022,
+ * "Chinchilla", Appendix F). Public, architecture-independent constant.
+ */
+const FORWARD_FLOPS_PER_PARAM = 2;
+
+/**
+ * Pick the effective unidirectional inter-GPU link bandwidth (GB/s) the decode
+ * latency model should charge collectives against, given the GPU's normalized
+ * interconnect tier. NVLink/NVSwitch tiers use the NVLink figure; PCIe-only
+ * ("none") uses the PCIe link bandwidth. Falls back to whichever datasheet
+ * figure is present. Returns null when neither is published.
+ */
+function interconnectBandwidthGbS(
+  spec: { nvlink_bandwidth_gb_s: number | null; pcie_bandwidth_gb_s: number | null },
+  tier: "none" | "nvlink_paired" | "nvswitch",
+): number | null {
+  if (tier === "none") return spec.pcie_bandwidth_gb_s ?? spec.nvlink_bandwidth_gb_s;
+  return spec.nvlink_bandwidth_gb_s ?? spec.pcie_bandwidth_gb_s;
+}
+
+/**
+ * Assemble a first-principles {@link DeploymentEstimate} for one (model, GPU
+ * offering) pairing.
+ *
+ * The pipeline composes the three sibling physics models:
+ *  1. {@link calcTopology} chooses the parallelism layout (TP/PP) the
+ *     interconnect tier allows, and reports whether the weights even fit.
+ *  2. {@link calcDecodeLatency} gives `singleStreamTokS` — the latency-bound
+ *     decode rate of one in-flight request under that layout.
+ *  3. {@link calcRuntimeReserve} + {@link calcOperatingStreams} give the
+ *     low/high concurrency band the leftover VRAM can admit.
+ *
+ * `aggregateTokS` is the bonus throughput when the layout runs its full
+ * operating batch: the *batched* bandwidth roofline (the raw single-stream
+ * weight-read roofline reused as a per-step ceiling, amortized over the high
+ * operating batch) capped by the prefill compute roofline. The raw roofline
+ * stays internal — it is not surfaced on the estimate.
+ *
+ * Returns null when the GPU specs, required model dims, or layout feasibility
+ * make a first-principles estimate impossible (no faked fallbacks).
+ */
+export function calcDeploymentEstimate(
+  model: Model,
+  offering: GpuOffering,
+  settings: AdvancedSettings,
+  memoryUtilization: number = DEFAULT_MEMORY_UTILIZATION,
+): DeploymentEstimate | null {
+  const spec = getGpuThroughputSpec(offering.gpu_name);
+  if (!spec) return null;
+
+  const precision = resolveModelPrecision(model);
+  const weightsGb = getModelMemory(model, precision);
+  if (weightsGb === null) return null;
+
+  const isMoe = model.architecture === "MoE";
+  const activeParamsB = isMoe ? model.active_params_b : model.learnable_params_b;
+  if (activeParamsB === null || activeParamsB <= 0) return null;
+
+  const activeMemGb = getActiveModelMemory(model, precision);
+  if (activeMemGb === null) return null;
+  // Effective bytes/param at the serving precision — captures the mixed-precision
+  // (int4 routed experts + bf16/fp8 rest) split that getActiveModelMemory encodes.
+  const bytesPerParam = activeMemGb / activeParamsB;
+
+  if (model.num_hidden_layers === null || model.hidden_size === null) return null;
+
+  // 1. Parallelism layout from the interconnect topology.
+  const tier = spec.interconnect_tier;
+  const layout = calcTopology({
+    interconnectTier: tier,
+    gpuCount: offering.gpu_count,
+    modelSizeGb: weightsGb,
+    vramPerGpuGb: offering.vram_gb,
+  });
+  if (!layout.feasible) return null;
+
+  const interconnectGbS = interconnectBandwidthGbS(spec, tier);
+  // A multi-GPU layout needs a published inter-GPU link bandwidth to charge the
+  // TP all-reduce / EP all-to-all against; a single-GPU layout never collectives.
+  if (layout.tp > 1 && (interconnectGbS === null || interconnectGbS <= 0)) return null;
+
+  // 2. Single-stream decode latency model.
+  const latencyGpu: DecodeLatencyGpu = {
+    hbmBandwidthTbS: spec.memory_bandwidth_tb_s,
+    interconnectTier: tier,
+    interconnectBandwidthGbS: interconnectGbS ?? 0,
+  };
+  const latencyDims: DecodeLatencyModelDims = {
+    numLayers: model.num_hidden_layers,
+    hiddenSize: model.hidden_size,
+    activeParamsB,
+    bytesPerParam,
+    isMoe,
+    topK: model.experts_per_token,
+    numExperts: model.num_experts,
+    kvLoraRank: model.kv_lora_rank,
+    qkRopeHeadDim: model.qk_rope_head_dim,
+  };
+  const decode = calcDecodeLatency(latencyGpu, latencyDims, { tp: layout.tp });
+
+  // 3. Operating-streams band from the leftover VRAM after weights + reserve.
+  // For MoE the experts are sharded across the TP group, so EP degree = TP.
+  const reserveLayout = {
+    numGpus: layout.gpusUsed,
+    tp: layout.tp,
+    ep: isMoe ? layout.tp : 1,
+    pp: layout.pp,
+  };
+  const reserveGb = calcRuntimeReserve(model, reserveLayout);
+  const usableVramGb = layout.gpusUsed * offering.vram_gb * memoryUtilization;
+  const kvPrecisionBytes = resolveKvPrecisionBytes(settings.kvCachePrecision, offering.gpu_name);
+  // Plausible operating band centered on the configured prefix-reuse fraction.
+  const p = settings.prefixReuse;
+  const prefixReuseRange = {
+    low: Math.max(0, p - 0.25),
+    high: Math.min(0.999, p + 0.25),
+  };
+  const operatingStreams = calcOperatingStreams({
+    model,
+    usableVramGb,
+    weightsGb,
+    reserveGb,
+    avgInputTokens: settings.avgInputTokens,
+    avgOutputTokens: settings.avgOutputTokens,
+    kvPrecisionBytes,
+    prefixReuseRange,
+  });
+
+  // Aggregate (bonus) throughput: the batched bandwidth roofline — the raw
+  // single-stream weight-read roofline amortized over the full operating batch —
+  // capped by the prefill compute roofline (FLOPs across the used GPUs).
+  const batchedRooflineTokS = operatingStreams.high * decode.bandwidthRooflineTokS;
+  const prefillComputeTokS =
+    (layout.gpusUsed * spec.fp16_tflops * 1e12) /
+    (FORWARD_FLOPS_PER_PARAM * activeParamsB * 1e9);
+  const aggregateTokS = Math.min(batchedRooflineTokS, prefillComputeTokS);
+
+  return {
+    singleStreamTokS: decode.singleStreamTokS,
+    operatingStreams,
+    aggregateTokS,
+    assumptions: {
+      context: {
+        avgInputTokens: settings.avgInputTokens,
+        avgOutputTokens: settings.avgOutputTokens,
+        prefixReuse: settings.prefixReuse,
+      },
+      interconnectTier: tier,
+      moe: isMoe,
+    },
+  };
+}
+
+/**
+ * Build the read-only {@link DeploymentEstimate} for a GPU layout described by
+ * its raw primitives (the budget/scaled paths don't carry a full
+ * {@link GpuOffering}). `calcDeploymentEstimate` only reads gpu_name, gpu_count
+ * and vram_gb off the offering, so the remaining fields are placeholders.
+ */
+function estimateForLayout(
+  model: Model,
+  gpuName: string,
+  gpuCount: number,
+  vramPerGpu: number,
+  totalVramGb: number,
+  interconnect: string | null,
+  settings: AdvancedSettings,
+  memoryUtilization: number = DEFAULT_MEMORY_UTILIZATION,
+): DeploymentEstimate | null {
+  const offering: GpuOffering = {
+    gpu_name: gpuName,
+    vram_gb: vramPerGpu,
+    gpu_count: gpuCount,
+    total_vram_gb: totalVramGb,
+    price_per_hour: 0,
+    currency: "",
+    provider: "",
+    instance_name: "",
+    location: "",
+    interconnect,
+  };
+  return calcDeploymentEstimate(model, offering, settings, memoryUtilization);
 }
 
 /**
@@ -159,6 +358,7 @@ export function findGpuSetups(
       costPerStreamPerMonth: costPerStream,
       decodeThroughputTokS: stats.decodeThroughputTokS,
       maxConcurrentStreams: stats.maxConcurrentStreams,
+      deploymentEstimate: calcDeploymentEstimate(model, offering, settings),
     });
   }
 
@@ -235,6 +435,9 @@ export function findScaledGpuSetups(
         decodeThroughputTokS: stats.decodeThroughputTokS,
         maxConcurrentStreams: stats.maxConcurrentStreams,
         isProjected: true,
+        deploymentEstimate: estimateForLayout(
+          model, gpuName, count, info.vramGb, totalVram, interconnect, settings,
+        ),
       });
       break;
     }
@@ -391,6 +594,17 @@ export function calculateBudgetMatrix(
       settings,
     );
 
+    // The deployment estimate is tier-independent (same GPU layout) — compute once.
+    const deploymentEstimate = estimateForLayout(
+      model,
+      gpuConfig.gpuName,
+      gpuConfig.gpuCount,
+      gpuConfig.vramPerGpu,
+      gpuConfig.totalVramGb,
+      gpuConfig.interconnect,
+      settings,
+    );
+
     return CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig): MatrixCell => {
       const exceedsCapacity = stats.maxConcurrentStreams < tier.midpoint;
 
@@ -420,6 +634,7 @@ export function calculateBudgetMatrix(
               costPerStreamPerMonth: costPerStream ?? Infinity,
               decodeThroughputTokS: stats.decodeThroughputTokS,
               maxConcurrentStreams: stats.maxConcurrentStreams,
+              deploymentEstimate,
             }
           : null;
 
@@ -459,6 +674,10 @@ export interface BudgetChartDataPoint {
   benchmarkScore: number | null;
   // Sized but with no OpenHands Index score yet (partial-model-data skill).
   isUnranked: boolean;
+  // First-principles throughput estimate for this model on the fixed GPU config.
+  // null when the model doesn't fit or specs/dims make an estimate impossible.
+  // Rendered read-only by the budget chart — never recomputed in the view.
+  deploymentEstimate: DeploymentEstimate | null;
 }
 
 export function calculateBudgetChartData(
@@ -533,6 +752,7 @@ export function calculateBudgetChartData(
         decodeThroughputTokS: null,
         benchmarkScore: benchmark?.score ?? null,
         isUnranked,
+        deploymentEstimate: null,
       };
     }
 
@@ -567,6 +787,16 @@ export function calculateBudgetChartData(
       decodeThroughputTokS: stats.decodeThroughputTokS,
       benchmarkScore: benchmark?.score ?? null,
       isUnranked,
+      deploymentEstimate: estimateForLayout(
+        model,
+        gpuConfig.gpuName,
+        gpuConfig.gpuCount,
+        gpuConfig.vramPerGpu,
+        gpuConfig.totalVramGb,
+        gpuConfig.interconnect,
+        settings,
+        memoryUtilization,
+      ),
     };
   });
 }

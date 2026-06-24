@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { Model, BenchmarkScore } from "@/types";
-import { scoreFor, isUnranked, minVramForModel } from "./model-data";
+import type { Model, BenchmarkScore, DeploymentEstimate } from "@/types";
+import { scoreFor, isUnranked, minVramForModel, isMoE, modelArchShape } from "./model-data";
+import modelsData from "../../public/data/models.json";
 import {
   getModelMemory,
   resolveModelPrecision,
@@ -17,9 +18,12 @@ function makeModel(overrides: Partial<Model> & { model_name: string }): Model {
     routed_expert_params_b: null,
     attention_type: "GQA",
     num_hidden_layers: null,
+    hidden_size: null,
     num_kv_layers: null,
     num_kv_heads: null,
     head_dim: null,
+    num_experts: null,
+    experts_per_token: null,
     kv_lora_rank: null,
     qk_rope_head_dim: null,
     kv_elems_per_token: null,
@@ -136,5 +140,112 @@ describe("minVramForModel", () => {
   it("returns null when sizing is unknown (learnable_params_b is null)", () => {
     const model = makeModel({ model_name: "Unsized", learnable_params_b: null });
     expect(minVramForModel(model)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isMoE / modelArchShape
+// ---------------------------------------------------------------------------
+
+describe("isMoE", () => {
+  it("is true for MoE and false for Dense", () => {
+    expect(isMoE(makeModel({ model_name: "M", architecture: "MoE" }))).toBe(true);
+    expect(isMoE(makeModel({ model_name: "D", architecture: "Dense" }))).toBe(false);
+  });
+});
+
+describe("modelArchShape", () => {
+  it("passes through MoE expert counts and hidden size", () => {
+    const m = makeModel({
+      model_name: "Sparse",
+      architecture: "MoE",
+      hidden_size: 6144,
+      num_experts: 160,
+      experts_per_token: 8,
+    });
+    expect(modelArchShape(m)).toEqual({
+      hiddenSize: 6144,
+      numExperts: 160,
+      expertsPerToken: 8,
+    });
+  });
+
+  it("nulls expert counts for dense models even if data sets them", () => {
+    const m = makeModel({
+      model_name: "Dense",
+      architecture: "Dense",
+      hidden_size: 4096,
+      num_experts: 8,
+      experts_per_token: 2,
+    });
+    expect(modelArchShape(m)).toEqual({
+      hiddenSize: 4096,
+      numExperts: null,
+      expertsPerToken: null,
+    });
+  });
+
+  it("is null-safe when fields are missing", () => {
+    const m = makeModel({ model_name: "Bare", architecture: "MoE" });
+    expect(modelArchShape(m)).toEqual({
+      hiddenSize: null,
+      numExperts: null,
+      expertsPerToken: null,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// models.json data shape (new architecture fields)
+// ---------------------------------------------------------------------------
+
+describe("models.json", () => {
+  const models = modelsData as unknown as Model[];
+
+  it("parses and every entry exposes the new architecture fields (null-safe)", () => {
+    expect(models.length).toBeGreaterThan(0);
+    for (const m of models) {
+      expect("hidden_size" in m).toBe(true);
+      expect("num_experts" in m).toBe(true);
+      expect("experts_per_token" in m).toBe(true);
+      // MLA latent fields are present on every entry.
+      expect("kv_lora_rank" in m).toBe(true);
+      expect("qk_rope_head_dim" in m).toBe(true);
+    }
+  });
+
+  it("populates hidden_size/experts for at least one real MoE model", () => {
+    const populated = models.filter((m) => m.hidden_size !== null);
+    expect(populated.length).toBeGreaterThan(0);
+    for (const m of populated) {
+      expect(m.hidden_size).toBeGreaterThan(0);
+      if (m.architecture === "MoE" && m.num_experts !== null) {
+        expect(m.num_experts).toBeGreaterThan(0);
+        expect(m.experts_per_token).not.toBeNull();
+        expect(m.experts_per_token!).toBeGreaterThan(0);
+        expect(m.experts_per_token!).toBeLessThanOrEqual(m.num_experts);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DeploymentEstimate type loads and is constructible
+// ---------------------------------------------------------------------------
+
+describe("DeploymentEstimate type", () => {
+  it("is exported and structurally usable", () => {
+    const estimate: DeploymentEstimate = {
+      singleStreamTokS: 42,
+      operatingStreams: { low: 1, high: 8 },
+      aggregateTokS: 300,
+      assumptions: {
+        context: { avgInputTokens: 50_000, avgOutputTokens: 1000, prefixReuse: 0.5 },
+        interconnectTier: "nvswitch",
+        moe: true,
+      },
+    };
+    expect(estimate.operatingStreams.high).toBeGreaterThanOrEqual(estimate.operatingStreams.low);
+    expect(estimate.assumptions.interconnectTier).toBe("nvswitch");
   });
 });

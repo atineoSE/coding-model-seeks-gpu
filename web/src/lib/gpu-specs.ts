@@ -5,6 +5,7 @@
  * Used for calculating decode throughput and stream capacity estimates.
  */
 
+import type { InterconnectTier } from "@/types";
 import gpuSpecsData from "../../public/data/gpu_specs.json";
 
 export interface GpuThroughputSpec {
@@ -17,14 +18,41 @@ export interface GpuThroughputSpec {
   /** Memory bandwidth in TB/s */
   memory_bandwidth_tb_s: number;
 
+  /** PCIe link bandwidth in GB/s (unidirectional x16, by PCIe generation) */
+  pcie_bandwidth_gb_s: number | null;
+
   /** NVLink bandwidth in GB/s (null for PCIe-only GPUs) */
   nvlink_bandwidth_gb_s: number | null;
+
+  /**
+   * Normalized inter-GPU interconnect tier, derived from the NVLink/NVSwitch
+   * form factor. See {@link InterconnectTier}.
+   */
+  interconnect_tier: InterconnectTier;
+
+  /** Memory technology (e.g. "HBM3e", "GDDR6X"); null if unknown */
+  memory_type: string | null;
 
   /** FP8 support multiplier (2x for Hopper and newer, 1x for older) */
   fp8_multiplier: number;
 
   /** Architecture generation (for reference) */
   architecture: string;
+}
+
+/**
+ * Normalize an interconnect tier from a raw spec entry. Prefers an explicit
+ * `interconnect_tier`; falls back to the NVLink-bandwidth signal so older data
+ * (or a partial pipeline regen) still resolves a sensible tier:
+ * `none` when there is no NVLink, else the conservative `nvlink_paired`.
+ */
+function normalizeInterconnectTier(entry: {
+  interconnect_tier?: string | null;
+  nvlink_bandwidth_gb_s?: number | null;
+}): InterconnectTier {
+  const t = entry.interconnect_tier;
+  if (t === "none" || t === "nvlink_paired" || t === "nvswitch") return t;
+  return entry.nvlink_bandwidth_gb_s == null ? "none" : "nvlink_paired";
 }
 
 /**
@@ -36,11 +64,14 @@ export const GPU_THROUGHPUT_SPECS: Record<string, GpuThroughputSpec> = {};
 const GPU_THROUGHPUT_SPECS_LOWER: Record<string, GpuThroughputSpec> = {};
 
 for (const entry of gpuSpecsData) {
-  const spec = {
+  const spec: GpuThroughputSpec = {
     memory_size_gb: entry.memory_size_gb,
     fp16_tflops: entry.fp16_tflops,
     memory_bandwidth_tb_s: entry.memory_bandwidth_tb_s,
+    pcie_bandwidth_gb_s: entry.pcie_bandwidth_gb_s ?? null,
     nvlink_bandwidth_gb_s: entry.nvlink_bandwidth_gb_s,
+    interconnect_tier: normalizeInterconnectTier(entry),
+    memory_type: entry.memory_type ?? null,
     fp8_multiplier: entry.fp8_multiplier,
     architecture: entry.architecture,
   };

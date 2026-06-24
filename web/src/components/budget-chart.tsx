@@ -19,6 +19,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import type { BudgetChartDataPoint } from "@/lib/matrix-calculator";
+import { DeploymentEstimatePanel } from "@/components/deployment-estimate-panel";
 import { formatModelName } from "@/lib/utils";
 
 const DEFAULT_REQ_PER_DEV_HOUR = 200;
@@ -322,6 +323,12 @@ function BudgetTooltip({ active, payload, mode, reqPerDevPerHour }: {
                 </>
               )}
             </div>
+            {/* First-principles deployment estimate (read-only) */}
+            {point.deploymentEstimate && (
+              <div className="pt-1 border-t">
+                <DeploymentEstimatePanel estimate={point.deploymentEstimate} />
+              </div>
+            )}
           </>
         ) : (
           <p className="text-muted-foreground">{point.doesntFitReason ?? "Model doesn't fit"}</p>

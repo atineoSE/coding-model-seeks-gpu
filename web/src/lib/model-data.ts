@@ -74,3 +74,31 @@ export function minVramForModel(model: Model): number | null {
   if (memGb === null) return null;
   return Math.ceil(memGb * WEIGHT_OVERHEAD_FACTOR);
 }
+
+/**
+ * Whether a model should be modeled as Mixture-of-Experts (only a subset of
+ * params is active per token) rather than dense. Uses the explicit
+ * `architecture` tag; `num_experts`/`active_params_b` are corroborating signals
+ * the throughput formulas can read when present.
+ */
+export function isMoE(model: Model): boolean {
+  return model.architecture === "MoE";
+}
+
+/**
+ * Architecture shape fields used by the first-principles throughput formulas,
+ * with null-safe fallbacks. `numExperts`/`expertsPerToken` are only meaningful
+ * for MoE models and stay `null` for dense ones even if the data omits them.
+ */
+export function modelArchShape(model: Model): {
+  hiddenSize: number | null;
+  numExperts: number | null;
+  expertsPerToken: number | null;
+} {
+  const moe = isMoE(model);
+  return {
+    hiddenSize: model.hidden_size ?? null,
+    numExperts: moe ? (model.num_experts ?? null) : null,
+    expertsPerToken: moe ? (model.experts_per_token ?? null) : null,
+  };
+}
