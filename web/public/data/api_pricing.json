@@ -120,6 +120,8 @@
     "output_cost_per_token_flex": 1.5e-05,
     "output_cost_per_token_batches": 1.5e-05,
     "output_cost_per_token_priority": 6e-05,
+    "regional_processing_uplift_multiplier_eu": 1.1,
+    "regional_processing_uplift_multiplier_us": 1.1,
     "supported_endpoints": [
       "/v1/chat/completions",
       "/v1/batch",
