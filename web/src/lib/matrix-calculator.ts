@@ -204,10 +204,16 @@ export function calcDeploymentEstimate(
     isMoe,
     topK: model.experts_per_token,
     numExperts: model.num_experts,
+    routedExpertParamsB: model.routed_expert_params_b,
     kvLoraRank: model.kv_lora_rank,
     qkRopeHeadDim: model.qk_rope_head_dim,
   };
-  const decode = calcDecodeLatency(latencyGpu, latencyDims, { tp: layout.tp });
+  // EP degree = TP for MoE (experts sharded across the TP group); PP from layout.
+  const decode = calcDecodeLatency(latencyGpu, latencyDims, {
+    tp: layout.tp,
+    ep: isMoe ? layout.tp : 1,
+    pp: layout.pp,
+  });
 
   // 3. Operating-streams band from the leftover VRAM after weights + reserve.
   // For MoE the experts are sharded across the TP group, so EP degree = TP.
