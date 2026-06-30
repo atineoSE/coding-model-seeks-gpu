@@ -271,7 +271,7 @@ const SMALL_MODEL: Model = {
   routed_expert_params_b: null,
   attention_type: "GQA",
   num_hidden_layers: 32,
-  hidden_size: null,
+  hidden_size: 4096,
   num_kv_layers: null,
   num_kv_heads: 8,
   head_dim: 128,

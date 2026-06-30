@@ -1,19 +1,13 @@
 import { describe, it, expect } from "vitest";
-import type { Model, GpuOffering, Precision } from "@/types";
+import type { Model, Precision } from "@/types";
 import {
   getModelMemory,
   getActiveModelMemory,
   gpusNeeded,
   calcKvCachePerToken,
-  calcKvCachePerRequest,
-  calcDecodeThroughput,
-  calcMaxConcurrentRequests,
   resolveModelPrecision,
   resolveKvPrecisionBytes,
   isNvLink,
-  calcParallelismTopology,
-  calcTpEfficiency,
-  calcPpBubbleEfficiency,
   WEIGHT_OVERHEAD_FACTOR,
 } from "../calculations";
 
@@ -457,85 +451,6 @@ describe("calcKvCachePerToken", () => {
 });
 
 // ---------------------------------------------------------------------------
-// calcKvCachePerRequest
-// ---------------------------------------------------------------------------
-
-describe("calcKvCachePerRequest", () => {
-  it("scales linearly with total tokens", () => {
-    const kv1 = calcKvCachePerRequest(DEEPSEEK_V32, 1000, 500);
-    const kv2 = calcKvCachePerRequest(DEEPSEEK_V32, 2000, 1000);
-    expect(kv2).toBeCloseTo(kv1 * 2, 10);
-  });
-
-  it("DeepSeek MLA 1500 tokens ≈ 0.098 GB", () => {
-    // 70,272 bytes/token × 1500 = 105,408,000 bytes ≈ 0.0982 GB
-    const kv = calcKvCachePerRequest(DEEPSEEK_V32, 1000, 500);
-    expect(kv).toBeCloseTo(0.0982, 3);
-  });
-
-  it("GLM GQA 1500 tokens ≈ 0.526 GB", () => {
-    // 376,832 bytes/token × 1500 = 565,248,000 bytes ≈ 0.5264 GB
-    const kv = calcKvCachePerRequest(GLM_47, 1000, 500);
-    expect(kv).toBeCloseTo(0.5264, 3);
-  });
-
-  it("returns 0 for incomplete model", () => {
-    expect(calcKvCachePerRequest(INCOMPLETE_MODEL, 1000, 500)).toBe(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// calcMaxConcurrentRequests — physics-based VRAM budgeting
-// ---------------------------------------------------------------------------
-
-describe("calcMaxConcurrentRequests", () => {
-  it("uses leftover VRAM after raw weights for KV budget", () => {
-    // GLM-4.7 at fp16: 352.8 × 2 = 705.6 GB weight
-    // On 12 × H100 (960 GB total): kvBudget = 960 - 705.6 = 254.4 GB
-    // KV per request (1000+500 tokens): 0.5264 GB
-    // Max concurrent: floor(254.4 / 0.5264) = 483
-    const result = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500);
-    expect(result).toBe(483);
-  });
-
-  it("returns 0 when weights exceed VRAM", () => {
-    // GLM-4.7 at fp16: 705.6 GB > 640 GB
-    const result = calcMaxConcurrentRequests(GLM_47, "fp16", 640, 1000, 500);
-    expect(result).toBe(0);
-  });
-
-  it("MLA models fit more concurrent requests than GQA", () => {
-    // Both on 960 GB VRAM, same token counts
-    // DeepSeek int8: 671.1 GB weight
-    // kvBudget = 960 - 671.1 = 288.9 GB, kvPerReq = 0.0982 GB
-    const dsResult = calcMaxConcurrentRequests(DEEPSEEK_V32, "int8", 960, 1000, 500);
-
-    // GLM-4.7 at fp16: 483 (from test above)
-    const glmResult = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500);
-
-    expect(dsResult).toBeGreaterThan(glmResult);
-  });
-
-  it("returns 0 for incomplete model", () => {
-    expect(calcMaxConcurrentRequests(INCOMPLETE_MODEL, "fp16", 960, 1000, 500)).toBe(0);
-  });
-
-  it("returns 0 when model has null learnable_params", () => {
-    const m = { ...GLM_47, learnable_params_b: null };
-    expect(calcMaxConcurrentRequests(m, "fp16", 960, 1000, 500)).toBe(0);
-  });
-
-  it("FP8 KV cache nearly doubles concurrent requests", () => {
-    const fp16 = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500, 2);
-    const fp8 = calcMaxConcurrentRequests(GLM_47, "fp16", 960, 1000, 500, 1);
-    // FP8 KV halves per-request memory → roughly doubles concurrency
-    expect(fp8).toBeGreaterThan(fp16 * 1.8);
-    expect(fp8).toBeLessThan(fp16 * 2.1);
-  });
-
-});
-
-// ---------------------------------------------------------------------------
 // resolveKvPrecisionBytes
 // ---------------------------------------------------------------------------
 
@@ -598,126 +513,6 @@ describe("isNvLink", () => {
     expect(isNvLink("PCIe")).toBe(false);
     expect(isNvLink(null)).toBe(false);
     expect(isNvLink("")).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// calcParallelismTopology
-// ---------------------------------------------------------------------------
-
-describe("calcParallelismTopology", () => {
-  it("NVLink: TP up to 8", () => {
-    expect(calcParallelismTopology(1, "NVLink sxm5")).toEqual({ tp: 1, pp: 1 });
-    expect(calcParallelismTopology(4, "NVLink sxm5")).toEqual({ tp: 4, pp: 1 });
-    expect(calcParallelismTopology(8, "NVLink sxm5")).toEqual({ tp: 8, pp: 1 });
-  });
-
-  it("NVLink multi-node: TP=8, PP=ceil(gpuCount/8)", () => {
-    expect(calcParallelismTopology(10, "NVLink sxm5")).toEqual({ tp: 8, pp: 2 });
-    expect(calcParallelismTopology(16, "NVLink sxm5")).toEqual({ tp: 8, pp: 2 });
-    expect(calcParallelismTopology(24, "NVLink sxm5")).toEqual({ tp: 8, pp: 3 });
-  });
-
-  it("PCIe (null interconnect): TP capped at 4", () => {
-    expect(calcParallelismTopology(1)).toEqual({ tp: 1, pp: 1 });
-    expect(calcParallelismTopology(4)).toEqual({ tp: 4, pp: 1 });
-    expect(calcParallelismTopology(5)).toEqual({ tp: 4, pp: 2 });
-    expect(calcParallelismTopology(8)).toEqual({ tp: 4, pp: 2 });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// calcTpEfficiency
-// ---------------------------------------------------------------------------
-
-describe("calcTpEfficiency", () => {
-  it("returns 1.0 for tp=1", () => {
-    expect(calcTpEfficiency(1, null)).toBe(1.0);
-    expect(calcTpEfficiency(1, "NVLink sxm5")).toBe(1.0);
-  });
-
-  it("NVLink: 5% penalty per doubling", () => {
-    expect(calcTpEfficiency(2, "NVLink sxm5")).toBeCloseTo(0.95, 4);
-    expect(calcTpEfficiency(4, "NVLink sxm5")).toBeCloseTo(0.90, 4);
-    expect(calcTpEfficiency(8, "NVLink sxm5")).toBeCloseTo(0.85, 4);
-  });
-
-  it("PCIe: 12% penalty per doubling", () => {
-    expect(calcTpEfficiency(2, "PCIe")).toBeCloseTo(0.88, 4);
-    expect(calcTpEfficiency(4, "PCIe")).toBeCloseTo(0.76, 4);
-    expect(calcTpEfficiency(8, "PCIe")).toBeCloseTo(0.64, 4);
-  });
-
-  it("null interconnect treated as PCIe", () => {
-    expect(calcTpEfficiency(4, null)).toBeCloseTo(0.76, 4);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// calcPpBubbleEfficiency
-// ---------------------------------------------------------------------------
-
-describe("calcPpBubbleEfficiency", () => {
-  it("returns 1.0 for pp=1", () => {
-    expect(calcPpBubbleEfficiency(1, 10)).toBe(1.0);
-  });
-
-  it("batch / (batch + pp - 1)", () => {
-    expect(calcPpBubbleEfficiency(2, 10)).toBeCloseTo(10 / 11, 4);
-    expect(calcPpBubbleEfficiency(3, 10)).toBeCloseTo(10 / 12, 4);
-  });
-
-  it("returns 0 for zero batch size", () => {
-    expect(calcPpBubbleEfficiency(2, 0)).toBe(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// calcDecodeThroughput
-// ---------------------------------------------------------------------------
-
-describe("calcDecodeThroughput", () => {
-  it("uses active model memory (not total) for MoE throughput", () => {
-    // GLM-4.7: MoE, active_params_b=33.7 at fp16 → active_model = 67.4 GB
-    // H100 bandwidth = 3.36 TB/s (dbgpu/TechPowerUp)
-    // 1 GPU: throughput = 3.36 × 1024 / 67.4 ≈ 51.0 tok/s
-    // (Old formula used total 705.6 GB → 4.86 tok/s, ~10x too low)
-    const result = calcDecodeThroughput(GLM_47, "fp16", "H100", 1, null);
-    expect(result).not.toBeNull();
-    expect(result!).toBeCloseTo(3.36 * 1024 / (33.7 * 2), 1);
-  });
-
-  it("scales with TP efficiency, not linearly with GPU count", () => {
-    const t1 = calcDecodeThroughput(GLM_47, "fp16", "H100", 1, null)!;
-    // 4× H100 NVLink: tp=4, tpEff=0.90 → throughput = 4 × 0.90 × t1 = 3.6 × t1
-    const t4nvlink = calcDecodeThroughput(GLM_47, "fp16", "H100", 4, "NVLink sxm5")!;
-    expect(t4nvlink).toBeCloseTo(t1 * 4 * 0.90, 1);
-    // 4× PCIe: tp=4, tpEff=0.76 → throughput = 4 × 0.76 × t1 = 3.04 × t1
-    const t4pcie = calcDecodeThroughput(GLM_47, "fp16", "H100", 4, "PCIe")!;
-    expect(t4pcie).toBeCloseTo(t1 * 4 * 0.76, 1);
-  });
-
-  it("NVLink multi-node: 10 GPUs caps TP at 8", () => {
-    const t8 = calcDecodeThroughput(GLM_47, "fp16", "H100", 8, "NVLink sxm5")!;
-    const t10 = calcDecodeThroughput(GLM_47, "fp16", "H100", 10, "NVLink sxm5")!;
-    // 10 GPUs NVLink → tp=8, same throughput as 8 GPUs (PP doesn't add per-stream bandwidth)
-    expect(t10).toBeCloseTo(t8, 1);
-  });
-
-  it("PCIe: 8 GPUs caps TP at 4, uses PP=2", () => {
-    const t4 = calcDecodeThroughput(GLM_47, "fp16", "H100", 4, "PCIe")!;
-    const t8 = calcDecodeThroughput(GLM_47, "fp16", "H100", 8, "PCIe")!;
-    // 8 GPUs PCIe → tp=4, pp=2 — same per-stream throughput as 4 GPUs
-    expect(t8).toBeCloseTo(t4, 1);
-  });
-
-  it("returns null for unknown GPU", () => {
-    expect(calcDecodeThroughput(GLM_47, "fp16", "FakeGPU", 1, null)).toBeNull();
-  });
-
-  it("returns null when model memory is null", () => {
-    const m = { ...GLM_47, learnable_params_b: null };
-    expect(calcDecodeThroughput(m, "fp16", "H100", 1, null)).toBeNull();
   });
 });
 

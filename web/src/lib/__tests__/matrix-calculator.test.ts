@@ -311,11 +311,15 @@ describe("performance persona scaled fallback", () => {
     );
     for (const cell of matrix[0]) {
       if (cell.gpuSetups.length > 0) {
-        expect(cell.decodeThroughputTokS).not.toBeNull();
-        expect(cell.decodeThroughputTokS).toBeGreaterThan(0);
+        // Utilization is streams-based (robust for every architecture).
         expect(cell.utilization).not.toBeNull();
         expect(cell.utilization).toBeGreaterThan(0);
         expect(cell.utilization).toBeLessThanOrEqual(1.0);
+        // Throughput is architecture-gated: a number for modeled archs, null for
+        // unsupported (hybrid/sparse) ones — never a fabricated figure.
+        if (cell.decodeThroughputTokS !== null) {
+          expect(cell.decodeThroughputTokS).toBeGreaterThan(0);
+        }
       }
     }
   });

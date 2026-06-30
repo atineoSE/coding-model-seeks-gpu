@@ -15,8 +15,6 @@ import {
   getModelMemory,
   getActiveModelMemory,
   gpusNeeded,
-  calcDecodeThroughput,
-  calcMaxConcurrentRequests,
   resolveModelPrecision,
   resolveKvPrecisionBytes,
   WEIGHT_OVERHEAD_FACTOR,
@@ -58,15 +56,17 @@ export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
 interface GpuSetupStats {
   maxConcurrentStreams: number;
   decodeThroughputTokS: number | null;
+  deploymentEstimate: DeploymentEstimate | null;
 }
 
 /**
- * Calculate the maximum concurrent streams a GPU setup can handle,
- * plus raw single-stream decode throughput.
+ * A GPU setup's headline numbers, derived entirely from the first-principles
+ * {@link calcDeploymentEstimate} (F-4): the dtype-correct operating-streams floor
+ * (admission capacity) and the architecture-gated single-stream decode rate
+ * (null when throughput isn't modeled). The full estimate is returned too, so
+ * callers reuse it instead of recomputing.
  *
- * The memoryUtilization parameter (0–1) mirrors vLLM's --gpu-memory-utilization:
- * it caps the usable fraction of total VRAM for weights + KV cache.
- * Delegates to shared functions in calculations.ts for throughput and KV cache.
+ * The memoryUtilization parameter (0–1) mirrors vLLM's --gpu-memory-utilization.
  */
 export function calcGpuSetupStats(
   model: Model,
@@ -77,32 +77,22 @@ export function calcGpuSetupStats(
   settings: AdvancedSettings,
   memoryUtilization: number = DEFAULT_MEMORY_UTILIZATION,
 ): GpuSetupStats {
-  const precision = resolveModelPrecision(model);
-
-  // Decode throughput via shared function (raw single-stream)
-  const decodeThroughput = calcDecodeThroughput(
-    model, precision, gpuName, gpuCount, interconnect,
+  const vramPerGpu = gpuCount > 0 ? totalVramGb / gpuCount : totalVramGb;
+  const deploymentEstimate = estimateForLayout(
+    model,
+    gpuName,
+    gpuCount,
+    vramPerGpu,
+    totalVramGb,
+    interconnect,
+    settings,
+    memoryUtilization,
   );
-  if (decodeThroughput === null) return { maxConcurrentStreams: 0, decodeThroughputTokS: null };
-
-  // Resolve KV cache precision from settings. Default "fp16" (2 B) mirrors
-  // vLLM's `kv_cache_dtype=auto`, which tracks the model's bf16/fp16 compute
-  // dtype; "auto" here opts into FP8 (1 B) on FP8-KV-capable GPUs.
-  const kvPrecisionBytes = resolveKvPrecisionBytes(settings.kvCachePrecision, gpuName);
-
-  // Apply memory utilization to total VRAM (like vLLM's --gpu-memory-utilization)
-  const usableVramGb = totalVramGb * memoryUtilization;
-
-  // Max concurrent requests via shared function (physics-based VRAM budget)
-  const maxConcurrentStreams = calcMaxConcurrentRequests(
-    model, precision, usableVramGb,
-    settings.avgInputTokens, settings.avgOutputTokens,
-    kvPrecisionBytes,
-  );
-
   return {
-    maxConcurrentStreams,
-    decodeThroughputTokS: decodeThroughput,
+    // Conservative admission floor: the low end of the operating-streams band.
+    maxConcurrentStreams: deploymentEstimate?.operatingStreams.low ?? 0,
+    decodeThroughputTokS: deploymentEstimate?.singleStreamTokS ?? null,
+    deploymentEstimate,
   };
 }
 
@@ -375,7 +365,7 @@ export function findGpuSetups(
       costPerStreamPerMonth: costPerStream,
       decodeThroughputTokS: stats.decodeThroughputTokS,
       maxConcurrentStreams: stats.maxConcurrentStreams,
-      deploymentEstimate: calcDeploymentEstimate(model, offering, settings),
+      deploymentEstimate: stats.deploymentEstimate,
     });
   }
 
@@ -452,9 +442,7 @@ export function findScaledGpuSetups(
         decodeThroughputTokS: stats.decodeThroughputTokS,
         maxConcurrentStreams: stats.maxConcurrentStreams,
         isProjected: true,
-        deploymentEstimate: estimateForLayout(
-          model, gpuName, count, info.vramGb, totalVram, interconnect, settings,
-        ),
+        deploymentEstimate: stats.deploymentEstimate,
       });
       break;
     }
@@ -611,16 +599,9 @@ export function calculateBudgetMatrix(
       settings,
     );
 
-    // The deployment estimate is tier-independent (same GPU layout) — compute once.
-    const deploymentEstimate = estimateForLayout(
-      model,
-      gpuConfig.gpuName,
-      gpuConfig.gpuCount,
-      gpuConfig.vramPerGpu,
-      gpuConfig.totalVramGb,
-      gpuConfig.interconnect,
-      settings,
-    );
+    // The deployment estimate is tier-independent (same GPU layout) — reuse the
+    // one calcGpuSetupStats already computed.
+    const deploymentEstimate = stats.deploymentEstimate;
 
     return CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig): MatrixCell => {
       const exceedsCapacity = stats.maxConcurrentStreams < tier.midpoint;
@@ -804,16 +785,7 @@ export function calculateBudgetChartData(
       decodeThroughputTokS: stats.decodeThroughputTokS,
       benchmarkScore: benchmark?.score ?? null,
       isUnranked,
-      deploymentEstimate: estimateForLayout(
-        model,
-        gpuConfig.gpuName,
-        gpuConfig.gpuCount,
-        gpuConfig.vramPerGpu,
-        gpuConfig.totalVramGb,
-        gpuConfig.interconnect,
-        settings,
-        memoryUtilization,
-      ),
+      deploymentEstimate: stats.deploymentEstimate,
     };
   });
 }

@@ -7,7 +7,7 @@ import type {
   BenchmarkScore,
 } from "@/types";
 import { getOfferings } from "./data";
-import { getGpuThroughputSpec, supportsFp8KvCache } from "./gpu-specs";
+import { supportsFp8KvCache } from "./gpu-specs";
 
 const HOURS_PER_MONTH = 720;
 
@@ -265,52 +265,8 @@ export function isNvLink(interconnect: string | null): boolean {
   return interconnect.toLowerCase().startsWith("nvlink");
 }
 
-/**
- * Determine tensor-parallel (TP) and pipeline-parallel (PP) split.
- *
- * NVLink:  TP up to 8 (single node), PP = ceil(gpuCount / 8)
- * PCIe:    TP up to 4 (PCIe all-reduce is too costly beyond 4), PP for the rest
- */
-export function calcParallelismTopology(gpuCount: number, interconnect: string | null = null): { tp: number; pp: number } {
-  const maxTp = isNvLink(interconnect) ? 8 : 4;
-  const tp = Math.min(gpuCount, maxTp);
-  const pp = Math.ceil(gpuCount / tp);
-  return { tp, pp };
-}
-
-/**
- * TP communication efficiency factor (0–1).
- *
- * Each doubling of TP degree adds one all-reduce, costing:
- * - NVLink: ~5% per doubling  → {2:0.95, 4:0.90, 8:0.85}
- * - PCIe:  ~12% per doubling  → {2:0.88, 4:0.76, 8:0.64}
- *
- * Returns 1.0 for tp=1 (no communication needed).
- */
-export function calcTpEfficiency(tp: number, interconnect: string | null): number {
-  if (tp <= 1) return 1.0;
-  const penaltyPerDoubling = isNvLink(interconnect) ? 0.05 : 0.12;
-  return 1.0 - penaltyPerDoubling * Math.log2(tp);
-}
-
-/**
- * Pipeline-parallelism bubble efficiency (0–1).
- *
- * PP introduces a bubble: the first and last stages idle while the pipeline
- * fills and drains. With `batchSize` micro-batches and `pp` stages:
- *
- *   efficiency = batchSize / (batchSize + pp - 1)
- *
- * Returns 1.0 when pp=1 (no pipeline parallelism).
- */
-export function calcPpBubbleEfficiency(pp: number, batchSize: number): number {
-  if (pp <= 1) return 1.0;
-  if (batchSize <= 0) return 0;
-  return batchSize / (batchSize + pp - 1);
-}
-
 // ============================================================================
-// Throughput Calculations
+// KV cache
 // ============================================================================
 
 /**
@@ -359,108 +315,3 @@ export function calcKvCachePerToken(model: Model, kvPrecisionBytes: 1 | 2 = 2): 
   // Convert bytes to GB
   return bytesPerToken / (1024 * 1024 * 1024);
 }
-
-/**
- * Calculate KV cache memory for a single request in GB.
- *
- * KV cache = (input_tokens + output_tokens) * kv_cache_per_token
- *
- * @param kvPrecisionBytes — 1 for FP8, 2 for FP16 (default: 2)
- */
-export function calcKvCachePerRequest(
-  model: Model,
-  inputTokens: number,
-  outputTokens: number,
-  kvPrecisionBytes: 1 | 2 = 2,
-): number {
-  const kvCachePerToken = calcKvCachePerToken(model, kvPrecisionBytes);
-  const totalTokens = inputTokens + outputTokens;
-  return totalTokens * kvCachePerToken;
-}
-
-/**
- * Calculate decode throughput in tokens/sec.
- *
- * Decode is memory-bandwidth limited: throughput ≈ bandwidth / active_model_bytes
- *
- * For MoE models, only active expert weights are read per decode step,
- * so throughput scales with active params, not total params.
- *
- * For multi-GPU setups:
- * - TP GPUs (max 8 per node) contribute memory bandwidth, with communication overhead
- * - PP GPUs hold different pipeline stages and don't add per-stream bandwidth
- *
- * Returns null if GPU throughput specs are unavailable.
- */
-export function calcDecodeThroughput(
-  model: Model,
-  precision: Precision,
-  gpuType: string,
-  gpuCount: number,
-  interconnect: string | null,
-): number | null {
-  const gpuSpec = getGpuThroughputSpec(gpuType);
-  if (!gpuSpec) return null;
-
-  // Use active model memory (MoE reads only active experts per step)
-  const activeMemoryGb = getActiveModelMemory(model, precision);
-  if (activeMemoryGb === null) return null;
-
-  // Active model size in bytes
-  const modelSizeBytes = activeMemoryGb * 1024 * 1024 * 1024;
-
-  // Only TP GPUs contribute bandwidth (PP stages hold different layers)
-  const { tp } = calcParallelismTopology(gpuCount, interconnect);
-  const tpEff = calcTpEfficiency(tp, interconnect);
-
-  // Effective bandwidth: TP GPUs × per-GPU bandwidth × TP efficiency
-  const totalBandwidthTbS = gpuSpec.memory_bandwidth_tb_s * tp * tpEff;
-
-  // Convert TB/s to bytes/s
-  const totalBandwidthBytesPerS = totalBandwidthTbS * 1024 * 1024 * 1024 * 1024;
-
-  // Throughput = bandwidth / model_size
-  const throughputTokensPerS = totalBandwidthBytesPerS / modelSizeBytes;
-
-  return throughputTokensPerS;
-}
-
-/**
- * Calculate maximum concurrent requests that fit in VRAM.
- *
- * Uses leftover VRAM after raw weights for KV cache budget:
- *   kvBudget = totalVram - weightMem
- *   maxConcurrent = floor(kvBudget / kvCachePerRequest)
- *
- * The caller is responsible for applying memory utilization to totalVramGb
- * (e.g. vLLM's --gpu-memory-utilization) before calling this function.
- * WEIGHT_OVERHEAD_FACTOR is NOT applied here — it is used separately for
- * the "does the model physically fit?" check, while memoryUtilization
- * handles the runtime overhead reserve.
- *
- * Each concurrent stream needs its full KV allocation — prefix caching (APC)
- * is a latency optimization (skips prefill compute) but does not reduce the
- * per-stream VRAM footprint when streams have independent contexts.
- *
- * @param kvPrecisionBytes — 1 for FP8, 2 for FP16 (default: 2)
- */
-export function calcMaxConcurrentRequests(
-  model: Model,
-  precision: Precision,
-  totalVramGb: number,
-  inputTokens: number,
-  outputTokens: number,
-  kvPrecisionBytes: 1 | 2 = 2,
-): number {
-  const modelMemoryGb = getModelMemory(model, precision);
-  if (modelMemoryGb === null) return 0;
-
-  const kvCachePerRequest = calcKvCachePerRequest(model, inputTokens, outputTokens, kvPrecisionBytes);
-  if (kvCachePerRequest === 0) return 0;
-
-  const kvBudgetGb = totalVramGb - modelMemoryGb;
-  if (kvBudgetGb <= 0) return 0;
-
-  return Math.max(0, Math.floor(kvBudgetGb / kvCachePerRequest));
-}
-
