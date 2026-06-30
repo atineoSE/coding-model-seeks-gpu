@@ -168,6 +168,18 @@
     "memory_type": "HBM3"
   },
   {
+    "gpu_name": "H100_PCIe",
+    "memory_size_gb": 80.0,
+    "fp16_tflops": 204.9,
+    "memory_bandwidth_tb_s": 2.04,
+    "pcie_bandwidth_gb_s": 64.0,
+    "nvlink_bandwidth_gb_s": 900,
+    "fp8_multiplier": 2,
+    "architecture": "Hopper",
+    "interconnect_tier": "nvlink_paired",
+    "memory_type": "HBM2e"
+  },
+  {
     "gpu_name": "H200",
     "memory_size_gb": 141.0,
     "fp16_tflops": 267.6,

@@ -94,9 +94,12 @@ def export_gpu_specs(
         "memory_size_gb": 96,
         "fp16_tflops": 990,
         "memory_bandwidth_tb_s": 4.0,
-        "nvlink_bandwidth_gb_s": 900,
+        "pcie_bandwidth_gb_s": 64.0,  # PCIe 5.0 x16
+        "nvlink_bandwidth_gb_s": 900,  # NVLink-C2C
         "fp8_multiplier": 2,
         "architecture": "Hopper",
+        "interconnect_tier": "nvswitch",
+        "memory_type": "HBM3e",
     })
 
     specs.sort(key=lambda r: r["gpu_name"])

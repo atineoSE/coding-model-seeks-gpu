@@ -47,27 +47,44 @@ NVLINK_CLASS_GPUS = {
 _PCIE_RE = re.compile(r"pcie", re.IGNORECASE)
 _NVLINK_RE = re.compile(r"sxm|hgx|dgx|nvlink|\bnvl", re.IGNORECASE)
 
+# Datacenter GPUs sold as both an SXM/NVLink SKU and a distinct PCIe SKU with
+# different hardware (e.g. H100 PCIe is HBM2e @ 2.04 TB/s, not HBM3 @ 3.36).
+# gpuhunt reports both under the same gpu_name, distinguished only by "PCIe" in
+# the instance_name, so a PCIe-labelled offering is remapped to the variant key
+# (which has its own spec row in dbgpu_source.GPUHUNT_TO_DBGPU_KEY).
+PCIE_VARIANT_GPUS: dict[str, str] = {
+    "H100": "H100_PCIe",
+}
 
-def classify_interconnect(gpu_name: str, instance_name: str, gpu_count: int) -> str | None:
-    """Best-effort interconnect classification for a GPU offering.
 
-    Returns "nvlink", "pcie", or None. gpuhunt exposes no dedicated
-    interconnect field, so we infer it from the gpu_name / instance_name
-    strings, falling back to the GPU's standard datacenter form factor.
+def resolve_gpu_name(gpu_name: str, instance_name: str) -> str:
+    """Remap an SXM-class gpu_name to its PCIe-variant key when the offering's
+    instance_name is explicitly a PCIe SKU. Otherwise returns gpu_name unchanged.
+    """
+    if gpu_name in PCIE_VARIANT_GPUS and _PCIE_RE.search(instance_name or ""):
+        return PCIE_VARIANT_GPUS[gpu_name]
+    return gpu_name
+
+
+def classify_interconnect(gpu_name: str, instance_name: str, gpu_count: int) -> str:
+    """Interconnect classification for a GPU offering — always concrete.
+
+    Returns "nvlink" or "pcie" (never None). gpuhunt exposes no dedicated
+    interconnect field, so we infer the board's fabric from the gpu_name /
+    instance_name strings, falling back to its standard datacenter form factor.
+    The value describes the GPU's interconnect capability, so a single-GPU
+    offering still reports its board fabric rather than folding to None.
 
     Priority (first match wins):
-      1. Single GPU (count < 2) -> None: there is no inter-GPU link.
-      2. Explicit "PCIe" in the name -> "pcie" (PCIe SKUs are always labelled).
-      3. Explicit "SXM"/"HGX"/"DGX"/"NVLink"/"NVL" -> "nvlink" (confirmed).
-      4. SXM-class datacenter GPU -> "nvlink" (assumed; a PCIe variant would
-         have matched step 2).
-      5. Otherwise (consumer/workstation/unknown) -> "pcie" (conservative).
+      1. Explicit "PCIe" in the name -> "pcie" (PCIe SKUs are always labelled).
+      2. Explicit "SXM"/"HGX"/"DGX"/"NVLink"/"NVL" -> "nvlink" (confirmed).
+      3. SXM-class datacenter GPU -> "nvlink" (assumed; a PCIe variant would
+         have matched step 1).
+      4. Otherwise (consumer/workstation/unknown) -> "pcie" (conservative).
 
     The downstream calculator only distinguishes NVLink from everything else,
     so the conservative default never over-estimates throughput.
     """
-    if gpu_count < 2:
-        return None
     text = f"{gpu_name} {instance_name}"
     if _PCIE_RE.search(text):
         return "pcie"
@@ -123,9 +140,12 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
     # Build output
     offerings = []
     for (gpu_name, gpu_memory, gpu_count), item in sorted(best.items()):
+        # Remap SXM-class names to their PCIe-variant key so the offering joins
+        # the correct spec row (e.g. "H100" + "...PCIe" -> "H100_PCIe").
+        resolved_name = resolve_gpu_name(gpu_name, item.instance_name)
         offerings.append(
             {
-                "gpu_name": gpu_name,
+                "gpu_name": resolved_name,
                 "vram_gb": gpu_memory,
                 "gpu_count": gpu_count,
                 "total_vram_gb": round(gpu_memory * gpu_count, 1),
@@ -135,7 +155,7 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
                 "instance_name": item.instance_name,
                 "location": item.location,
                 "interconnect": classify_interconnect(
-                    gpu_name, item.instance_name, gpu_count
+                    resolved_name, item.instance_name, gpu_count
                 ),
             }
         )

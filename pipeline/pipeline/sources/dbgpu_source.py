@@ -6,6 +6,7 @@ or NVIDIA datasheets stored in pipeline/sources/.
 """
 
 import logging
+import re
 
 from dbgpu import GPUDatabase
 
@@ -20,7 +21,10 @@ logger = logging.getLogger(__name__)
 GPUHUNT_TO_DBGPU_KEY: dict[str, str] = {
     "A10": "a10-pcie",
     "A10G": "a10g",
-    "A100": "a100-pcie-40gb",
+    # A100 (bare, 40 GB) is the SXM/DGX form factor — its interconnect tier is
+    # nvswitch, so map it to the SXM die for consistency. (PCIe and SXM 40 GB
+    # share the same 1.56 TB/s bandwidth, but the slug must match the tier.)
+    "A100": "a100-sxm4-40gb",
     "A100_80G": "a100-sxm4-80gb",
     "A40": "a40-pcie",
     "A4000": "rtx-a4000",
@@ -30,6 +34,10 @@ GPUHUNT_TO_DBGPU_KEY: dict[str, str] = {
     "B200": "b200",
     "B300": "b300",
     "H100": "h100-sxm5-80gb",
+    # H100 PCIe is a distinct SKU: HBM2e @ 2.04 TB/s (vs SXM HBM3 @ 3.36).
+    # gpuhunt reports it as gpu_name "H100" with "PCIe" in the instance_name;
+    # gpuhunt_source remaps those offerings to this key (see PCIE_VARIANT_GPUS).
+    "H100_PCIe": "h100-pcie-80gb",
     "H100NVL": "h100-nvl-94gb",
     "H200": "h200-sxm-141gb",
     "L4": "l4",
@@ -102,6 +110,76 @@ NO_NVLINK: set[str] = {
     "RTX5090", "RTXPRO6000", "RTXPRO6000MaxQ", "RTXPRO6000WK", "RTXPRO4500",
 }
 
+# ---------------------------------------------------------------------------
+# Inter-GPU interconnect tier, per GPU. Authoritative source for the frontend
+# topology model (calc-topology.ts): every GPU resolves to exactly one tier —
+# we never emit a null/absent tier.
+#
+#   nvswitch       — SXM/HGX/DGX baseboard, full all-to-all NVLink fabric → TP
+#                    can span the node.
+#   nvlink_paired  — NVLink-bridge cards connected only in 2-way pairs → TP
+#                    capped at the pair, PP across pairs.
+#   none           — PCIe-only (no NVLink connector) → TP all-reduce traverses
+#                    PCIe; flagged for the latency penalty.
+#
+# Sources: NVIDIA datasheets / TechPowerUp form factor (mirrors NO_NVLINK below
+# for the "none" set; the SXM-vs-paired split follows the board's NVLink fabric).
+# ---------------------------------------------------------------------------
+INTERCONNECT_TIER: dict[str, str] = {
+    # SXM / NVSwitch datacenter GPUs (HGX/DGX baseboards).
+    "A100": "nvswitch",
+    "A100_80G": "nvswitch",
+    "V100": "nvswitch",
+    "H100": "nvswitch",
+    "H200": "nvswitch",
+    "B200": "nvswitch",
+    "B300": "nvswitch",
+    # NVLink-bridge cards (2-way paired) and H100 PCIe (bridged in pairs).
+    "A5000": "nvlink_paired",
+    "A6000": "nvlink_paired",
+    "RTX6000": "nvlink_paired",
+    "H100NVL": "nvlink_paired",
+    "H100_PCIe": "nvlink_paired",
+    # PCIe-only (no NVLink connector) — must include all of NO_NVLINK plus the
+    # NVLink-capable chips with no board connector (A4000, L4, RTX4000Ada).
+    "A10": "none",
+    "A10G": "none",
+    "A40": "none",
+    "A4000": "none",
+    "A4500": "none",
+    "L4": "none",
+    "L40": "none",
+    "L40S": "none",
+    "RTX3090": "none",
+    "RTX3090Ti": "none",
+    "RTX4000Ada": "none",
+    "RTX4090": "none",
+    "RTX5000Ada": "none",
+    "RTX5090": "none",
+    "RTX6000Ada": "none",
+    "RTXPRO4500": "none",
+    "RTXPRO6000": "none",
+    "RTXPRO6000MaxQ": "none",
+    "RTXPRO6000WK": "none",
+}
+
+_VALID_TIERS = {"none", "nvlink_paired", "nvswitch"}
+
+
+def _pcie_bandwidth_gb_s(bus_interface: str | None) -> float | None:
+    """Per-direction PCIe x16 bandwidth (GB/s) from a dbgpu bus_interface string.
+
+    Public PCI-SIG spec, ×16 link: Gen3 ≈ 16, Gen4 ≈ 32, Gen5 ≈ 64 GB/s.
+    Returns None if the generation cannot be parsed.
+    """
+    if not bus_interface:
+        return None
+    m = re.search(r"pcie\s*([0-9]+)", bus_interface, re.IGNORECASE)
+    if not m:
+        return None
+    return {3: 16.0, 4: 32.0, 5: 64.0}.get(int(m.group(1)))
+
+
 # Architectures that support FP8 compute (2× multiplier over FP16)
 _FP8_COMPUTE_ARCHITECTURES = {"Hopper", "Blackwell"}
 
@@ -127,6 +205,11 @@ def fetch_gpu_specs() -> list[dict]:
             raise KeyError(
                 f"GPU '{gpu_name}' not found in dbgpu (key='{dbgpu_key}'). "
                 f"Update GPUHUNT_TO_DBGPU_KEY or upgrade dbgpu."
+            )
+        if gpu_name not in INTERCONNECT_TIER:
+            raise KeyError(
+                f"GPU '{gpu_name}' has no interconnect_tier. Add it to "
+                f"INTERCONNECT_TIER (every GPU must resolve to a tier)."
             )
 
         gpu = specs_map[dbgpu_key]
@@ -169,14 +252,17 @@ def fetch_gpu_specs() -> list[dict]:
             "memory_size_gb": round(mem_gb, 1),
             "fp16_tflops": round(fp16_tflops, 1),
             "memory_bandwidth_tb_s": round(bw_tb_s, 3),
+            "pcie_bandwidth_gb_s": _pcie_bandwidth_gb_s(getattr(gpu, "bus_interface", None)),
             "nvlink_bandwidth_gb_s": nvlink,
             "fp8_multiplier": fp8_multiplier,
             "architecture": arch,
+            "interconnect_tier": INTERCONNECT_TIER[gpu_name],
+            "memory_type": getattr(gpu, "memory_type", None),
         })
 
         logger.debug(
-            "  %s: bw=%.3f TB/s, fp16=%.1f TFLOPS, nvlink=%s, arch=%s",
-            gpu_name, bw_tb_s, fp16_tflops, nvlink, arch,
+            "  %s: bw=%.3f TB/s, fp16=%.1f TFLOPS, nvlink=%s, tier=%s, arch=%s",
+            gpu_name, bw_tb_s, fp16_tflops, nvlink, INTERCONNECT_TIER[gpu_name], arch,
         )
 
     logger.info("Fetched specs for %d GPUs from dbgpu", len(results))
