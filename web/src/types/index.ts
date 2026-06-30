@@ -173,13 +173,26 @@ export interface CostResult {
  * pairing. All figures are derived from public physical inputs — there are no
  * fitted or measured constants here.
  */
+/**
+ * Whether throughput (single-stream / aggregate tok/s) is modeled for a model.
+ * Streams + cost are robust for every architecture; throughput is only
+ * trustworthy for standard MoE/Dense + GQA/MLA. Mirrors `ThroughputState` in
+ * `lib/throughput-support.ts`.
+ */
+export type ThroughputState = "modeled" | "unsupported-arch" | "data-incomplete";
+
 export interface DeploymentEstimate {
-  /** Decode throughput (tok/s) for a single in-flight request. */
-  singleStreamTokS: number;
-  /** Concurrency the layout can sustain, as a low/high operating band. */
+  /**
+   * Decode throughput (tok/s) for a single in-flight request. Null when
+   * throughput is not modeled for this architecture (see `throughputState`).
+   */
+  singleStreamTokS: number | null;
+  /** Concurrency the layout can sustain, as a low/high operating band. Always present. */
   operatingStreams: { low: number; high: number };
-  /** Aggregate decode throughput (tok/s) across all operating streams. */
-  aggregateTokS: number;
+  /** Aggregate decode throughput (tok/s). Null when throughput is not modeled. */
+  aggregateTokS: number | null;
+  /** Whether the throughput figures above are modeled, and if not, why. */
+  throughputState: ThroughputState;
   /** The public assumptions the estimate was derived under. */
   assumptions: {
     /** Context window used: average input + output tokens, and prefix reuse. */

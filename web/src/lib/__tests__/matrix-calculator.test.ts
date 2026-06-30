@@ -668,7 +668,7 @@ describe("calcDeploymentEstimate", () => {
     // High operating batch amortizes the weight read, so the batched roofline
     // clears the single-stream latency-bound rate.
     expect(est.operatingStreams.high).toBeGreaterThanOrEqual(1);
-    expect(est.aggregateTokS).toBeGreaterThan(est.singleStreamTokS);
+    expect(est.aggregateTokS!).toBeGreaterThan(est.singleStreamTokS!);
   });
 
   it("caps aggregate at the prefill compute roofline of the used GPUs", () => {
@@ -703,7 +703,7 @@ describe("calcDeploymentEstimate", () => {
     })!;
     expect(fp8.operatingStreams.high).toBeGreaterThan(fp16.operatingStreams.high);
     // Decode latency is KV-dtype-independent (bandwidth-bound weight read).
-    expect(fp8.singleStreamTokS).toBeCloseTo(fp16.singleStreamTokS, 9);
+    expect(fp8.singleStreamTokS!).toBeCloseTo(fp16.singleStreamTokS!, 9);
   });
 
   it("returns null when the layout cannot fit the weights", () => {
@@ -711,9 +711,25 @@ describe("calcDeploymentEstimate", () => {
     expect(calcDeploymentEstimate(MOE, offering(1), SETTINGS)).toBeNull();
   });
 
-  it("returns null when required public model dims are missing", () => {
+  it("still emits streams (throughput null) when throughput dims are missing", () => {
+    // hidden_size missing ⇒ throughput can't be modeled, but operating streams
+    // are pure VRAM accounting and must still be produced.
     const noHidden: Model = { ...MOE, hidden_size: null };
-    expect(calcDeploymentEstimate(noHidden, offering(8), SETTINGS)).toBeNull();
+    const est = calcDeploymentEstimate(noHidden, offering(8), SETTINGS)!;
+    expect(est).not.toBeNull();
+    expect(est.operatingStreams.high).toBeGreaterThanOrEqual(1);
+    expect(est.singleStreamTokS).toBeNull();
+    expect(est.aggregateTokS).toBeNull();
+    expect(est.throughputState).toBe("data-incomplete");
+  });
+
+  it("suppresses throughput for an unsupported architecture but keeps streams", () => {
+    // Linear-attention hybrid: num_kv_layers < num_hidden_layers.
+    const hybrid: Model = { ...MOE, num_hidden_layers: 48, num_kv_layers: 12 };
+    const est = calcDeploymentEstimate(hybrid, offering(8), SETTINGS)!;
+    expect(est.operatingStreams.high).toBeGreaterThanOrEqual(1);
+    expect(est.singleStreamTokS).toBeNull();
+    expect(est.throughputState).toBe("unsupported-arch");
   });
 
   it("returns null for a GPU with no published specs", () => {

@@ -1,4 +1,4 @@
-import type { DeploymentEstimate, InterconnectTier } from "@/types";
+import type { DeploymentEstimate, InterconnectTier, ThroughputState } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -98,10 +98,31 @@ export function EstimateSourceBadge({
   );
 }
 
+const THROUGHPUT_UNMODELED_TOOLTIP: Record<Exclude<ThroughputState, "modeled">, string> = {
+  "unsupported-arch":
+    "Throughput is not modeled for this architecture (linear-attention / SSM hybrid or sparse attention) — the decode-latency model assumes a uniform full-attention transformer. Operating streams and cost are still accurate (VRAM accounting).",
+  "data-incomplete":
+    "Throughput needs model dims (hidden_size) that aren't populated yet. Operating streams and cost are still accurate (VRAM accounting).",
+};
+
+/** Badge shown in place of the source badge when throughput isn't modeled. */
+export function ThroughputUnmodeledBadge({ state }: { state: Exclude<ThroughputState, "modeled"> }) {
+  return (
+    <Badge
+      variant="outline"
+      className="text-[10px] font-normal cursor-help text-muted-foreground"
+      title={THROUGHPUT_UNMODELED_TOOLTIP[state]}
+    >
+      {state === "unsupported-arch" ? "not modeled" : "dims pending"}
+    </Badge>
+  );
+}
+
 /**
- * Read-only panel for one offering's {@link DeploymentEstimate}: the three
- * developer-facing numbers (single-stream tok/s, operating-streams band,
- * aggregate tok/s) plus the key assumptions and a source badge.
+ * Read-only panel for one offering's {@link DeploymentEstimate}. Operating
+ * streams + cost are robust for every architecture and always shown; the
+ * throughput numbers (single-stream / aggregate tok/s) are shown only when the
+ * architecture is modeled, else a "not modeled" badge takes their place.
  */
 export function DeploymentEstimatePanel({
   estimate,
@@ -112,23 +133,50 @@ export function DeploymentEstimatePanel({
   source?: EstimateSource;
   className?: string;
 }) {
+  const throughputModeled =
+    estimate.throughputState === "modeled" && estimate.singleStreamTokS !== null;
+
   return (
     <div className={cn("space-y-0.5", className)}>
-      {/* Single-stream tok/s — the one-developer interactive feel. */}
+      {/* Lead line: single-stream tok/s when modeled, else the robust streams band. */}
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-        <span className="text-sm font-medium text-foreground tabular-nums">
-          {formatTokS(estimate.singleStreamTokS)}
-        </span>
-        <span className="text-xs text-muted-foreground">single-stream</span>
-        <EstimateSourceBadge source={source} />
+        {throughputModeled ? (
+          <>
+            <span className="text-sm font-medium text-foreground tabular-nums">
+              {formatTokS(estimate.singleStreamTokS as number)}
+            </span>
+            <span className="text-xs text-muted-foreground">single-stream</span>
+            <EstimateSourceBadge source={source} />
+          </>
+        ) : (
+          <>
+            <span className="text-sm font-medium text-foreground tabular-nums">
+              {formatStreamBand(estimate.operatingStreams)}
+            </span>
+            <span className="text-xs text-muted-foreground">operating streams</span>
+            <ThroughputUnmodeledBadge
+              state={estimate.throughputState === "modeled" ? "data-incomplete" : estimate.throughputState}
+            />
+          </>
+        )}
       </div>
 
-      {/* Operating-streams band + aggregate (bonus) throughput. */}
-      <div className="text-xs text-muted-foreground tabular-nums">
-        {formatStreamBand(estimate.operatingStreams)} operating streams
-        {" · "}
-        {formatTokS(estimate.aggregateTokS)} aggregate
-      </div>
+      {/* Detail line: streams + aggregate when modeled, else a short note. */}
+      {throughputModeled ? (
+        <div className="text-xs text-muted-foreground tabular-nums">
+          {formatStreamBand(estimate.operatingStreams)} operating streams
+          {estimate.aggregateTokS !== null && (
+            <>
+              {" · "}
+              {formatTokS(estimate.aggregateTokS)} aggregate
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="text-xs text-muted-foreground">
+          throughput not modeled for this architecture
+        </div>
+      )}
 
       {/* Key assumptions: context size, interconnect tier, MoE-vs-dense. */}
       <div className="text-[10px] leading-tight text-muted-foreground/70">

@@ -69,6 +69,7 @@ describe("describeAssumptions", () => {
     singleStreamTokS: 100,
     operatingStreams: { low: 2, high: 8 },
     aggregateTokS: 800,
+    throughputState: "modeled",
     assumptions: {
       context: { avgInputTokens: 50_000, avgOutputTokens: 1000, prefixReuse: 0.5 },
       interconnectTier: "nvswitch",

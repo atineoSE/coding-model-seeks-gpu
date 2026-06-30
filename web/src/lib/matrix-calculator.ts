@@ -28,6 +28,7 @@ import {
   type DecodeLatencyModelDims,
 } from "./calc-decode-latency";
 import { calcRuntimeReserve, calcOperatingStreams } from "./calc-capacity";
+import { throughputState } from "./throughput-support";
 import { getGpuThroughputSpec } from "./gpu-specs";
 import { computeTotalBenchmarkCost } from "./benchmark-costs";
 import { scoreFor, minVramForModel, isUnranked } from "./model-data";
@@ -164,18 +165,8 @@ export function calcDeploymentEstimate(
   if (weightsGb === null) return null;
 
   const isMoe = model.architecture === "MoE";
-  const activeParamsB = isMoe ? model.active_params_b : model.learnable_params_b;
-  if (activeParamsB === null || activeParamsB <= 0) return null;
 
-  const activeMemGb = getActiveModelMemory(model, precision);
-  if (activeMemGb === null) return null;
-  // Effective bytes/param at the serving precision — captures the mixed-precision
-  // (int4 routed experts + bf16/fp8 rest) split that getActiveModelMemory encodes.
-  const bytesPerParam = activeMemGb / activeParamsB;
-
-  if (model.num_hidden_layers === null || model.hidden_size === null) return null;
-
-  // 1. Parallelism layout from the interconnect topology.
+  // 1. Parallelism layout from the interconnect topology (needed for streams).
   const tier = spec.interconnect_tier;
   const layout = calcTopology({
     interconnectTier: tier,
@@ -185,37 +176,9 @@ export function calcDeploymentEstimate(
   });
   if (!layout.feasible) return null;
 
-  const interconnectGbS = interconnectBandwidthGbS(spec, tier);
-  // A multi-GPU layout needs a published inter-GPU link bandwidth to charge the
-  // TP all-reduce / EP all-to-all against; a single-GPU layout never collectives.
-  if (layout.tp > 1 && (interconnectGbS === null || interconnectGbS <= 0)) return null;
-
-  // 2. Single-stream decode latency model.
-  const latencyGpu: DecodeLatencyGpu = {
-    hbmBandwidthTbS: spec.memory_bandwidth_tb_s,
-    interconnectTier: tier,
-    interconnectBandwidthGbS: interconnectGbS ?? 0,
-  };
-  const latencyDims: DecodeLatencyModelDims = {
-    numLayers: model.num_hidden_layers,
-    hiddenSize: model.hidden_size,
-    activeParamsB,
-    bytesPerParam,
-    isMoe,
-    topK: model.experts_per_token,
-    numExperts: model.num_experts,
-    routedExpertParamsB: model.routed_expert_params_b,
-    kvLoraRank: model.kv_lora_rank,
-    qkRopeHeadDim: model.qk_rope_head_dim,
-  };
-  // EP degree = TP for MoE (experts sharded across the TP group); PP from layout.
-  const decode = calcDecodeLatency(latencyGpu, latencyDims, {
-    tp: layout.tp,
-    ep: isMoe ? layout.tp : 1,
-    pp: layout.pp,
-  });
-
-  // 3. Operating-streams band from the leftover VRAM after weights + reserve.
+  // 2. Operating-streams band — pure VRAM accounting, robust for EVERY
+  // architecture (the only architecture input is KV-bytes-per-token). Computed
+  // unconditionally; the throughput block below is what's architecture-gated.
   // For MoE the experts are sharded across the TP group, so EP degree = TP.
   const reserveLayout = {
     numGpus: layout.gpusUsed,
@@ -226,7 +189,6 @@ export function calcDeploymentEstimate(
   const reserveGb = calcRuntimeReserve(model, reserveLayout);
   const usableVramGb = layout.gpusUsed * offering.vram_gb * memoryUtilization;
   const kvPrecisionBytes = resolveKvPrecisionBytes(settings.kvCachePrecision, offering.gpu_name);
-  // Plausible operating band centered on the configured prefix-reuse fraction.
   const p = settings.prefixReuse;
   const prefixReuseRange = {
     low: Math.max(0, p - 0.25),
@@ -243,19 +205,68 @@ export function calcDeploymentEstimate(
     prefixReuseRange,
   });
 
-  // Aggregate (bonus) throughput: the batched bandwidth roofline — the raw
-  // single-stream weight-read roofline amortized over the full operating batch —
-  // capped by the prefill compute roofline (FLOPs across the used GPUs).
-  const batchedRooflineTokS = operatingStreams.high * decode.bandwidthRooflineTokS;
-  const prefillComputeTokS =
-    (layout.gpusUsed * spec.fp16_tflops * 1e12) /
-    (FORWARD_FLOPS_PER_PARAM * activeParamsB * 1e9);
-  const aggregateTokS = Math.min(batchedRooflineTokS, prefillComputeTokS);
+  // 3. Throughput overlay — only for architectures the decode-latency model can
+  // represent (standard MoE/Dense + GQA/MLA). Null for hybrids / sparse attention.
+  const tState = throughputState(model);
+  let singleStreamTokS: number | null = null;
+  let aggregateTokS: number | null = null;
+
+  const activeParamsB = isMoe ? model.active_params_b : model.learnable_params_b;
+  const activeMemGb = getActiveModelMemory(model, precision);
+  const interconnectGbS = interconnectBandwidthGbS(spec, tier);
+  const hasLinkForCollectives = !(layout.tp > 1 && (interconnectGbS === null || interconnectGbS <= 0));
+
+  if (
+    tState === "modeled" &&
+    model.num_hidden_layers !== null &&
+    model.hidden_size !== null &&
+    activeParamsB !== null &&
+    activeParamsB > 0 &&
+    activeMemGb !== null &&
+    hasLinkForCollectives
+  ) {
+    // Effective bytes/param at the serving precision — captures the mixed-precision
+    // (int4 routed experts + bf16/fp8 rest) split that getActiveModelMemory encodes.
+    const bytesPerParam = activeMemGb / activeParamsB;
+    const latencyGpu: DecodeLatencyGpu = {
+      hbmBandwidthTbS: spec.memory_bandwidth_tb_s,
+      interconnectTier: tier,
+      interconnectBandwidthGbS: interconnectGbS ?? 0,
+    };
+    const latencyDims: DecodeLatencyModelDims = {
+      numLayers: model.num_hidden_layers,
+      hiddenSize: model.hidden_size,
+      activeParamsB,
+      bytesPerParam,
+      isMoe,
+      topK: model.experts_per_token,
+      numExperts: model.num_experts,
+      routedExpertParamsB: model.routed_expert_params_b,
+      kvLoraRank: model.kv_lora_rank,
+      qkRopeHeadDim: model.qk_rope_head_dim,
+    };
+    // EP degree = TP for MoE (experts sharded across the TP group); PP from layout.
+    const decode = calcDecodeLatency(latencyGpu, latencyDims, {
+      tp: layout.tp,
+      ep: isMoe ? layout.tp : 1,
+      pp: layout.pp,
+    });
+    singleStreamTokS = decode.singleStreamTokS;
+
+    // Aggregate (bonus) throughput: the batched bandwidth roofline capped by the
+    // prefill compute roofline (FLOPs across the used GPUs).
+    const batchedRooflineTokS = operatingStreams.high * decode.bandwidthRooflineTokS;
+    const prefillComputeTokS =
+      (layout.gpusUsed * spec.fp16_tflops * 1e12) /
+      (FORWARD_FLOPS_PER_PARAM * activeParamsB * 1e9);
+    aggregateTokS = Math.min(batchedRooflineTokS, prefillComputeTokS);
+  }
 
   return {
-    singleStreamTokS: decode.singleStreamTokS,
+    singleStreamTokS,
     operatingStreams,
     aggregateTokS,
+    throughputState: tState,
     assumptions: {
       context: {
         avgInputTokens: settings.avgInputTokens,
