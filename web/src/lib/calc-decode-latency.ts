@@ -7,10 +7,16 @@
  *   per_token_time =
  *       weight-read         active_bytes_per_gpu / hbm_bw
  *     + TP all-reduce       layers × (2·hidden·bytes / interconnect_bw + collective_latency)
- *     + EP all-to-all       layers × (top-k·hidden·bytes / interconnect_bw + collective_latency)   (MoE only)
- *     + kernel launches     launch_latency × layers
+ *     + EP all-to-all       layers × 2 × (top-k·hidden·bytes / interconnect_bw + collective_latency)   (MoE only;
+ *                                          2 = dispatch + combine)
+ *     + op-chain latency    launch_latency × layers × compute_ops_per_layer
  *
  *   singleStreamTokS = 1 / per_token_time
+ *
+ * At batch-1 the dominant term is the op-chain latency: a decode step is a long
+ * sequence of tiny, memory-latency-bound kernels that run serially with nothing
+ * to overlap them, so per-op launch/dispatch latency — not HBM bandwidth — sets
+ * the pace (measured MBU is single-digit %, far below the weight-read roofline).
  *
  * Every term is derived from public physical inputs: GPU datasheet bandwidths,
  * the interconnect tier, model architecture dimensions, and generic
@@ -36,12 +42,31 @@ const BYTES_PER_TB = 1024 ** 4;
 export const DEFAULT_ACTIVATION_BYTES = 2;
 
 /**
- * CUDA kernel launch latency, ~5 µs on modern GPUs. This is a generic, public
- * hardware figure (NVIDIA CUDA C++ Programming Guide; widely reproduced in
- * launch-overhead microbenchmarks). Each transformer layer issues at least one
- * launch on the critical path; we charge one launch per layer.
+ * Per-op serialization latency on the decode critical path, ~5 µs. A generic,
+ * public hardware figure: the CUDA kernel launch / dispatch latency (NVIDIA CUDA
+ * C++ Programming Guide; widely reproduced in launch-overhead microbenchmarks).
+ * At batch-1 each dependent op on the critical path pays this once and cannot
+ * overlap it with anything (there is no concurrent request to hide it behind).
  */
 export const DEFAULT_KERNEL_LAUNCH_LATENCY_S = 5e-6;
+
+/**
+ * Number of serially-dependent COMPUTE ops on the critical path per layer
+ * (collectives are excluded — they are charged separately by the TP all-reduce
+ * and EP all-to-all terms). This is a structural count of the kernels a decoder
+ * block issues in sequence, not a fitted constant:
+ *
+ *   dense block (~8): input RMSNorm → QKV proj → RoPE → attention → O proj →
+ *     post-attn RMSNorm → gate+up proj → SiLU·mul → down proj
+ *   MoE block (~11): the dense ops above + router/gating + the routed-expert
+ *     gate/up/down GEMVs that the shared MLP does not have.
+ *
+ * At batch-1 every one of these is a tiny memory-latency-bound GEMV/kernel that
+ * runs serially, so the per-op latency floor (not bandwidth) dominates. The
+ * counts are order-of-magnitude structural estimates; expose them as overrides
+ * rather than treating them as exact.
+ */
+export const DEFAULT_DECODE_COMPUTE_OPS_PER_LAYER = { dense: 8, moe: 11 } as const;
 
 /**
  * Per-collective fixed latency by interconnect tier (seconds).
@@ -106,6 +131,12 @@ export interface DecodeLatencyParams {
   tp: number;
   /** CUDA kernel launch latency in seconds. Defaults to a public figure. */
   launchLatencyS?: number;
+  /**
+   * Serially-dependent compute ops per layer on the critical path. Defaults to
+   * a structural estimate (see {@link DEFAULT_DECODE_COMPUTE_OPS_PER_LAYER}),
+   * chosen by dense-vs-MoE when omitted.
+   */
+  computeOpsPerLayer?: number;
 }
 
 /** Per-token critical-path breakdown plus the resulting single-stream tok/s. */
@@ -173,16 +204,25 @@ export function calcDecodeLatency(
     tpAllReduceS = model.numLayers * (allReduceBytes / interconnectBytesPerS + collectiveLatencyS);
   }
 
-  // 3. EP all-to-all (MoE only): each token's hidden vector is dispatched to its
-  // top-k experts (and combined back), once per layer.
+  // 3. EP all-to-all (MoE only): each layer does TWO all-to-alls per token — a
+  // dispatch (scatter the hidden vector to its top-k experts) and a combine
+  // (gather the expert outputs back). Both are on the serial critical path.
   let epAllToAllS = 0;
   if (model.isMoe && tp > 1 && model.topK !== null && (model.topK ?? 0) > 0) {
     const dispatchBytes = model.topK * model.hiddenSize * activationBytes;
-    epAllToAllS = model.numLayers * (dispatchBytes / interconnectBytesPerS + collectiveLatencyS);
+    const perAllToAllS = dispatchBytes / interconnectBytesPerS + collectiveLatencyS;
+    epAllToAllS = model.numLayers * 2 * perAllToAllS;
   }
 
-  // 4. Kernel launches: one launch on the critical path per layer.
-  const launchS = launchLatencyS * model.numLayers;
+  // 4. Op-chain latency: the dominant batch-1 term. Each layer runs a sequence
+  // of serially-dependent compute kernels (collectives counted above), each
+  // paying the per-op launch/dispatch latency with nothing to overlap it.
+  const opsPerLayer =
+    params.computeOpsPerLayer ??
+    (model.isMoe
+      ? DEFAULT_DECODE_COMPUTE_OPS_PER_LAYER.moe
+      : DEFAULT_DECODE_COMPUTE_OPS_PER_LAYER.dense);
+  const launchS = launchLatencyS * model.numLayers * opsPerLayer;
 
   const perTokenS = weightReadS + tpAllReduceS + epAllToAllS + launchS;
 
