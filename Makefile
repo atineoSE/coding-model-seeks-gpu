@@ -2,11 +2,11 @@
 
 # Run the full data pipeline (fetch, enrich, export to JSON)
 pipeline:
-	cd pipeline && uv run python -m pipeline.main --step all
+	cd pipeline && uv run --extra pipeline python -m pipeline.main --step all
 
 # Run only the GPU pipeline (fetches from gpuhunt)
 pipeline-gpu:
-	cd pipeline && uv run python -m pipeline.main --step gpu
+	cd pipeline && uv run --extra pipeline python -m pipeline.main --step gpu
 
 # Install minimal Python dependencies
 install-pipeline:
@@ -39,7 +39,7 @@ test: test-pipeline test-web
 
 # Run Python pipeline tests
 test-pipeline:
-	cd pipeline && python -m pytest tests/ -v
+	cd pipeline && uv run --extra pipeline --extra dev python -m pytest tests/ -v
 
 # Run frontend tests
 test-web:
@@ -47,13 +47,13 @@ test-web:
 
 # Run Python linter
 lint:
-	cd pipeline && python -m ruff check .
-	cd pipeline && python -m ruff format --check .
+	cd pipeline && uv run --extra dev ruff check .
+	cd pipeline && uv run --extra dev ruff format --check .
 
 # Fix lint issues
 lint-fix:
-	cd pipeline && python -m ruff check --fix .
-	cd pipeline && python -m ruff format .
+	cd pipeline && uv run --extra dev ruff check --fix .
+	cd pipeline && uv run --extra dev ruff format .
 
 # Full pipeline -> build workflow
 all: pipeline build
