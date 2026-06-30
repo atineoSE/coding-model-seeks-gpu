@@ -26,15 +26,17 @@ logger = logging.getLogger(__name__)
 MODEL_NAME_TO_HF_ID: dict[str, str] = {
     "DeepSeek-V3.2-Reasoner": "deepseek-ai/DeepSeek-V3.2-Speciale",
     "GLM-4.7": "zai-org/GLM-4.7",
-    "GLM-5": "zai-org/GLM-5.1",
-    "GLM-5.1": "zai-org/GLM-5",
+    "GLM-5": "zai-org/GLM-5",
+    "GLM-5.1": "zai-org/GLM-5.1",
     "GLM-5.2": "zai-org/GLM-5.2",
     "GLM-5.2-FP8": "zai-org/GLM-5.2-FP8",
+    "MiniMax-M3": "MiniMaxAI/MiniMax-M3",
     "MiniMax-M3-MXFP8": "MiniMaxAI/MiniMax-M3-MXFP8",
     "Kimi-K2.5": "moonshotai/Kimi-K2.5",
     "Kimi-K2.6": "moonshotai/Kimi-K2.6",
     "Kimi-K2.7-Code": "moonshotai/Kimi-K2.7-Code",
     "Kimi-K2-Thinking": "moonshotai/Kimi-K2-Thinking",
+    "MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.7",
     "MiniMax-M2.5": "MiniMaxAI/MiniMax-M2.5",
     "MiniMax-M2.1": "MiniMaxAI/MiniMax-M2.1",
     "Qwen3-Coder-480B": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
@@ -50,18 +52,12 @@ MODEL_NAME_TO_HF_ID: dict[str, str] = {
 # Maps model_name → HF repo whose config.json to use for architecture params.
 # The model will appear in models.json with hf_model_id=None and model_url set
 # from MODEL_ALT_URL (if provided).
-MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {
-    "MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.5",
-    "MiniMax-M3": "MiniMaxAI/MiniMax-M3",
-}
+MODEL_ARCH_SOURCE_HF_ID: dict[str, str] = {}
 
 # Alternative link URL for models that have no HF page.
 # Maps model_name → URL (GitHub release page, blog post, etc.)
 # Only used when the model is in MODEL_ARCH_SOURCE_HF_ID.
-MODEL_ALT_URL: dict[str, str] = {
-    "MiniMax-M2.7": "https://github.com/MiniMax-AI/MiniMax-M2.7",
-    "MiniMax-M3": "https://github.com/MiniMax-AI/MiniMax-M3",
-}
+MODEL_ALT_URL: dict[str, str] = {}
 
 # Explicit license info per model name.
 # Maintained manually — the pipeline fails if a model is missing from here.
@@ -304,6 +300,22 @@ def fetch_model(model_name: str, hf_id: str, *, model_url: str | None = None) ->
     except ValueError as e:
         logger.warning("Precision detection failed for %s: %s", hf_id, e)
 
+    # Architecture dims for the deployment calculator — surface what we already
+    # read from the HF config. hidden_size drives the decode-latency and runtime-
+    # reserve models; the expert dims drive the MoE load-imbalance term. Use
+    # .get() so a missing field degrades to None rather than failing the model.
+    hidden_size = effective_config.get("hidden_size")
+    hidden_size = int(hidden_size) if hidden_size is not None else None
+
+    raw_num_experts = (
+        effective_config.get("n_routed_experts")
+        or effective_config.get("num_experts")
+        or effective_config.get("num_local_experts")
+    )
+    num_experts = int(raw_num_experts) if is_moe and raw_num_experts else None
+    raw_experts_per_tok = effective_config.get("num_experts_per_tok")
+    experts_per_token = int(raw_experts_per_tok) if is_moe and raw_experts_per_tok else None
+
     return ModelSpec(
         model_name=model_name,
         learnable_params_b=learnable_params_b,
@@ -314,6 +326,9 @@ def fetch_model(model_name: str, hf_id: str, *, model_url: str | None = None) ->
         routed_expert_params_b=routed_expert_params_b,
         attention_type=attention_type_str,
         num_hidden_layers=num_hidden_layers,
+        hidden_size=hidden_size,
+        num_experts=num_experts,
+        experts_per_token=experts_per_token,
         num_kv_layers=num_kv_layers,
         num_kv_heads=num_kv_heads,
         head_dim=head_dim_val,

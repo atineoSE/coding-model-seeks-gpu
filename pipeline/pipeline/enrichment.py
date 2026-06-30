@@ -18,6 +18,13 @@ class ModelSpec(BaseModel):
     )
     attention_type: str | None = Field(None, description="'MLA', 'GQA', 'DSV4', or 'MSA'")
     num_hidden_layers: int | None = Field(None, description="Number of transformer layers")
+    hidden_size: int | None = Field(None, description="Residual-stream width (HF 'hidden_size')")
+    num_experts: int | None = Field(
+        None, description="Total routed experts (MoE; HF 'n_routed_experts'/'num_experts')"
+    )
+    experts_per_token: int | None = Field(
+        None, description="Active experts per token / top-k (MoE; HF 'num_experts_per_tok')"
+    )
     num_kv_layers: int | None = Field(None, description="Layers with KV cache (None = all layers)")
     num_kv_heads: int | None = Field(None, description="Number of KV heads (GQA only)")
     head_dim: int | None = Field(None, description="Head dimension (GQA only)")
