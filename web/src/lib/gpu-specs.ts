@@ -56,6 +56,16 @@ function normalizeInterconnectTier(entry: {
 }
 
 /**
+ * Coerce a raw interconnect value to a canonical {@link InterconnectTier} when
+ * it names one exactly — the tier-override case (e.g. the budget custom-config
+ * interconnect control). Legacy/descriptive strings ("nvlink", "pcie", provider
+ * labels) return null, so callers fall back to the GPU's datasheet tier.
+ */
+export function asInterconnectTier(value: string | null | undefined): InterconnectTier | null {
+  return value === "none" || value === "nvlink_paired" || value === "nvswitch" ? value : null;
+}
+
+/**
  * GPU throughput specifications by GPU name.
  *
  * Built from pipeline-generated gpu_specs.json at module load time.

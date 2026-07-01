@@ -836,6 +836,20 @@ describe("DeploymentEstimate surfaced on view data", () => {
     }
   });
 
+  it("honors an interconnect-tier override on the offering, else uses the GPU datasheet", () => {
+    // H100's datasheet tier is nvswitch (mesh) ⇒ TP across all 8, PP=1.
+    const dflt = calcDeploymentEstimate(MOE, H100_X8, SETTINGS)!;
+    expect(dflt.assumptions.interconnectTier).toBe("nvswitch");
+
+    // Explicit tier enum overrides the datasheet ⇒ paired NVLink layout.
+    const paired = calcDeploymentEstimate(MOE, { ...H100_X8, interconnect: "nvlink_paired" }, SETTINGS)!;
+    expect(paired.assumptions.interconnectTier).toBe("nvlink_paired");
+
+    // Legacy/descriptive strings are not tier names ⇒ fall through to datasheet.
+    const legacy = calcDeploymentEstimate(MOE, { ...H100_X8, interconnect: "nvlink" }, SETTINGS)!;
+    expect(legacy.assumptions.interconnectTier).toBe("nvswitch");
+  });
+
   it("calculateBudgetChartData surfaces the estimate at the configured utilization", () => {
     const gpuConfig = {
       label: "8×H100",

@@ -29,7 +29,7 @@ import {
 } from "./calc-decode-latency";
 import { calcRuntimeReserve, calcOperatingStreams } from "./calc-capacity";
 import { throughputState, isThroughputModeled } from "./throughput-support";
-import { getGpuThroughputSpec } from "./gpu-specs";
+import { getGpuThroughputSpec, asInterconnectTier } from "./gpu-specs";
 import { computeTotalBenchmarkCost } from "./benchmark-costs";
 import { scoreFor, minVramForModel, isUnranked } from "./model-data";
 
@@ -167,7 +167,9 @@ export function calcDeploymentEstimate(
   const isMoe = model.architecture === "MoE";
 
   // 1. Parallelism layout from the interconnect topology (needed for streams).
-  const tier = spec.interconnect_tier;
+  // The offering may carry an explicit interconnect-tier override (the budget
+  // custom-config control); otherwise use the GPU datasheet's tier.
+  const tier = asInterconnectTier(offering.interconnect) ?? spec.interconnect_tier;
   const layout = calcTopology({
     interconnectTier: tier,
     gpuCount: offering.gpu_count,

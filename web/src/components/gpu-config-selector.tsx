@@ -35,23 +35,29 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
   const [customOpen, setCustomOpen] = useState(false);
   const [customGpu, setCustomGpu] = useState("H100");
   const [customCount, setCustomCount] = useState("4");
-  const [customInterconnect, setCustomInterconnect] = useState<string>("nvlink");
+  // Holds an interconnect-tier override: "nvswitch" (mesh) or "nvlink_paired"
+  // (paired NVLink + PCIe between pairs). Only meaningful for NVLink-capable GPUs.
+  const [customInterconnect, setCustomInterconnect] = useState<string>("nvswitch");
 
   function handleGpuChange(gpu: string) {
     setCustomGpu(gpu);
-    const spec = getGpuThroughputSpec(gpu);
-    setCustomInterconnect(spec?.nvlink_bandwidth_gb_s ? "nvlink" : "pcie");
+    // Default to the GPU's datasheet tier so the control starts on the real layout.
+    const tier = getGpuThroughputSpec(gpu)?.interconnect_tier;
+    setCustomInterconnect(tier === "nvlink_paired" ? "nvlink_paired" : "nvswitch");
   }
 
   const parsedCount = parseInt(customCount) || 1;
-  const showInterconnect = parsedCount > 1;
+  // Only GPUs with an NVLink fabric get the NVSwitch-vs-paired choice; PCIe-only
+  // GPUs have no such topology, so the control is hidden (tier stays datasheet).
+  const gpuHasNvlink = getGpuThroughputSpec(customGpu)?.nvlink_bandwidth_gb_s != null;
+  const showInterconnect = parsedCount > 1 && gpuHasNvlink;
 
   function handleCustomSave() {
     const gpuName = customGpu;
     const count = parsedCount;
     const vram = getGpuVram(gpuName) ?? 80;
 
-    const interconnect = count > 1 && customInterconnect === "nvlink" ? "nvlink" : null;
+    const interconnect = count > 1 && gpuHasNvlink ? customInterconnect : null;
 
     onChange({
       label: `${count}× ${gpuName} ${vram}GB (Custom)`,
@@ -143,8 +149,8 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pcie">PCIe</SelectItem>
-                      <SelectItem value="nvlink">NVLink</SelectItem>
+                      <SelectItem value="nvswitch">NVSwitch</SelectItem>
+                      <SelectItem value="nvlink_paired">NVLink+PCIe</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
