@@ -56,22 +56,14 @@ function normalizeInterconnectTier(entry: {
 }
 
 /**
- * Coerce a raw interconnect value to a canonical {@link InterconnectTier} when
- * it names one exactly — the tier-override case (e.g. the budget custom-config
- * interconnect control). Legacy/descriptive strings ("nvlink", "pcie", provider
- * labels) return null, so callers fall back to the GPU's datasheet tier.
+ * The GPU's interconnect tier, straight from its datasheet spec (the single
+ * source of truth). Every GPU model maps to exactly one tier — `nvswitch`
+ * (mesh), `nvlink_paired` (paired NVLink + PCIe), or `none` (PCIe only) — so the
+ * tier is a property of the GPU, never a separate user choice. Defaults to
+ * `none` for an unknown GPU name.
  */
-export function asInterconnectTier(value: string | null | undefined): InterconnectTier | null {
-  return value === "none" || value === "nvlink_paired" || value === "nvswitch" ? value : null;
-}
-
-/**
- * The effective interconnect tier for a deployment: an explicit tier override on
- * the config/offering when present, else the GPU datasheet's tier. Mirrors how
- * {@link calcDeploymentEstimate} resolves the tier, so UI labels match the math.
- */
-export function resolveInterconnectTier(interconnect: string | null, gpuName: string): InterconnectTier {
-  return asInterconnectTier(interconnect) ?? getGpuThroughputSpec(gpuName)?.interconnect_tier ?? "none";
+export function gpuInterconnectTier(gpuName: string): InterconnectTier {
+  return getGpuThroughputSpec(gpuName)?.interconnect_tier ?? "none";
 }
 
 /**

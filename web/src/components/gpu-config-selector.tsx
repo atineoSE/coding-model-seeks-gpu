@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import type { PresetGpuConfig } from "@/types";
-import { GPU_THROUGHPUT_SPECS, getGpuThroughputSpec, getGpuVram } from "@/lib/gpu-specs";
-import { interconnectBadgeLabel } from "@/components/deployment-estimate-panel";
+import { GPU_THROUGHPUT_SPECS, getGpuVram, gpuInterconnectTier } from "@/lib/gpu-specs";
+import { interconnectBadgeLabel, formatInterconnectTier } from "@/components/deployment-estimate-panel";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,31 +35,15 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
   const [customOpen, setCustomOpen] = useState(false);
   const [customGpu, setCustomGpu] = useState("H100");
   const [customCount, setCustomCount] = useState("4");
-  // Holds an interconnect-tier override: "nvswitch" (mesh) or "nvlink_paired"
-  // (paired NVLink + PCIe between pairs). Only meaningful for NVLink-capable GPUs.
-  const [customInterconnect, setCustomInterconnect] = useState<string>("nvswitch");
-
-  function handleGpuChange(gpu: string) {
-    setCustomGpu(gpu);
-    // Default to the GPU's datasheet tier so the control starts on the real layout.
-    const tier = getGpuThroughputSpec(gpu)?.interconnect_tier;
-    setCustomInterconnect(tier === "nvlink_paired" ? "nvlink_paired" : "nvswitch");
-  }
 
   const parsedCount = parseInt(customCount) || 1;
-  // Only GPUs with an NVLink fabric get the NVSwitch-vs-paired choice; PCIe-only
-  // GPUs have no such topology, so the control is hidden (tier stays datasheet).
-  const gpuHasNvlink = getGpuThroughputSpec(customGpu)?.nvlink_bandwidth_gb_s != null;
-  const showInterconnect = parsedCount > 1 && gpuHasNvlink;
 
-  const valueBadge = value ? interconnectBadgeLabel(value.interconnect, value.gpuName) : null;
+  const valueBadge = value ? interconnectBadgeLabel(value.gpuName) : null;
 
   function handleCustomSave() {
     const gpuName = customGpu;
     const count = parsedCount;
     const vram = getGpuVram(gpuName) ?? 80;
-
-    const interconnect = count > 1 && gpuHasNvlink ? customInterconnect : null;
 
     onChange({
       label: `${count}× ${gpuName} ${vram}GB (Custom)`,
@@ -67,7 +51,8 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
       gpuCount: count,
       vramPerGpu: vram,
       totalVramGb: vram * count,
-      interconnect,
+      // Interconnect tier is a property of the GPU (datasheet), not stored here.
+      interconnect: null,
     });
     setCustomOpen(false);
   }
@@ -78,7 +63,7 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
         {presets.map((preset) => {
-          const badge = interconnectBadgeLabel(preset.interconnect, preset.gpuName);
+          const badge = interconnectBadgeLabel(preset.gpuName);
           return (
           <button
             key={preset.label}
@@ -122,14 +107,14 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
             <div className="grid gap-4 py-2">
               <div className="grid grid-cols-2 items-center gap-4">
                 <Label>GPU Type</Label>
-                <Select value={customGpu} onValueChange={handleGpuChange}>
+                <Select value={customGpu} onValueChange={setCustomGpu}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {gpuTypes.map((gpu) => (
                       <SelectItem key={gpu} value={gpu}>
-                        {gpu} ({getGpuVram(gpu) ?? "?"}GB)
+                        {gpu} ({getGpuVram(gpu) ?? "?"}GB) · {formatInterconnectTier(gpuInterconnectTier(gpu))}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -146,20 +131,6 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </div>
-              {showInterconnect && (
-                <div className="grid grid-cols-2 items-center gap-4">
-                  <Label>GPU Interconnect</Label>
-                  <Select value={customInterconnect} onValueChange={setCustomInterconnect}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nvswitch">NVSwitch</SelectItem>
-                      <SelectItem value="nvlink_paired">NVLink+PCIe</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setCustomOpen(false)}>

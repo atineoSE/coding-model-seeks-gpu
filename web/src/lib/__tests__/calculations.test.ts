@@ -7,7 +7,6 @@ import {
   calcKvCachePerToken,
   resolveModelPrecision,
   resolveKvPrecisionBytes,
-  isNvLink,
   WEIGHT_OVERHEAD_FACTOR,
 } from "../calculations";
 
@@ -494,30 +493,6 @@ describe("resolveKvPrecisionBytes", () => {
 
   it("auto returns 2 for unknown GPUs", () => {
     expect(resolveKvPrecisionBytes("auto", "FakeGPU")).toBe(2);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// isNvLink
-// ---------------------------------------------------------------------------
-
-describe("isNvLink", () => {
-  it("returns true for NVLink variants and NVLink-based tiers", () => {
-    expect(isNvLink("NVLink sxm4")).toBe(true);
-    expect(isNvLink("NVLink sxm5")).toBe(true);
-    expect(isNvLink("nvlink")).toBe(true);
-    expect(isNvLink("NVLINK")).toBe(true);
-    // Tier enums are NVLink-based fabrics too.
-    expect(isNvLink("nvlink_paired")).toBe(true);
-    expect(isNvLink("nvswitch")).toBe(true);
-  });
-
-  it("returns false for non-NVLink", () => {
-    expect(isNvLink("PCIe")).toBe(false);
-    expect(isNvLink("pcie")).toBe(false);
-    expect(isNvLink("none")).toBe(false);
-    expect(isNvLink(null)).toBe(false);
-    expect(isNvLink("")).toBe(false);
   });
 });
 

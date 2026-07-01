@@ -255,17 +255,6 @@ export function calculateAllCosts(
 // Parallelism Helpers
 // ============================================================================
 
-/**
- * Check if an interconnect string refers to an NVLink-based fabric.
- *
- * Real data uses values like "NVLink sxm4", "NVLink sxm5", etc.; the tier
- * enums `nvlink_paired` and `nvswitch` are both NVLink-based too.
- */
-export function isNvLink(interconnect: string | null): boolean {
-  if (!interconnect) return false;
-  const s = interconnect.toLowerCase();
-  return s.startsWith("nvlink") || s.startsWith("nvswitch");
-}
 
 // ============================================================================
 // KV cache

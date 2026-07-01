@@ -1,6 +1,6 @@
 import type { DeploymentEstimate, InterconnectTier, ThroughputState } from "@/types";
 import { Badge } from "@/components/ui/badge";
-import { resolveInterconnectTier } from "@/lib/gpu-specs";
+import { gpuInterconnectTier } from "@/lib/gpu-specs";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -39,12 +39,11 @@ export function formatInterconnectTier(tier: InterconnectTier): string {
 }
 
 /**
- * Badge label for a GPU config's effective interconnect — "NVSwitch" or
- * "NVLink+PCIe" — resolving a legacy/descriptive string against the GPU's
- * datasheet tier. Returns null for PCIe-only setups (no badge).
+ * Badge label for a GPU's interconnect — "NVSwitch" or "NVLink+PCIe" — taken
+ * from the GPU's datasheet tier. Returns null for PCIe-only GPUs (no badge).
  */
-export function interconnectBadgeLabel(interconnect: string | null, gpuName: string): string | null {
-  const tier = resolveInterconnectTier(interconnect, gpuName);
+export function interconnectBadgeLabel(gpuName: string): string | null {
+  const tier = gpuInterconnectTier(gpuName);
   return tier === "none" ? null : formatInterconnectTier(tier);
 }
 
