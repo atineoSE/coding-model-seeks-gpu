@@ -1,13 +1,14 @@
 "use client";
 
 import type { Persona, MatrixCell, Model, GpuSetupOption } from "@/types";
-import { CONCURRENCY_TIERS } from "@/lib/concurrency-tiers";
+import { PERFORMANCE_COLUMNS } from "@/lib/performance-columns";
 import {
   getModelMemory,
   resolveModelPrecision,
   isNvLink,
   WEIGHT_OVERHEAD_FACTOR,
 } from "@/lib/calculations";
+import { formatTokS } from "@/components/deployment-estimate-panel";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -15,13 +16,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { DeploymentEstimatePanel } from "@/components/deployment-estimate-panel";
 import { useIsDesktop } from "@/hooks/use-media-query";
 import { formatModelName } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
@@ -140,7 +134,6 @@ function formatWeightMemory(model: Model): string {
   return `${Math.round(memGb)} GB`;
 }
 
-
 function getMinVramGb(model: Model): number | null {
   const precision = resolveModelPrecision(model);
   const memGb = getModelMemory(model, precision);
@@ -173,9 +166,59 @@ function PrecisionBadge({ model }: { model: Model }) {
   );
 }
 
+/**
+ * Human labels for the attention family. Rendered as a subtle badge — the only
+ * cue in the UI about which architectures we model single-stream / aggregate
+ * throughput for (GQA and MLA are modeled; the sparse families are not).
+ */
+const ATTENTION_LABELS: Record<NonNullable<Model["attention_type"]>, { short: string; full: string }> = {
+  GQA: { short: "GQA", full: "Grouped-Query Attention" },
+  MLA: { short: "MLA", full: "Multi-head Latent Attention" },
+  DSV4: { short: "DSA", full: "DeepSeek Sparse Attention" },
+  MSA: { short: "MSA", full: "MiniMax Sparse Attention" },
+};
+
+function AttentionBadge({ model }: { model: Model }) {
+  if (!model.attention_type) return null;
+  const label = ATTENTION_LABELS[model.attention_type];
+  if (!label) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="secondary" className="text-[10px] cursor-help">
+          {label.short}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>{label.full}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function LicenseBadge({ model }: { model: Model }) {
+  if (!model.license_name) return null;
+  const badge = (
+    <Badge
+      variant="outline"
+      className={`text-[10px] ${model.license_url ? "hover:bg-accent cursor-pointer" : ""}`}
+    >
+      {model.license_name}
+    </Badge>
+  );
+  return model.license_url ? (
+    <a href={model.license_url} target="_blank" rel="noopener noreferrer">
+      {badge}
+    </a>
+  ) : (
+    badge
+  );
+}
+
 function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
   const { model } = cell;
   const minVram = getMinVramGb(model);
+  const modelUrl = model.hf_model_id
+    ? `https://huggingface.co/${model.hf_model_id}`
+    : model.model_url ?? null;
 
   return (
     <div className="flex items-start gap-2">
@@ -189,49 +232,58 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
           #{rowIdx + 1}
         </Badge>
       )}
-      <div className="min-w-0">
+      <div className="min-w-0 space-y-1">
         {/* Model name — HF link, fallback URL, or plain text */}
         <div className="font-semibold text-sm truncate">
-          {(() => {
-            const url = model.hf_model_id
-              ? `https://huggingface.co/${model.hf_model_id}`
-              : model.model_url ?? null;
-            return url ? (
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline inline-flex items-center gap-1"
-              >
-                {formatModelName(model.model_name)}
-                <ExternalLink className="size-3 text-muted-foreground" />
-              </a>
-            ) : (
-              formatModelName(model.model_name)
-            );
-          })()}
+          {modelUrl ? (
+            <a
+              href={modelUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline inline-flex items-center gap-1"
+            >
+              {formatModelName(model.model_name)}
+              <ExternalLink className="size-3 text-muted-foreground" />
+            </a>
+          ) : (
+            formatModelName(model.model_name)
+          )}
         </div>
 
-        {/* Params + min VRAM */}
-        <div className="text-xs text-muted-foreground mt-0.5">
-          {model.learnable_params_b !== null && (
-            <>
-              {Math.round(model.learnable_params_b)}b
-              {model.architecture === "MoE" && model.active_params_b !== null && (
-                <> ({Math.round(model.active_params_b)}b active)</>
-              )}
-            </>
-          )}
-          {minVram !== null && (
-            <>{model.learnable_params_b !== null ? " · " : ""}min {minVram} GB VRAM</>
-          )}
-          {model.context_length !== null && (
-            <> · {Math.round(model.context_length / 1024)}K context</>
-          )}
-        </div>
+        {/* License — its own dedicated line */}
+        {model.license_name && (
+          <div>
+            <LicenseBadge model={model} />
+          </div>
+        )}
+
+        {/* Params (+ active for MoE) + min VRAM + context */}
+        {(model.learnable_params_b !== null ||
+          minVram !== null ||
+          model.context_length !== null) && (
+          <div className="text-xs text-muted-foreground">
+            {model.learnable_params_b !== null && (
+              <>
+                {Math.round(model.learnable_params_b)}b
+                {model.architecture === "MoE" && model.active_params_b !== null && (
+                  <> ({Math.round(model.active_params_b)}b active)</>
+                )}
+              </>
+            )}
+            {minVram !== null && (
+              <>{model.learnable_params_b !== null ? " · " : ""}min {minVram} GB VRAM</>
+            )}
+            {model.context_length !== null && (
+              <>
+                {model.learnable_params_b !== null || minVram !== null ? " · " : ""}
+                {Math.round(model.context_length / 1024)}K context
+              </>
+            )}
+          </div>
+        )}
 
         {/* SOTA percentage + API cost — or an explicit gap for unranked models */}
-        <div className="text-xs text-muted-foreground mt-0.5">
+        <div className="text-xs text-muted-foreground">
           {cell.isUnranked || cell.percentOfSota === null ? (
             "Unranked"
           ) : (
@@ -244,51 +296,29 @@ function ModelInfo({ cell, rowIdx }: { cell: MatrixCell; rowIdx: number }) {
           )}
         </div>
 
-        {/* Badges */}
-        <div className="flex items-center gap-1 mt-1">
+        {/* Architecture badges — MoE, precision, attention family */}
+        <div className="flex flex-wrap items-center gap-1">
           {model.architecture === "MoE" && (
             <Badge variant="secondary" className="text-[10px]">
               MoE
             </Badge>
           )}
           <PrecisionBadge model={model} />
-          {model.license_name && (
-            model.license_url ? (
-              <a href={model.license_url} target="_blank" rel="noopener noreferrer">
-                <Badge variant="outline" className="text-[10px] hover:bg-accent cursor-pointer">
-                  {model.license_name}
-                </Badge>
-              </a>
-            ) : (
-              <Badge variant="outline" className="text-[10px]">
-                {model.license_name}
-              </Badge>
-            )
-          )}
+          <AttentionBadge model={model} />
         </div>
       </div>
     </div>
   );
 }
 
-function GpuSetupBlock({ setup, currencySymbol = "$" }: { setup: GpuSetupOption; currencySymbol?: string }) {
-  return (
-    <div>
-      <div className="text-sm font-medium">
-        {setup.gpuCount}× {setup.gpuName}
-        {setup.isProjected && " (*)"}
-        {setup.gpuCount > 1 && isNvLink(setup.interconnect) && (
-          <span className="text-muted-foreground font-normal ml-1.5">NVLink</span>
-        )}
-      </div>
-      <div className="text-sm text-muted-foreground">
-        {formatCurrency(setup.monthlyCost, currencySymbol)}/mo
-      </div>
-    </div>
-  );
-}
-
-function CellContent({ cell, persona, currencySymbol = "$" }: { cell: MatrixCell; persona: Persona; currencySymbol?: string }) {
+/**
+ * One Performance cell: the chosen GPU setup rendered as a compact card —
+ * GPU layout, monthly price, operating streams, and (when the architecture is
+ * modeled) single-stream and aggregate throughput. No cost-per-stream,
+ * utilization, or "modeled/unmodeled" badges — missing throughput is simply
+ * omitted.
+ */
+function CellContent({ cell, currencySymbol = "$" }: { cell: MatrixCell; currencySymbol?: string }) {
   if (cell.exceedsCapacity) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground/50 text-xs italic">
@@ -297,109 +327,40 @@ function CellContent({ cell, persona, currencySymbol = "$" }: { cell: MatrixCell
     );
   }
 
-  if (persona === "performance") {
-    const primary = cell.gpuSetups[0] ?? null;
-    const alternatives = cell.gpuSetups.slice(1, 3);
-    const hasAlternatives = alternatives.length > 0;
+  const setup: GpuSetupOption | null = cell.gpuSetups[0] ?? null;
+  if (!setup) return null;
+  const est = setup.deploymentEstimate;
 
-    const cellBody = (
-      <div className="space-y-2">
-        {/* Primary (cheapest) GPU setup */}
-        {primary && <GpuSetupBlock setup={primary} currencySymbol={currencySymbol} />}
-
-        {/* Per-stream metrics: cost + throughput on one line */}
-        {(cell.costPerStreamPerMonth !== null || cell.decodeThroughputTokS !== null) && (
-          <div className="text-xs text-muted-foreground">
-            {cell.costPerStreamPerMonth !== null && (
-              <>{formatCurrency(cell.costPerStreamPerMonth, currencySymbol)}/stream</>
-            )}
-            {cell.costPerStreamPerMonth !== null && cell.decodeThroughputTokS !== null && (
-              <> · </>
-            )}
-            {cell.decodeThroughputTokS !== null && (
-              <>{Math.round(cell.decodeThroughputTokS)} tok/s</>
-            )}
-          </div>
-        )}
-
-        {/* Utilization (most subdued) */}
-        {cell.utilization !== null && (
-          <div className="text-xs text-muted-foreground/50">
-            ~{Math.round(cell.utilization * 100)}% utilized
-          </div>
-        )}
-
-        {/* First-principles deployment estimate (read-only) for the primary setup */}
-        {primary?.deploymentEstimate && (
-          <div className="pt-1 border-t border-border/50">
-            <DeploymentEstimatePanel estimate={primary.deploymentEstimate} />
-          </div>
-        )}
-      </div>
-    );
-
-    if (!hasAlternatives) return cellBody;
-
-    return (
-      <HoverCard openDelay={200} closeDelay={100}>
-        <HoverCardTrigger asChild>
-          <div className="cursor-default">{cellBody}</div>
-        </HoverCardTrigger>
-        <HoverCardContent align="center" className="w-auto min-w-48">
-          <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground mb-2">
-              Alternative GPU setups
-            </div>
-            {cell.gpuSetups.slice(0, 3).map((setup, i) => (
-              <div
-                key={i}
-                className={`${i === 0 ? "font-semibold" : "text-muted-foreground"}`}
-              >
-                <div className="text-sm">
-                  {setup.gpuCount}× {setup.gpuName}
-                  {setup.isProjected && " (*)"}
-                  {setup.gpuCount > 1 && isNvLink(setup.interconnect) && (
-                    <span className="font-normal ml-1.5 text-muted-foreground">NVLink</span>
-                  )}
-                </div>
-                <div className="text-xs">
-                  {formatCurrency(setup.monthlyCost, currencySymbol)}/mo
-                  {" · "}
-                  {formatCurrency(setup.costPerStreamPerMonth, currencySymbol)}/stream
-                  {setup.decodeThroughputTokS !== null && (
-                    <> · {Math.round(setup.decodeThroughputTokS)} tok/s</>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </HoverCardContent>
-      </HoverCard>
-    );
-  }
-
-  // Budget persona — hardware already secured, show throughput + utilization only
-  const budgetEstimate = cell.gpuSetups[0]?.deploymentEstimate ?? null;
   return (
     <div className="space-y-1">
-      {/* Primary: throughput */}
-      {cell.decodeThroughputTokS !== null && (
-        <div className="text-sm font-medium">
-          {Math.round(cell.decodeThroughputTokS)} tok/s/stream
+      {/* GPU layout */}
+      <div className="text-sm font-medium">
+        {setup.gpuCount}× {setup.gpuName}
+        {setup.isProjected && " (*)"}
+        {setup.gpuCount > 1 && isNvLink(setup.interconnect) && (
+          <span className="text-muted-foreground font-normal ml-1.5">NVLink</span>
+        )}
+      </div>
+
+      {/* Monthly price */}
+      <div className="text-sm text-muted-foreground">
+        {formatCurrency(setup.monthlyCost, currencySymbol)}/mo
+      </div>
+
+      {/* Operating streams — a single count at the configured prefix reuse */}
+      <div className="text-xs text-muted-foreground">{setup.maxConcurrentStreams} streams</div>
+
+      {/* Single-stream throughput — omitted when not modeled */}
+      {est?.singleStreamTokS != null && (
+        <div className="text-xs text-muted-foreground">
+          {formatTokS(est.singleStreamTokS)} / stream
         </div>
       )}
 
-      {/* Utilization (most subdued) */}
-      {cell.utilization !== null && (
-        <div className="text-xs text-muted-foreground/50">
-          ~{Math.round(cell.utilization * 100)}% utilized
-        </div>
-      )}
-
-      {/* First-principles deployment estimate (read-only) */}
-      {budgetEstimate && (
-        <div className="pt-1 border-t border-border/50">
-          <DeploymentEstimatePanel estimate={budgetEstimate} />
+      {/* Aggregate throughput — omitted when not modeled */}
+      {est?.aggregateTokS != null && (
+        <div className="text-xs text-muted-foreground">
+          {formatTokS(est.aggregateTokS)} aggregate
         </div>
       )}
     </div>
@@ -419,124 +380,159 @@ const HEATMAP_STEPS = [
 ];
 
 /**
- * Pick a heatmap class for a cell based on its value relative to the column's
- * min/max. When higherIsBetter is false (cost): green = lowest, red = highest.
- * When higherIsBetter is true (throughput): green = highest, red = lowest.
+ * Pick a heatmap class for a cell based on its monthly cost relative to the
+ * column's min/max: green = cheapest, red = most expensive.
  */
 function getCellHeatmapClass(
   value: number | null,
   minVal: number,
   maxVal: number,
   exceedsCapacity: boolean,
-  higherIsBetter: boolean = false,
 ): string {
   if (value === null || exceedsCapacity || minVal >= maxVal) return "";
 
   let t = (value - minVal) / (maxVal - minVal);
-  if (higherIsBetter) t = 1 - t;
   t = Math.min(1, Math.max(0, t));
   const idx = Math.min(HEATMAP_STEPS.length - 1, Math.floor(t * HEATMAP_STEPS.length));
 
   return HEATMAP_STEPS[idx];
 }
 
-function MobileMatrixView({ rows, persona, currencySymbol = "$", colMin, colMax, useThroughput, sotaTotalBenchmarkCost, benchmarkDisplayName }: {
-  rows: MatrixCell[][];
-  persona: Persona;
+/** The monthly cost that drives a cell's heatmap color (null when no setup). */
+function cellMonthlyCost(cell: MatrixCell): number | null {
+  return cell.gpuSetups[0]?.monthlyCost ?? null;
+}
+
+function SotaHeader({
+  cell,
+  currencySymbol,
+  sotaTotalBenchmarkCost,
+  benchmarkDisplayName,
+}: {
+  cell: MatrixCell | undefined;
   currencySymbol: string;
-  colMin: number[];
-  colMax: number[];
-  useThroughput: boolean;
   sotaTotalBenchmarkCost?: number | null;
   benchmarkDisplayName?: string;
 }) {
-  const sotaScore = rows[0]?.[0]?.sotaScore ?? null;
-
+  const sotaScore = cell?.sotaScore ?? null;
+  if (!sotaScore) return null;
   return (
-    <Tabs defaultValue="multi_agent">
-      {sotaScore && (
-        <div className="text-xs text-muted-foreground mb-2">
-          <span className="font-semibold text-foreground">
-            SOTA: {formatModelName(sotaScore.sota_model_name)}
-          </span>{" "}
-          <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>
-          {sotaTotalBenchmarkCost !== null && sotaTotalBenchmarkCost !== undefined && (
-            <>
-              {" "}&mdash;{" "}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help border-b border-dotted border-muted-foreground/50">
-                    {formatCurrency(sotaTotalBenchmarkCost, currencySymbol)} in API costs
-                    {benchmarkDisplayName && <> for {benchmarkDisplayName}</>}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Cost of evaluating this model on the selected benchmark via API,
-                  as reported by the OpenHands Index.
-                </TooltipContent>
-              </Tooltip>
-            </>
-          )}
-        </div>
+    <div className="text-xs font-normal">
+      <span className="font-semibold text-foreground">
+        SOTA: {formatModelName(sotaScore.sota_model_name)}
+      </span>{" "}
+      <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>
+      {sotaTotalBenchmarkCost !== null && sotaTotalBenchmarkCost !== undefined && (
+        <>
+          {" "}&mdash;{" "}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help border-b border-dotted border-muted-foreground/50">
+                {formatCurrency(sotaTotalBenchmarkCost, currencySymbol)} in API costs
+                {benchmarkDisplayName && <> for {benchmarkDisplayName}</>}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              Cost of evaluating this model on the selected benchmark via API,
+              as reported by the OpenHands Index.
+            </TooltipContent>
+          </Tooltip>
+        </>
       )}
-      <TabsList className="grid w-full grid-cols-4 group-data-[orientation=horizontal]/tabs:h-auto">
-        {CONCURRENCY_TIERS.map((tier) => (
-          <TabsTrigger key={tier.key} value={tier.key} className="text-xs px-1 py-1.5 h-auto whitespace-normal leading-tight">
-            {tier.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-
-      {CONCURRENCY_TIERS.map((tier, colIdx) => (
-        <TabsContent key={tier.key} value={tier.key} className="space-y-3 mt-3">
-          <div className="text-xs text-muted-foreground text-center">
-            {tier.midpoint} streams &mdash; {tier.description}
-          </div>
-          {rows.map((row, rowIdx) => {
-            const cell0 = row[0];
-            const cell = row[colIdx];
-            if (!cell0 || !cell) return null;
-
-            const heatmapVal = useThroughput ? cell.decodeThroughputTokS : cell.costPerStreamPerMonth;
-            const heatmap = getCellHeatmapClass(
-              heatmapVal, colMin[colIdx], colMax[colIdx], cell.exceedsCapacity, useThroughput,
-            );
-
-            return (
-              <div
-                key={rowIdx}
-                className={`rounded-lg border overflow-hidden ${cell.exceedsCapacity ? "bg-muted/20" : heatmap}`}
-              >
-                <div className="flex">
-                  {/* SOTA gradient left strip — dropped for unranked (no score),
-                      but the 4px column is kept so cards still align. */}
-                  <div
-                    className="w-[4px] shrink-0"
-                    style={{
-                      backgroundColor:
-                        cell0.percentOfSota === null
-                          ? "transparent"
-                          : sotaColor(cell0.percentOfSota),
-                    }}
-                  />
-                  <div className="flex-1 p-3">
-                    <ModelInfo cell={cell0} rowIdx={rowIdx} />
-                    <hr className="my-2 border-border" />
-                    <div className="tabular-nums">
-                      <CellContent cell={cell} persona={persona} currencySymbol={currencySymbol} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </TabsContent>
-      ))}
-    </Tabs>
+    </div>
   );
 }
 
-export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sotaTotalBenchmarkCost, benchmarkDisplayName }: RecommendationMatrixProps) {
+function UtilizationNote() {
+  return (
+    <p className="text-xs text-muted-foreground mt-3">
+      Streams and throughput are sized at 90% GPU memory utilization, using the
+      context window from Advanced settings.
+    </p>
+  );
+}
+
+function MobileMatrixView({
+  rows,
+  currencySymbol = "$",
+  colMin,
+  colMax,
+  sotaTotalBenchmarkCost,
+  benchmarkDisplayName,
+}: {
+  rows: MatrixCell[][];
+  currencySymbol: string;
+  colMin: number[];
+  colMax: number[];
+  sotaTotalBenchmarkCost?: number | null;
+  benchmarkDisplayName?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="mb-1">
+        <SotaHeader
+          cell={rows[0]?.[0]}
+          currencySymbol={currencySymbol}
+          sotaTotalBenchmarkCost={sotaTotalBenchmarkCost}
+          benchmarkDisplayName={benchmarkDisplayName}
+        />
+      </div>
+      {rows.map((row, rowIdx) => {
+        const cell0 = row[0];
+        if (!cell0) return null;
+        return (
+          <div key={rowIdx} className="rounded-lg border overflow-hidden">
+            <div className="flex">
+              {/* SOTA gradient left strip — dropped for unranked (no score),
+                  but the 4px column is kept so cards still align. */}
+              <div
+                className="w-[4px] shrink-0"
+                style={{
+                  backgroundColor:
+                    cell0.percentOfSota === null
+                      ? "transparent"
+                      : sotaColor(cell0.percentOfSota),
+                }}
+              />
+              <div className="flex-1 p-3">
+                <ModelInfo cell={cell0} rowIdx={rowIdx} />
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  {PERFORMANCE_COLUMNS.map((col, colIdx) => {
+                    const cell = row[colIdx];
+                    if (!cell) return null;
+                    const heatmap = getCellHeatmapClass(
+                      cellMonthlyCost(cell), colMin[colIdx], colMax[colIdx], cell.exceedsCapacity,
+                    );
+                    return (
+                      <div
+                        key={col.key}
+                        className={`rounded-md border p-2 ${cell.exceedsCapacity ? "bg-muted/20" : heatmap}`}
+                      >
+                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                          {col.label}
+                        </div>
+                        <div className="tabular-nums">
+                          <CellContent cell={cell} currencySymbol={currencySymbol} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function RecommendationMatrix({
+  rows,
+  currencySymbol = "$",
+  sotaTotalBenchmarkCost,
+  benchmarkDisplayName,
+}: RecommendationMatrixProps) {
   const isDesktop = useIsDesktop();
 
   if (rows.length === 0) {
@@ -547,20 +543,14 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
     );
   }
 
-  // Extract SOTA info from first row
-  const sotaScore = rows[0]?.[0]?.sotaScore ?? null;
-
-  // Compute per-column heatmap ranges.
-  // Performance persona: cost-based (green = cheapest).
-  // Budget persona: throughput-based (green = highest tok/s).
-  const useThroughput = persona === "budget";
+  // Per-column heatmap ranges over monthly cost (green = cheapest).
   const numCols = rows[0]?.length ?? 0;
   const colMin: number[] = new Array(numCols).fill(Infinity);
   const colMax: number[] = new Array(numCols).fill(-Infinity);
   for (const row of rows) {
     for (let c = 0; c < row.length; c++) {
       const cell = row[c];
-      const val = useThroughput ? cell.decodeThroughputTokS : cell.costPerStreamPerMonth;
+      const val = cellMonthlyCost(cell);
       if (val !== null && !cell.exceedsCapacity) {
         colMin[c] = Math.min(colMin[c], val);
         colMax[c] = Math.max(colMax[c], val);
@@ -578,16 +568,15 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
       <TooltipProvider>
         <MobileMatrixView
           rows={rows}
-          persona={persona}
           currencySymbol={currencySymbol}
           colMin={colMin}
           colMax={colMax}
-          useThroughput={useThroughput}
           sotaTotalBenchmarkCost={sotaTotalBenchmarkCost}
           benchmarkDisplayName={benchmarkDisplayName}
         />
+        <UtilizationNote />
         {hasProjected && (
-          <p className="text-xs text-muted-foreground mt-3">
+          <p className="text-xs text-muted-foreground mt-1">
             (*) Projected setup, not actually found in GPUs available.
           </p>
         )}
@@ -602,53 +591,24 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
           <thead>
             <tr className="border-b border-border">
               <th className="w-8 p-0" />
-              <th className="text-left p-3 text-sm font-medium text-muted-foreground w-[200px]">
+              <th className="text-left p-3 text-sm font-medium text-muted-foreground w-[240px]">
                 <div>Model</div>
-                {sotaScore && (
-                  <div className="text-xs font-normal mt-1">
-                    <span className="font-semibold text-foreground">
-                      SOTA: {formatModelName(sotaScore.sota_model_name)}
-                    </span>
-                    {" "}
-                    <span className="font-mono">({sotaScore.sota_score.toFixed(1)})</span>
-                    {sotaTotalBenchmarkCost !== null && sotaTotalBenchmarkCost !== undefined && (
-                      <>
-                        {" "}&mdash;{" "}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="cursor-help border-b border-dotted border-muted-foreground/50">
-                              {formatCurrency(sotaTotalBenchmarkCost, currencySymbol)} in API costs
-                              {benchmarkDisplayName && <> for {benchmarkDisplayName}</>}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Cost of evaluating this model on the selected benchmark via API,
-                            as reported by the OpenHands Index.
-                          </TooltipContent>
-                        </Tooltip>
-                      </>
-                    )}
-                  </div>
-                )}
+                <SotaHeader
+                  cell={rows[0]?.[0]}
+                  currencySymbol={currencySymbol}
+                  sotaTotalBenchmarkCost={sotaTotalBenchmarkCost}
+                  benchmarkDisplayName={benchmarkDisplayName}
+                />
               </th>
-              {CONCURRENCY_TIERS.map((tier) => (
+              {PERFORMANCE_COLUMNS.map((col) => (
                 <th
-                  key={tier.key}
-                  className="text-center p-3 text-sm font-medium text-muted-foreground"
+                  key={col.key}
+                  className="text-center p-3 text-sm font-medium text-muted-foreground align-top"
                 >
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="cursor-help">
-                        <div>{tier.label}</div>
-                        <div className="text-xs font-normal">
-                          {tier.midpoint} streams
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {tier.description}
-                    </TooltipContent>
-                  </Tooltip>
+                  <div className="text-foreground">{col.label}</div>
+                  <div className="text-xs font-normal mt-0.5 max-w-[200px] mx-auto">
+                    {col.description}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -675,25 +635,24 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
                   </td>
 
                   {/* Model info column */}
-                  <td className="p-3">
+                  <td className="p-3 align-top">
                     <ModelInfo cell={cell0} rowIdx={rowIdx} />
                   </td>
 
-                  {/* Concurrency tier columns */}
+                  {/* Fit / Scale columns */}
                   {row.map((cell, colIdx) => {
-                    const heatmapVal = useThroughput ? cell.decodeThroughputTokS : cell.costPerStreamPerMonth;
                     const heatmap = getCellHeatmapClass(
-                      heatmapVal, colMin[colIdx], colMax[colIdx], cell.exceedsCapacity, useThroughput,
+                      cellMonthlyCost(cell), colMin[colIdx], colMax[colIdx], cell.exceedsCapacity,
                     );
 
                     return (
                       <td
                         key={colIdx}
-                        className={`p-3 text-center align-top ${
+                        className={`p-3 text-center align-middle ${
                           cell.exceedsCapacity ? "bg-muted/20" : heatmap
                         }`}
                       >
-                        <CellContent cell={cell} persona={persona} currencySymbol={currencySymbol} />
+                        <CellContent cell={cell} currencySymbol={currencySymbol} />
                       </td>
                     );
                   })}
@@ -702,8 +661,9 @@ export function RecommendationMatrix({ rows, persona, currencySymbol = "$", sota
             })}
           </tbody>
         </table>
+        <UtilizationNote />
         {hasProjected && (
-          <p className="text-xs text-muted-foreground mt-3">
+          <p className="text-xs text-muted-foreground mt-1">
             (*) Projected setup, not actually found in GPUs available.
           </p>
         )}

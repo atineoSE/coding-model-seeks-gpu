@@ -11,6 +11,7 @@ import type {
   DeploymentEstimate,
 } from "@/types";
 import { CONCURRENCY_TIERS } from "./concurrency-tiers";
+import { PERFORMANCE_COLUMNS } from "./performance-columns";
 import {
   getModelMemory,
   getActiveModelMemory,
@@ -46,7 +47,7 @@ export const DEFAULT_MEMORY_UTILIZATION = 0.90;
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   avgInputTokens: 50_000,
   avgOutputTokens: 1000,
-  prefixReuse: 0.5,
+  prefixReuse: 0.90,
   minTokPerStream: 20,
   // 2 bytes/elem: vLLM's `kv_cache_dtype=auto` follows the model's bf16/fp16
   // compute dtype, not the GPU's FP8 capability. FP8 KV is opt-in ("auto").
@@ -179,11 +180,12 @@ export function calcDeploymentEstimate(
   const reserveGb = calcRuntimeReserve(model, reserveLayout);
   const usableVramGb = layout.gpusUsed * offering.vram_gb * memoryUtilization;
   const kvPrecisionBytes = resolveKvPrecisionBytes(settings.kvCachePrecision, offering.gpu_name);
-  const p = settings.prefixReuse;
-  const prefixReuseRange = {
-    low: Math.max(0, p - 0.25),
-    high: Math.min(0.999, p + 0.25),
-  };
+  // Streams are evaluated at exactly the configured prefix reuse. With GPU-memory
+  // utilization fixed at 90% and the context window taken from settings, prefix
+  // reuse is the only remaining free variable in the KV budget — and it is itself
+  // a single setting — so the formula yields one stream count, not a band. A
+  // zero-width range collapses calcOperatingStreams' low/high to that single point.
+  const prefixReuseRange = { low: settings.prefixReuse, high: settings.prefixReuse };
   const operatingStreams = calcOperatingStreams({
     model,
     usableVramGb,
@@ -453,9 +455,51 @@ export function findScaledGpuSetups(
 }
 
 /**
+ * Build the Performance-persona cells for one model: one per
+ * {@link PERFORMANCE_COLUMNS} entry (Fit, Scale). Each column picks the cheapest
+ * GPU setup that admits at least the column's stream floor (real offerings
+ * first, then the 8-GPU scaled fallback), all at the fixed 90% memory
+ * utilization the calculator assumes.
+ *
+ * `base` carries the score-dependent fields (benchmark, sotaScore, percentOfSota,
+ * totalBenchmarkCost, isUnranked) that are identical across both columns; they
+ * are left null for unranked models.
+ */
+function performanceCellsForModel(
+  model: Model,
+  allGpus: GpuOffering[],
+  settings: AdvancedSettings,
+  base: Pick<
+    MatrixCell,
+    "benchmark" | "sotaScore" | "percentOfSota" | "totalBenchmarkCost" | "isUnranked"
+  >,
+): MatrixCell[] {
+  return PERFORMANCE_COLUMNS.map((col): MatrixCell => {
+    let gpuSetups = findGpuSetups(model, allGpus, col.minStreams, settings, 1);
+    if (gpuSetups.length === 0) {
+      gpuSetups = findScaledGpuSetups(model, allGpus, col.minStreams, settings, 1);
+    }
+    const cheapest = gpuSetups.length > 0 ? gpuSetups[0] : null;
+
+    return {
+      model,
+      ...base,
+      gpuSetups,
+      costPerStreamPerMonth: cheapest?.costPerStreamPerMonth ?? null,
+      exceedsCapacity: gpuSetups.length === 0,
+      decodeThroughputTokS: cheapest?.decodeThroughputTokS ?? null,
+      // Utilization is fixed at 90% (the memory-utilization the streams band is
+      // sized under); it is no longer a per-cell number the UI surfaces.
+      utilization: null,
+    };
+  });
+}
+
+/**
  * Calculate the recommendation matrix for the Performance persona.
  *
- * Returns a 2D array: rows = models (sorted by score desc), columns = concurrency tiers.
+ * Returns a 2D array: rows = models (sorted by score desc), columns = the two
+ * operating points (Fit, Scale) from {@link PERFORMANCE_COLUMNS}.
  */
 export function calculatePerformanceMatrix(
   allGpus: GpuOffering[],
@@ -494,36 +538,12 @@ export function calculatePerformanceMatrix(
       model.model_name, benchmarkCategory, benchmarks,
     );
 
-    return CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig): MatrixCell => {
-      let gpuSetups = findGpuSetups(
-        model,
-        allGpus,
-        tier.midpoint,
-        settings,
-      );
-
-      // Performance persona: scale up if no real offering suffices
-      if (gpuSetups.length === 0) {
-        gpuSetups = findScaledGpuSetups(model, allGpus, tier.midpoint, settings);
-      }
-
-      const cheapest = gpuSetups.length > 0 ? gpuSetups[0] : null;
-
-      return {
-        model,
-        benchmark,
-        sotaScore: sota,
-        percentOfSota,
-        totalBenchmarkCost,
-        gpuSetups,
-        costPerStreamPerMonth: cheapest?.costPerStreamPerMonth ?? null,
-        exceedsCapacity: gpuSetups.length === 0,
-        decodeThroughputTokS: cheapest?.decodeThroughputTokS ?? null,
-        utilization: cheapest
-          ? Math.min(tier.midpoint / cheapest.maxConcurrentStreams, 1.0)
-          : null,
-        isUnranked: false,
-      };
+    return performanceCellsForModel(model, allGpus, settings, {
+      benchmark,
+      sotaScore: sota,
+      percentOfSota,
+      totalBenchmarkCost,
+      isUnranked: false,
     });
   });
 }
@@ -828,28 +848,12 @@ export function calculateUnrankedMatrix(
   );
 
   return unrankedModels.map((model) =>
-    CONCURRENCY_TIERS.map((tier: ConcurrencyTierConfig): MatrixCell => {
-      let gpuSetups = findGpuSetups(model, allGpus, tier.midpoint, settings);
-      if (gpuSetups.length === 0) {
-        gpuSetups = findScaledGpuSetups(model, allGpus, tier.midpoint, settings);
-      }
-      const cheapest = gpuSetups.length > 0 ? gpuSetups[0] : null;
-
-      return {
-        model,
-        benchmark: null,
-        sotaScore: null,
-        percentOfSota: null,
-        totalBenchmarkCost: null,
-        gpuSetups,
-        costPerStreamPerMonth: cheapest?.costPerStreamPerMonth ?? null,
-        exceedsCapacity: gpuSetups.length === 0,
-        decodeThroughputTokS: cheapest?.decodeThroughputTokS ?? null,
-        utilization: cheapest
-          ? Math.min(tier.midpoint / cheapest.maxConcurrentStreams, 1.0)
-          : null,
-        isUnranked: true,
-      };
+    performanceCellsForModel(model, allGpus, settings, {
+      benchmark: null,
+      sotaScore: null,
+      percentOfSota: null,
+      totalBenchmarkCost: null,
+      isUnranked: true,
     }),
   );
 }

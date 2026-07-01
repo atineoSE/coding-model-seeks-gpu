@@ -144,7 +144,7 @@ export interface AdvancedSettings {
   avgOutputTokens: number;
   /**
    * Fraction (0–1) of the input prompt that is shared/cached prefix across
-   * streams, eligible for prefix-cache reuse. Default 0.5.
+   * streams, eligible for prefix-cache reuse. Default 0.90.
    */
   prefixReuse: number;
   minTokPerStream: number;

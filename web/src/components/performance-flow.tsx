@@ -68,7 +68,7 @@ export function PerformanceFlow({
           <CardTitle>Top Coding Models</CardTitle>
           <CardDescription>
             The best open-source models ranked by benchmark score, with the cheapest GPU
-            setups that can serve each concurrency level.
+            setup that fits each model and the cheapest that scales it to 100+ streams.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -88,8 +88,8 @@ export function PerformanceFlow({
             <CardTitle>Unranked Models</CardTitle>
             <CardDescription>
               Open models with known size but no OpenHands Index result yet, so they can&apos;t
-              be ranked above. Listed biggest first by VRAM, with the cheapest GPU setup per
-              concurrency level and links to their license and HuggingFace page.
+              be ranked above. Listed biggest first by VRAM, with the cheapest GPU setup that
+              fits each model and the cheapest that scales it to 100+ streams.
             </CardDescription>
           </CardHeader>
           <CardContent>

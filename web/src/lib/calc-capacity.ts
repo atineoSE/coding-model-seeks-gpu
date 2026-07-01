@@ -78,9 +78,11 @@ export const DEFAULT_ENGINE_DEFAULTS: EngineDefaults = {
 };
 
 /**
- * A plausible operating range for the shared/cached prefix fraction. Centered
- * on the project's 0.5 default (see AdvancedSettings.prefixReuse): low reuse is
- * the conservative end (fewer streams fit), high reuse the optimistic end.
+ * A plausible operating range for the shared/cached prefix fraction, used only
+ * as the fallback when a caller doesn't pass an explicit range: low reuse is the
+ * conservative end (fewer streams fit), high reuse the optimistic end. The
+ * deployment estimate evaluates streams at a single point (the configured
+ * prefixReuse, default 0.90), so it passes its own zero-width range instead.
  */
 export const DEFAULT_PREFIX_REUSE_RANGE = { low: 0.25, high: 0.75 };
 

@@ -130,7 +130,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 pb-8 max-w-6xl">
+      <div className="container mx-auto px-4 pb-8 max-w-6xl xl:max-w-7xl 2xl:max-w-[90rem]">
         {/* Header — scrolls away */}
         <div className="pt-6 pb-4">
           {/* Title row */}

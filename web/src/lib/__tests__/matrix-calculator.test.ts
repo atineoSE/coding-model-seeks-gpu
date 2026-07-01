@@ -13,6 +13,7 @@ import {
 import { WEIGHT_OVERHEAD_FACTOR, gpusNeeded, getModelMemory } from "../calculations";
 import { getGpuThroughputSpec } from "../gpu-specs";
 import { CONCURRENCY_TIERS } from "../concurrency-tiers";
+import { PERFORMANCE_COLUMNS } from "../performance-columns";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -136,12 +137,13 @@ describe("calculatePerformanceMatrix", () => {
   const benchmarks = [BENCHMARK_GLM, BENCHMARK_MINIMAX];
   const sotaScores = [SOTA];
 
-  it("returns 4 columns (concurrency tiers)", () => {
+  it("returns one column per performance operating point (Fit, Scale)", () => {
     const matrix = calculatePerformanceMatrix(
       allGpus, allModels, benchmarks, sotaScores, "swe_bench_verified",
     );
     expect(matrix.length).toBe(2);
-    expect(matrix[0].length).toBe(4);
+    expect(matrix[0].length).toBe(PERFORMANCE_COLUMNS.length);
+    expect(PERFORMANCE_COLUMNS.map((c) => c.key)).toEqual(["fit", "scale"]);
   });
 
   it("returns rows sorted by benchmark score descending", () => {
@@ -162,10 +164,20 @@ describe("calculatePerformanceMatrix", () => {
     expect(matrix[0][0].percentOfSota).toBeCloseTo(0.90375, 4);
   });
 
-  it("last column is agent_swarm with midpoint 150", () => {
-    const lastTier = CONCURRENCY_TIERS[3];
-    expect(lastTier.key).toBe("agent_swarm");
-    expect(lastTier.midpoint).toBe(150);
+  it("the Scale column requires at least 100 operating streams (or exceeds capacity)", () => {
+    const matrix = calculatePerformanceMatrix(
+      allGpus, allModels, benchmarks, sotaScores, "swe_bench_verified",
+    );
+    const scaleIdx = PERFORMANCE_COLUMNS.findIndex((c) => c.key === "scale");
+    for (const row of matrix) {
+      const cell = row[scaleIdx];
+      const setup = cell.gpuSetups[0];
+      if (setup) {
+        expect(setup.maxConcurrentStreams).toBeGreaterThanOrEqual(100);
+      } else {
+        expect(cell.exceedsCapacity).toBe(true);
+      }
+    }
   });
 
   it("uses costPerStreamPerMonth and maxConcurrentStreams fields", () => {
@@ -305,16 +317,16 @@ describe("performance persona scaled fallback", () => {
     }
   });
 
-  it("cells with projected setups have throughput and utilization populated", () => {
+  it("cells with projected setups expose a real setup and gated throughput", () => {
     const matrix = calculatePerformanceMatrix(
       allGpus, allModels, benchmarks, sotaScores, "swe_bench_verified",
     );
     for (const cell of matrix[0]) {
       if (cell.gpuSetups.length > 0) {
-        // Utilization is streams-based (robust for every architecture).
-        expect(cell.utilization).not.toBeNull();
-        expect(cell.utilization).toBeGreaterThan(0);
-        expect(cell.utilization).toBeLessThanOrEqual(1.0);
+        // The chosen setup can admit at least one stream at 90% utilization.
+        expect(cell.gpuSetups[0].maxConcurrentStreams).toBeGreaterThan(0);
+        // Utilization is fixed at 90% and no longer surfaced per cell.
+        expect(cell.utilization).toBeNull();
         // Throughput is architecture-gated: a number for modeled archs, null for
         // unsupported (hybrid/sparse) ones — never a fabricated figure.
         if (cell.decodeThroughputTokS !== null) {
@@ -511,14 +523,14 @@ describe("calculateUnrankedMatrix", () => {
   const models = [GLM_47, MINIMAX_M25];
   const gpus = [H100_OFFERING];
 
-  it("returns one matrix row per sized, unranked model, one cell per tier", () => {
+  it("returns one matrix row per sized, unranked model, one cell per column", () => {
     const rows = calculateUnrankedMatrix(gpus, models, [], "frontend");
     expect(rows.map((row) => row[0].model.model_name).sort()).toEqual([
       "GLM-4.7",
       "MiniMax-M2.5",
     ]);
     for (const row of rows) {
-      expect(row).toHaveLength(CONCURRENCY_TIERS.length);
+      expect(row).toHaveLength(PERFORMANCE_COLUMNS.length);
     }
   });
 
