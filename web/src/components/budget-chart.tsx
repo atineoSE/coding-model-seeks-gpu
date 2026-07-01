@@ -85,7 +85,14 @@ export function BudgetChart({ data }: BudgetChartProps) {
   // (which hides the toggle) can't strand the user on an empty filtered view.
   const unrankedView = unrankedOnly && hasUnranked;
   const sourceData = unrankedView ? data.filter((d) => d.isUnranked) : data;
-  const visibleData = zoomed ? sourceData : sourceData.slice(0, ZOOMED_MODEL_COUNT);
+
+  // Unmodeled architectures can't be placed on the capacity chart — pull them
+  // out and list them separately below. The chart plots only supported models,
+  // including supported ones that don't fit (shown at zero capacity).
+  const modeledSource = sourceData.filter((d) => d.throughputModeled);
+  const unmodeledModels = sourceData.filter((d) => !d.throughputModeled);
+
+  const visibleData = zoomed ? modeledSource : modeledSource.slice(0, ZOOMED_MODEL_COUNT);
   const nonFittingModels = visibleData.filter((d) => !d.fits);
 
   const chartData = visibleData.map((d) => {
@@ -98,20 +105,13 @@ export function BudgetChart({ data }: BudgetChartProps) {
     return { ...d, modelLabel: truncateModel(formatModelName(d.modelName)), displayValue };
   });
 
-  if (chartData.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        {unrankedView
-          ? "No unranked models fit the current GPU setup."
-          : "No models available for the selected benchmark category."}
-      </div>
-    );
-  }
-
   const maxDisplayValue = Math.max(...chartData.map((d) => d.displayValue), 1);
   const yTicks = niceTicksForRange(0, maxDisplayValue * 1.1);
   const yMax = yTicks[yTicks.length - 1];
   const yLabel = mode === "request" ? "Requests / h" : "Team size (devs)";
+  const emptyMessage = unrankedView
+    ? "No unranked models fit the current GPU setup."
+    : "No supported models available for the selected benchmark category.";
 
   return (
     <div className="space-y-4">
@@ -157,7 +157,7 @@ export function BudgetChart({ data }: BudgetChartProps) {
           </button>
         )}
 
-        {sourceData.length > ZOOMED_MODEL_COUNT && (
+        {modeledSource.length > ZOOMED_MODEL_COUNT && (
           <button
             onClick={() => setZoomed((z) => !z)}
             className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -179,6 +179,7 @@ export function BudgetChart({ data }: BudgetChartProps) {
         )}
       </div>
 
+      {chartData.length > 0 ? (
       <ChartContainer config={chartConfig} className="aspect-auto h-[350px] sm:h-[420px] w-full">
         <ComposedChart data={chartData} accessibilityLayer margin={{ top: 24, right: 12, bottom: 60, left: 20 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
@@ -252,11 +253,21 @@ export function BudgetChart({ data }: BudgetChartProps) {
           )}
         </ComposedChart>
       </ChartContainer>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">{emptyMessage}</div>
+      )}
 
       {nonFittingModels.length > 0 && (
         <p className="text-xs text-muted-foreground px-1">
           The current GPU setup cannot accommodate{" "}
           {formatModelList(nonFittingModels.map((m) => formatModelName(m.modelName)))}. Try a larger setup.
+        </p>
+      )}
+
+      {unmodeledModels.length > 0 && (
+        <p className="text-xs text-muted-foreground px-1">
+          Some architectures are not supported in our capacity calculations:{" "}
+          {formatModelList(unmodeledModels.map((m) => formatModelName(m.modelName)))}.
         </p>
       )}
     </div>

@@ -62,41 +62,6 @@ export function describeAssumptions(estimate: DeploymentEstimate): string[] {
 // Read-only display
 // ============================================================================
 
-/**
- * Where an estimate's numbers come from. Today every estimate is "modeled"
- * (first-principles). The "measured" slot is reserved for a future stage that
- * overlays real benchmark numbers — the badge already renders it so callers can
- * switch source without UI churn.
- */
-export type EstimateSource = "modeled" | "measured";
-
-const ESTIMATE_SOURCE_LABEL: Record<EstimateSource, string> = {
-  modeled: "modeled",
-  measured: "measured",
-};
-
-const ESTIMATE_SOURCE_TOOLTIP: Record<EstimateSource, string> = {
-  modeled:
-    "First-principles estimate from GPU datasheet specs, model architecture and the parallelism layout — not a benchmark.",
-  measured: "Measured from a real benchmark run.",
-};
-
-export function EstimateSourceBadge({
-  source = "modeled",
-}: {
-  source?: EstimateSource;
-}) {
-  return (
-    <Badge
-      variant="outline"
-      className="text-[10px] font-normal cursor-help"
-      title={ESTIMATE_SOURCE_TOOLTIP[source]}
-    >
-      {ESTIMATE_SOURCE_LABEL[source]}
-    </Badge>
-  );
-}
-
 const THROUGHPUT_UNMODELED_TOOLTIP: Record<Exclude<ThroughputState, "modeled">, string> = {
   "unsupported-arch":
     "Throughput is not modeled for this architecture (linear-attention / SSM hybrid or sparse attention) — the decode-latency model assumes a uniform full-attention transformer. Operating streams and cost are still accurate (VRAM accounting).",
@@ -125,11 +90,9 @@ export function ThroughputUnmodeledBadge({ state }: { state: Exclude<ThroughputS
  */
 export function DeploymentEstimatePanel({
   estimate,
-  source = "modeled",
   className,
 }: {
   estimate: DeploymentEstimate;
-  source?: EstimateSource;
   className?: string;
 }) {
   const throughputModeled =
@@ -145,7 +108,6 @@ export function DeploymentEstimatePanel({
               {formatTokS(estimate.singleStreamTokS as number)}
             </span>
             <span className="text-xs text-muted-foreground">single-stream</span>
-            <EstimateSourceBadge source={source} />
           </>
         ) : (
           <>

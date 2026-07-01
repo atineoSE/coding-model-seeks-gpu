@@ -28,7 +28,7 @@ import {
   type DecodeLatencyModelDims,
 } from "./calc-decode-latency";
 import { calcRuntimeReserve, calcOperatingStreams } from "./calc-capacity";
-import { throughputState } from "./throughput-support";
+import { throughputState, isThroughputModeled } from "./throughput-support";
 import { getGpuThroughputSpec } from "./gpu-specs";
 import { computeTotalBenchmarkCost } from "./benchmark-costs";
 import { scoreFor, minVramForModel, isUnranked } from "./model-data";
@@ -697,6 +697,13 @@ export interface BudgetChartDataPoint {
   modelName: string;
   maxConcurrentStreams: number;
   requestsPerHour: number | null;
+  /**
+   * Whether this model's architecture is supported by the capacity/throughput
+   * model. False for linear-attention / SSM hybrids, sparse attention, or models
+   * missing the dims the model needs — these can't be placed on the capacity
+   * chart and are listed separately. Independent of whether the model fits.
+   */
+  throughputModeled: boolean;
   // null for unranked models — never coerce a missing score to a number.
   percentOfSota: number | null;
   modelMemoryGb: number;
@@ -759,6 +766,9 @@ export function calculateBudgetChartData(
 
   return entries.map(({ model, benchmark }): BudgetChartDataPoint => {
     const isUnranked = benchmark === null;
+    // Architecture support is a property of the model, independent of fit — a
+    // model can fit yet be unsupported by the capacity model, or vice versa.
+    const throughputModeled = isThroughputModeled(model);
     const precision = resolveModelPrecision(model);
     const modelMemoryGb = getModelMemory(model, precision);
 
@@ -777,6 +787,7 @@ export function calculateBudgetChartData(
         modelName: model.model_name,
         maxConcurrentStreams: 0,
         requestsPerHour: null,
+        throughputModeled,
         percentOfSota,
         modelMemoryGb: modelMemoryGb ?? 0,
         fits: false,
@@ -825,6 +836,7 @@ export function calculateBudgetChartData(
       modelName: model.model_name,
       maxConcurrentStreams: stats.maxConcurrentStreams,
       requestsPerHour,
+      throughputModeled,
       percentOfSota,
       modelMemoryGb,
       fits,

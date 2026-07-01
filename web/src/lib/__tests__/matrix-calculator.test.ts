@@ -883,6 +883,25 @@ describe("DeploymentEstimate surfaced on view data", () => {
     expect(point.requestsPerHour!).toBeGreaterThan(nTimesSingle);
   });
 
+  it("flags unmodeled architectures via throughputModeled, independent of fit", () => {
+    const gpuConfig = {
+      label: "8×H100", gpuName: "H100", gpuCount: 8,
+      vramPerGpu: vram, totalVramGb: vram * 8, interconnect: "nvlink" as const,
+    };
+    const data = calculateBudgetChartData(
+      gpuConfig, [MOE, MINIMAX_M25], [], [], "swe_bench_verified", DEFAULT_MEMORY_UTILIZATION, SETTINGS,
+    );
+    const moe = data.find((d) => d.modelName === MOE.model_name)!;
+    const mm = data.find((d) => d.modelName === MINIMAX_M25.model_name)!;
+
+    // MOE is fully dimensioned → modeled; MiniMax-M2.5 lacks hidden_size → not.
+    expect(moe.throughputModeled).toBe(true);
+    expect(mm.throughputModeled).toBe(false);
+    // The unmodeled model still sizes (fits, streams) — it's just off the chart.
+    expect(mm.fits).toBe(true);
+    expect(mm.requestsPerHour).toBeNull();
+  });
+
   it("leaves the estimate null for a model that does not fit", () => {
     const gpuConfig = {
       label: "1×H100",
