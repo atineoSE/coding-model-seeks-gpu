@@ -66,6 +66,15 @@ export function asInterconnectTier(value: string | null | undefined): Interconne
 }
 
 /**
+ * The effective interconnect tier for a deployment: an explicit tier override on
+ * the config/offering when present, else the GPU datasheet's tier. Mirrors how
+ * {@link calcDeploymentEstimate} resolves the tier, so UI labels match the math.
+ */
+export function resolveInterconnectTier(interconnect: string | null, gpuName: string): InterconnectTier {
+  return asInterconnectTier(interconnect) ?? getGpuThroughputSpec(gpuName)?.interconnect_tier ?? "none";
+}
+
+/**
  * GPU throughput specifications by GPU name.
  *
  * Built from pipeline-generated gpu_specs.json at module load time.

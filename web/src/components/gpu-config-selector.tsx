@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { PresetGpuConfig } from "@/types";
 import { GPU_THROUGHPUT_SPECS, getGpuThroughputSpec, getGpuVram } from "@/lib/gpu-specs";
-import { isNvLink } from "@/lib/calculations";
+import { interconnectBadgeLabel } from "@/components/deployment-estimate-panel";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +52,8 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
   const gpuHasNvlink = getGpuThroughputSpec(customGpu)?.nvlink_bandwidth_gb_s != null;
   const showInterconnect = parsedCount > 1 && gpuHasNvlink;
 
+  const valueBadge = value ? interconnectBadgeLabel(value.interconnect, value.gpuName) : null;
+
   function handleCustomSave() {
     const gpuName = customGpu;
     const count = parsedCount;
@@ -75,7 +77,9 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-        {presets.map((preset) => (
+        {presets.map((preset) => {
+          const badge = interconnectBadgeLabel(preset.interconnect, preset.gpuName);
+          return (
           <button
             key={preset.label}
             onClick={() => onChange(preset)}
@@ -88,11 +92,12 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
             )}
           >
             {preset.label}
-            {isNvLink(preset.interconnect) && (
-              <Badge variant="secondary" className="text-[10px] ml-1.5">NVLink</Badge>
+            {badge && (
+              <Badge variant="secondary" className="text-[10px] ml-1.5">{badge}</Badge>
             )}
           </button>
-        ))}
+          );
+        })}
         <Dialog open={customOpen} onOpenChange={setCustomOpen}>
           <DialogTrigger asChild>
             <button
@@ -169,8 +174,8 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
         <p className="text-sm text-muted-foreground">
           Selected: <span className="font-medium text-foreground">{value.label}</span>
           {" "}({value.totalVramGb}GB total VRAM)
-          {isNvLink(value.interconnect) && (
-            <Badge variant="secondary" className="text-[10px] ml-1.5">NVLink</Badge>
+          {valueBadge && (
+            <Badge variant="secondary" className="text-[10px] ml-1.5">{valueBadge}</Badge>
           )}
         </p>
       )}

@@ -11,7 +11,7 @@ import type {
 } from "@/types";
 import { calculateBudgetChartData } from "@/lib/matrix-calculator";
 import { buildGpuPresets } from "@/lib/gpu-presets";
-import { isNvLink } from "@/lib/calculations";
+import { interconnectBadgeLabel } from "@/components/deployment-estimate-panel";
 import { GpuConfigSelector } from "@/components/gpu-config-selector";
 import { BudgetChart } from "@/components/budget-chart";
 import { ApiHostingChart } from "@/components/api-hosting-chart";
@@ -113,7 +113,8 @@ export function BudgetFlow({
     );
   }
 
-  const interconnectLabel = isNvLink(gpuConfig.interconnect) ? " NVLink" : "";
+  const interconnectBadge = interconnectBadgeLabel(gpuConfig.interconnect, gpuConfig.gpuName);
+  const interconnectLabel = interconnectBadge ? ` ${interconnectBadge}` : "";
 
   const teamCapacityContent = (
     <Card>

@@ -1,5 +1,6 @@
 import type { DeploymentEstimate, InterconnectTier, ThroughputState } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { resolveInterconnectTier } from "@/lib/gpu-specs";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -31,10 +32,20 @@ export function formatInterconnectTier(tier: InterconnectTier): string {
     case "nvswitch":
       return "NVSwitch";
     case "nvlink_paired":
-      return "NVLink";
+      return "NVLink+PCIe";
     case "none":
       return "PCIe";
   }
+}
+
+/**
+ * Badge label for a GPU config's effective interconnect — "NVSwitch" or
+ * "NVLink+PCIe" — resolving a legacy/descriptive string against the GPU's
+ * datasheet tier. Returns null for PCIe-only setups (no badge).
+ */
+export function interconnectBadgeLabel(interconnect: string | null, gpuName: string): string | null {
+  const tier = resolveInterconnectTier(interconnect, gpuName);
+  return tier === "none" ? null : formatInterconnectTier(tier);
 }
 
 /** Compact label for the context-window assumption. */

@@ -5,10 +5,9 @@ import { PERFORMANCE_COLUMNS } from "@/lib/performance-columns";
 import {
   getModelMemory,
   resolveModelPrecision,
-  isNvLink,
   WEIGHT_OVERHEAD_FACTOR,
 } from "@/lib/calculations";
-import { formatTokS } from "@/components/deployment-estimate-panel";
+import { formatTokS, interconnectBadgeLabel } from "@/components/deployment-estimate-panel";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -330,6 +329,8 @@ function CellContent({ cell, currencySymbol = "$" }: { cell: MatrixCell; currenc
   const setup: GpuSetupOption | null = cell.gpuSetups[0] ?? null;
   if (!setup) return null;
   const est = setup.deploymentEstimate;
+  const interconnectBadge =
+    setup.gpuCount > 1 ? interconnectBadgeLabel(setup.interconnect, setup.gpuName) : null;
 
   return (
     <div className="space-y-1">
@@ -337,8 +338,8 @@ function CellContent({ cell, currencySymbol = "$" }: { cell: MatrixCell; currenc
       <div className="text-sm font-medium">
         {setup.gpuCount}× {setup.gpuName}
         {setup.isProjected && " (*)"}
-        {setup.gpuCount > 1 && isNvLink(setup.interconnect) && (
-          <span className="text-muted-foreground font-normal ml-1.5">NVLink</span>
+        {interconnectBadge && (
+          <span className="text-muted-foreground font-normal ml-1.5">{interconnectBadge}</span>
         )}
       </div>
 

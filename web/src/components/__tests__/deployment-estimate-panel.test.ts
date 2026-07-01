@@ -6,6 +6,7 @@ import {
   formatInterconnectTier,
   formatContextAssumption,
   describeAssumptions,
+  interconnectBadgeLabel,
 } from "../deployment-estimate-panel";
 
 describe("formatTokS", () => {
@@ -37,8 +38,27 @@ describe("formatStreamBand", () => {
 describe("formatInterconnectTier", () => {
   it("maps each tier to a human label", () => {
     expect(formatInterconnectTier("nvswitch")).toBe("NVSwitch");
-    expect(formatInterconnectTier("nvlink_paired")).toBe("NVLink");
+    expect(formatInterconnectTier("nvlink_paired")).toBe("NVLink+PCIe");
     expect(formatInterconnectTier("none")).toBe("PCIe");
+  });
+});
+
+describe("interconnectBadgeLabel", () => {
+  it("resolves a legacy string against the GPU datasheet tier", () => {
+    // H100 datasheet tier is nvswitch; "nvlink" isn't a tier name → falls through.
+    expect(interconnectBadgeLabel("nvlink", "H100")).toBe("NVSwitch");
+    // H100_PCIe datasheet tier is nvlink_paired.
+    expect(interconnectBadgeLabel(null, "H100_PCIe")).toBe("NVLink+PCIe");
+  });
+
+  it("honors an explicit tier override", () => {
+    expect(interconnectBadgeLabel("nvlink_paired", "H100")).toBe("NVLink+PCIe");
+    expect(interconnectBadgeLabel("nvswitch", "H100_PCIe")).toBe("NVSwitch");
+  });
+
+  it("returns null for PCIe-only setups (no badge)", () => {
+    expect(interconnectBadgeLabel(null, "L40S")).toBeNull();
+    expect(interconnectBadgeLabel("none", "H100")).toBeNull();
   });
 });
 
