@@ -108,8 +108,8 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
               <div className="grid grid-cols-2 items-center gap-4">
                 <Label>GPU Type</Label>
                 <Select value={customGpu} onValueChange={setCustomGpu}>
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger className="w-full min-w-0">
+                    <SelectValue className="min-w-0" />
                   </SelectTrigger>
                   <SelectContent>
                     {gpuTypes.map((gpu) => (
