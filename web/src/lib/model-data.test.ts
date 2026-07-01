@@ -241,7 +241,7 @@ describe("DeploymentEstimate type", () => {
       aggregateTokS: 300,
       throughputState: "modeled",
       assumptions: {
-        context: { avgInputTokens: 50_000, avgOutputTokens: 1000, prefixReuse: 0.5 },
+        context: { avgInputTokens: 50_000, avgOutputTokens: 1000 },
         interconnectTier: "nvswitch",
         moe: true,
       },

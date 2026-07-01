@@ -142,11 +142,6 @@ export type InterconnectTier = "none" | "nvlink_paired" | "nvswitch";
 export interface AdvancedSettings {
   avgInputTokens: number;
   avgOutputTokens: number;
-  /**
-   * Fraction (0–1) of the input prompt that is shared/cached prefix across
-   * streams, eligible for prefix-cache reuse. Default 0.90.
-   */
-  prefixReuse: number;
   minTokPerStream: number;
   /**
    * KV cache precision used for VRAM/concurrency budgeting.
@@ -195,8 +190,8 @@ export interface DeploymentEstimate {
   throughputState: ThroughputState;
   /** The public assumptions the estimate was derived under. */
   assumptions: {
-    /** Context window used: average input + output tokens, and prefix reuse. */
-    context: { avgInputTokens: number; avgOutputTokens: number; prefixReuse: number };
+    /** Context window used: average input + output tokens. */
+    context: { avgInputTokens: number; avgOutputTokens: number };
     /** Inter-GPU interconnect tier of the GPU layout. */
     interconnectTier: InterconnectTier;
     /** Whether throughput was modeled as MoE (active params) or dense. */

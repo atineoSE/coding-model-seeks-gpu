@@ -70,10 +70,63 @@ describe("calcDecodeLatency", () => {
   });
 
   it("breakdown terms sum to the total per-token time", () => {
-    const { perTokenS, breakdown } = calcDecodeLatency(NONE, MODEL, { tp: TP });
+    const { perTokenS, breakdown } = calcDecodeLatency(NONE, MODEL, {
+      tp: TP,
+      pp: 2,
+      contextTokens: 51_000,
+    });
     const sum =
-      breakdown.weightReadS + breakdown.tpAllReduceS + breakdown.epAllToAllS + breakdown.launchS;
+      breakdown.weightReadS +
+      breakdown.tpAllReduceS +
+      breakdown.epAllToAllS +
+      breakdown.launchS +
+      breakdown.ppSendRecvS +
+      breakdown.kvReadS;
     expect(sum).toBeCloseTo(perTokenS, 12);
     expect(perTokenS).toBeGreaterThan(0);
+  });
+
+  describe("KV-read term", () => {
+    // GQA model with an explicit per-token KV footprint (bf16: 2·layers·kvH·hd·2).
+    const GQA: DecodeLatencyModelDims = {
+      ...MODEL,
+      kvLoraRank: null,
+      qkRopeHeadDim: null,
+      numKvHeads: 8,
+      kvBytesPerToken: 2 * 61 * 8 * 128 * 2,
+    };
+
+    it("is zero without context or KV width, positive with both", () => {
+      expect(calcDecodeLatency(NVSWITCH, GQA, { tp: TP }).breakdown.kvReadS).toBe(0);
+      expect(
+        calcDecodeLatency(NVSWITCH, GQA, { tp: TP, contextTokens: 51_000 }).breakdown.kvReadS,
+      ).toBeGreaterThan(0);
+    });
+
+    it("scales linearly with context length", () => {
+      const a = calcDecodeLatency(NVSWITCH, GQA, { tp: TP, contextTokens: 25_000 });
+      const b = calcDecodeLatency(NVSWITCH, GQA, { tp: TP, contextTokens: 50_000 });
+      expect(b.breakdown.kvReadS).toBeCloseTo(2 * a.breakdown.kvReadS, 12);
+    });
+
+    it("charges only (1 − reuse) of the KV read; reuse=1 removes it", () => {
+      const full = calcDecodeLatency(NVSWITCH, GQA, {
+        tp: TP,
+        contextTokens: 51_000,
+        intraConversationKvReuse: 0,
+      });
+      const discounted = calcDecodeLatency(NVSWITCH, GQA, {
+        tp: TP,
+        contextTokens: 51_000,
+        intraConversationKvReuse: 0.9,
+      });
+      const none = calcDecodeLatency(NVSWITCH, GQA, {
+        tp: TP,
+        contextTokens: 51_000,
+        intraConversationKvReuse: 1,
+      });
+      expect(discounted.breakdown.kvReadS).toBeCloseTo(0.1 * full.breakdown.kvReadS, 12);
+      expect(none.breakdown.kvReadS).toBe(0);
+    });
   });
 });

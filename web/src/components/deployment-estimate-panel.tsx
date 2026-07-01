@@ -41,13 +41,12 @@ export function formatInterconnectTier(tier: InterconnectTier): string {
 export function formatContextAssumption(context: {
   avgInputTokens: number;
   avgOutputTokens: number;
-  prefixReuse: number;
 }): string {
   const fmtTokens = (n: number) =>
     n >= 1000 ? `${Math.round(n / 1000)}K` : `${n}`;
   return `${fmtTokens(context.avgInputTokens)} in / ${fmtTokens(
     context.avgOutputTokens,
-  )} out · ${Math.round(context.prefixReuse * 100)}% prefix reuse`;
+  )} out`;
 }
 
 /** The full set of key-assumption labels surfaced alongside the estimate. */

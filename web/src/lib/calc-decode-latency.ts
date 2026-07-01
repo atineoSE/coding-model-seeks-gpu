@@ -11,6 +11,11 @@
  *                                          2 = dispatch + combine)
  *     + op-chain latency    launch_latency × layers × compute_ops_per_layer
  *     + PP send/recv        (pp − 1) × (hidden·bytes / interconnect_bw + collective_latency)
+ *     + KV read             context_tokens × kv_bytes_per_token × (1 − kv_reuse) / kv_shard / hbm_bw
+ *
+ *   The KV-read term is decode-time attention streaming the resident KV cache
+ *   from HBM every step. The context KV shards across the TP group (KV heads),
+ *   and only the un-cached remainder (1 − intra-conversation reuse) is charged.
  *
  *   The weight-read also charges expert-parallel load imbalance: at batch-1 the
  *   busiest EP GPU reads E[max] full experts (balls-in-bins), not the balanced
@@ -72,6 +77,18 @@ export const DEFAULT_KERNEL_LAUNCH_LATENCY_S = 5e-6;
  * rather than treating them as exact.
  */
 export const DEFAULT_DECODE_COMPUTE_OPS_PER_LAYER = { dense: 8, moe: 11 } as const;
+
+/**
+ * Assumed fraction of a conversation's context KV that is already resident from
+ * cache and reused across decode steps within the same conversation (the prefix
+ * built up by earlier turns / already-processed context), and is therefore not
+ * charged again as a fresh HBM read on each token's critical path. Only the
+ * remaining `1 − this` of the context KV is counted by the KV-read term.
+ *
+ * This is an internal, first-principles modeling constant (an assumed reuse
+ * fraction, not fitted to any benchmark), exposed as an override for testing.
+ */
+export const DEFAULT_INTRA_CONVERSATION_KV_REUSE = 0.9;
 
 /**
  * Expected maximum bin load when `balls` are thrown uniformly into `bins` — the
@@ -162,6 +179,17 @@ export interface DecodeLatencyModelDims {
   qkRopeHeadDim?: number | null;
   /** Activation byte width on the wire. Defaults to bf16/fp16 (2 bytes). */
   activationBytes?: number;
+  /**
+   * Total KV-cache bytes per context token, across all layers and KV heads, at
+   * the serving KV dtype (i.e. the model's full per-token KV footprint). Drives
+   * the decode-time KV-read term; omit to skip it.
+   */
+  kvBytesPerToken?: number | null;
+  /**
+   * Number of KV heads (GQA); caps how far the KV read shards across the TP
+   * group (KV heads, not full attention heads, are what TP splits).
+   */
+  numKvHeads?: number | null;
 }
 
 /** Parallelism / runtime inputs for the decode-latency model. */
@@ -186,6 +214,16 @@ export interface DecodeLatencyParams {
    * hops over the interconnect. Defaults to 1 (no pipeline parallelism).
    */
   pp?: number;
+  /**
+   * Total context length (tokens) whose KV each decode step attends over. Used
+   * (with the model's KV width) for the decode-time KV-read term; omit to skip.
+   */
+  contextTokens?: number;
+  /**
+   * Assumed intra-conversation KV cache-reuse fraction (0–1). Defaults to the
+   * internal {@link DEFAULT_INTRA_CONVERSATION_KV_REUSE} constant.
+   */
+  intraConversationKvReuse?: number;
 }
 
 /** Per-token critical-path breakdown plus the resulting single-stream tok/s. */
@@ -203,6 +241,7 @@ export interface DecodeLatencyResult {
     epAllToAllS: number;
     launchS: number;
     ppSendRecvS: number;
+    kvReadS: number;
   };
 }
 
@@ -307,13 +346,28 @@ export function calcDecodeLatency(
     ppSendRecvS = (pp - 1) * (hopBytes / interconnectBytesPerS + collectiveLatencyS);
   }
 
-  const perTokenS = weightReadS + tpAllReduceS + epAllToAllS + launchS + ppSendRecvS;
+  // 6. KV read: decode-time attention streams the resident KV cache from HBM
+  // every step. The context KV shards across the TP group (capped by the KV-head
+  // count), and only the un-cached remainder (1 − intra-conversation reuse) of
+  // the context is charged as a fresh read.
+  let kvReadS = 0;
+  const contextTokens = params.contextTokens ?? 0;
+  const kvBytesPerToken = model.kvBytesPerToken ?? 0;
+  if (contextTokens > 0 && kvBytesPerToken > 0) {
+    const reuse = Math.min(1, Math.max(0, params.intraConversationKvReuse ?? DEFAULT_INTRA_CONVERSATION_KV_REUSE));
+    const kvHeads = model.numKvHeads ?? 0;
+    const kvShard = kvHeads > 0 ? Math.min(tp, kvHeads) : tp;
+    const kvReadBytes = (kvBytesPerToken * contextTokens * (1 - reuse)) / kvShard;
+    kvReadS = kvReadBytes / hbmBytesPerS;
+  }
+
+  const perTokenS = weightReadS + tpAllReduceS + epAllToAllS + launchS + ppSendRecvS + kvReadS;
 
   return {
     perTokenS,
     singleStreamTokS: 1 / perTokenS,
     // Roofline stays the balanced weight-read ceiling (imbalance/comm sit below).
     bandwidthRooflineTokS: 1 / balancedWeightReadS,
-    breakdown: { weightReadS, tpAllReduceS, epAllToAllS, launchS, ppSendRecvS },
+    breakdown: { weightReadS, tpAllReduceS, epAllToAllS, launchS, ppSendRecvS, kvReadS },
   };
 }

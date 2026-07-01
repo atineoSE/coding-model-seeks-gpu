@@ -675,7 +675,6 @@ describe("calcDeploymentEstimate", () => {
     expect(est.assumptions.context).toEqual({
       avgInputTokens: 8000,
       avgOutputTokens: 1000,
-      prefixReuse: SETTINGS.prefixReuse,
     });
   });
 
@@ -718,8 +717,9 @@ describe("calcDeploymentEstimate", () => {
       kvCachePrecision: "auto", // H100 (Hopper) ⇒ 1-byte FP8 KV
     })!;
     expect(fp8.operatingStreams.high).toBeGreaterThan(fp16.operatingStreams.high);
-    // Decode latency is KV-dtype-independent (bandwidth-bound weight read).
-    expect(fp8.singleStreamTokS!).toBeCloseTo(fp16.singleStreamTokS!, 9);
+    // FP8 KV halves the per-token KV footprint, so the decode-time KV-read term
+    // shrinks ⇒ single-stream decode is a touch faster (or equal), never slower.
+    expect(fp8.singleStreamTokS!).toBeGreaterThanOrEqual(fp16.singleStreamTokS!);
   });
 
   it("returns null when the layout cannot fit the weights", () => {

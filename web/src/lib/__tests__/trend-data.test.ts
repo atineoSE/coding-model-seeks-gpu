@@ -325,7 +325,6 @@ describe("computeCostTrend", () => {
   const TEST_SETTINGS: AdvancedSettings = {
     avgInputTokens: 40_000,
     avgOutputTokens: 1500,
-    prefixReuse: 0.5,
     minTokPerStream: 20,
     kvCachePrecision: "fp16",
   };

@@ -18,6 +18,7 @@ import {
   gpusNeeded,
   resolveModelPrecision,
   resolveKvPrecisionBytes,
+  calcKvCachePerToken,
   WEIGHT_OVERHEAD_FACTOR,
 } from "./calculations";
 import { calcTopology } from "./calc-topology";
@@ -47,7 +48,6 @@ export const DEFAULT_MEMORY_UTILIZATION = 0.90;
 export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   avgInputTokens: 50_000,
   avgOutputTokens: 1000,
-  prefixReuse: 0.90,
   minTokPerStream: 20,
   // 2 bytes/elem: vLLM's `kv_cache_dtype=auto` follows the model's bf16/fp16
   // compute dtype, not the GPU's FP8 capability. FP8 KV is opt-in ("auto").
@@ -180,12 +180,9 @@ export function calcDeploymentEstimate(
   const reserveGb = calcRuntimeReserve(model, reserveLayout);
   const usableVramGb = layout.gpusUsed * offering.vram_gb * memoryUtilization;
   const kvPrecisionBytes = resolveKvPrecisionBytes(settings.kvCachePrecision, offering.gpu_name);
-  // Streams are evaluated at exactly the configured prefix reuse. With GPU-memory
-  // utilization fixed at 90% and the context window taken from settings, prefix
-  // reuse is the only remaining free variable in the KV budget — and it is itself
-  // a single setting — so the formula yields one stream count, not a band. A
-  // zero-width range collapses calcOperatingStreams' low/high to that single point.
-  const prefixReuseRange = { low: settings.prefixReuse, high: settings.prefixReuse };
+  // Whole-prompt admission: each stream reserves KV for its entire context up
+  // front, so the count is sized at the full per-stream footprint (no shared
+  // discount). A zero-width range collapses low/high to that single point.
   const operatingStreams = calcOperatingStreams({
     model,
     usableVramGb,
@@ -194,7 +191,7 @@ export function calcDeploymentEstimate(
     avgInputTokens: settings.avgInputTokens,
     avgOutputTokens: settings.avgOutputTokens,
     kvPrecisionBytes,
-    prefixReuseRange,
+    prefixReuseRange: { low: 0, high: 0 },
   });
 
   // 3. Throughput overlay — only for architectures the decode-latency model can
@@ -225,6 +222,9 @@ export function calcDeploymentEstimate(
       interconnectTier: tier,
       interconnectBandwidthGbS: interconnectGbS ?? 0,
     };
+    // Full per-token KV footprint (all layers/heads at the serving KV dtype),
+    // in bytes; drives the decode-time KV-read term.
+    const kvBytesPerToken = calcKvCachePerToken(model, kvPrecisionBytes) * 1024 ** 3;
     const latencyDims: DecodeLatencyModelDims = {
       numLayers: model.num_hidden_layers,
       hiddenSize: model.hidden_size,
@@ -236,12 +236,16 @@ export function calcDeploymentEstimate(
       routedExpertParamsB: model.routed_expert_params_b,
       kvLoraRank: model.kv_lora_rank,
       qkRopeHeadDim: model.qk_rope_head_dim,
+      kvBytesPerToken,
+      numKvHeads: model.num_kv_heads,
     };
     // EP degree = TP for MoE (experts sharded across the TP group); PP from layout.
+    // Context length sizes the KV-read term (KV each decode step attends over).
     const decode = calcDecodeLatency(latencyGpu, latencyDims, {
       tp: layout.tp,
       ep: isMoe ? layout.tp : 1,
       pp: layout.pp,
+      contextTokens: settings.avgInputTokens + settings.avgOutputTokens,
     });
     singleStreamTokS = decode.singleStreamTokS;
 
@@ -263,7 +267,6 @@ export function calcDeploymentEstimate(
       context: {
         avgInputTokens: settings.avgInputTokens,
         avgOutputTokens: settings.avgOutputTokens,
-        prefixReuse: settings.prefixReuse,
       },
       interconnectTier: tier,
       moe: isMoe,

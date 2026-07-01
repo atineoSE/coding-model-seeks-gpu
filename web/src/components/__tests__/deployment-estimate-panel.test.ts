@@ -43,14 +43,13 @@ describe("formatInterconnectTier", () => {
 });
 
 describe("formatContextAssumption", () => {
-  it("abbreviates token counts in K and shows prefix reuse as a percent", () => {
+  it("abbreviates token counts in K", () => {
     expect(
       formatContextAssumption({
         avgInputTokens: 50_000,
         avgOutputTokens: 1000,
-        prefixReuse: 0.5,
       }),
-    ).toBe("50K in / 1K out · 50% prefix reuse");
+    ).toBe("50K in / 1K out");
   });
 
   it("keeps sub-1000 token counts verbatim", () => {
@@ -58,9 +57,8 @@ describe("formatContextAssumption", () => {
       formatContextAssumption({
         avgInputTokens: 500,
         avgOutputTokens: 200,
-        prefixReuse: 0.25,
       }),
-    ).toBe("500 in / 200 out · 25% prefix reuse");
+    ).toBe("500 in / 200 out");
   });
 });
 
@@ -71,7 +69,7 @@ describe("describeAssumptions", () => {
     aggregateTokS: 800,
     throughputState: "modeled",
     assumptions: {
-      context: { avgInputTokens: 50_000, avgOutputTokens: 1000, prefixReuse: 0.5 },
+      context: { avgInputTokens: 50_000, avgOutputTokens: 1000 },
       interconnectTier: "nvswitch",
       moe: true,
     },
@@ -79,7 +77,7 @@ describe("describeAssumptions", () => {
 
   it("surfaces context, interconnect tier, and MoE label", () => {
     expect(describeAssumptions(base)).toEqual([
-      "50K in / 1K out · 50% prefix reuse",
+      "50K in / 1K out",
       "NVSwitch interconnect",
       "MoE (active params)",
     ]);
@@ -91,7 +89,7 @@ describe("describeAssumptions", () => {
       assumptions: { ...base.assumptions, moe: false, interconnectTier: "none" },
     };
     expect(describeAssumptions(dense)).toEqual([
-      "50K in / 1K out · 50% prefix reuse",
+      "50K in / 1K out",
       "PCIe interconnect",
       "Dense",
     ]);
