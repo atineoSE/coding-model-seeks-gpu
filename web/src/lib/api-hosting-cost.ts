@@ -1,5 +1,5 @@
 import type { ApiPricingEntry, Model, GpuOffering, AdvancedSettings, PresetGpuConfig } from "@/types";
-import { findGpuSetups, findScaledGpuSetups, calcGpuSetupStats } from "./matrix-calculator";
+import { findGpuSetups, findScaledGpuSetups, calcGpuSetupStats, requestsPerHourFor } from "./matrix-calculator";
 
 export const COMPACTION_THRESHOLD_TOKENS = 20_000;
 export const SECONDS_PER_MONTH = 30 * 24 * 3600;
@@ -137,10 +137,16 @@ export function computeSelfHostingCostForConfig(
     memoryUtilization,
   );
 
+  // Size the box at scale: the aggregate (prefill + batched-decode) throughput,
+  // the same number the serving-capacity chart shows — not N × single-stream,
+  // which under-serves and makes self-hosting look far pricier than it is.
+  const requestsPerHour = requestsPerHourFor(
+    stats.deploymentEstimate,
+    settings.avgInputTokens,
+    settings.avgOutputTokens,
+  );
   const maxRequestsPerMonth =
-    stats.maxConcurrentStreams > 0 && stats.decodeThroughputTokS !== null
-      ? stats.maxConcurrentStreams * stats.decodeThroughputTokS / settings.avgOutputTokens * SECONDS_PER_MONTH
-      : null;
+    requestsPerHour !== null ? (requestsPerHour * SECONDS_PER_MONTH) / 3600 : null;
 
   return { baseMonthlyCost, maxRequestsPerMonth };
 }

@@ -116,6 +116,35 @@ const FORWARD_FLOPS_PER_PARAM = 2;
 const PREFILL_CACHE_HIT_RATE = 0.9;
 
 /**
+ * Requests/hour a single deployment sustains at scale — a time-share of the node
+ * between prefill (compute-bound, only the un-cached input at the assumed prefix
+ * cache hit) and decode (the output at the aggregate batched throughput, not
+ * N × single-stream). The node serializes the two phases, so per-request node
+ * time is their sum and requests/h = 3600 / it. Returns null when throughput
+ * isn't modeled (no aggregate / prefill roofline). Shared by the serving-capacity
+ * chart and the API-vs-self-hosting cost so both size the box at scale.
+ */
+export function requestsPerHourFor(
+  estimate: DeploymentEstimate | null,
+  avgInputTokens: number,
+  avgOutputTokens: number,
+): number | null {
+  if (
+    !estimate ||
+    estimate.aggregateTokS == null ||
+    estimate.aggregateTokS <= 0 ||
+    estimate.prefillComputeTokS == null ||
+    estimate.prefillComputeTokS <= 0 ||
+    avgOutputTokens <= 0
+  ) {
+    return null;
+  }
+  const prefillSec = (avgInputTokens * (1 - PREFILL_CACHE_HIT_RATE)) / estimate.prefillComputeTokS;
+  const decodeSec = avgOutputTokens / estimate.aggregateTokS;
+  return 3600 / (prefillSec + decodeSec);
+}
+
+/**
  * Pick the effective unidirectional inter-GPU link bandwidth (GB/s) the decode
  * latency model should charge collectives against, given the GPU's normalized
  * interconnect tier. NVLink/NVSwitch tiers use the NVLink figure; PCIe-only
@@ -815,23 +844,11 @@ export function calculateBudgetChartData(
 
     const doesntFitReason: string | null = fits ? null : "Not enough VRAM for KV cache";
 
-    // Requests/hour as a time-share of the node between the two request phases:
-    // prefill (compute-bound, only the un-cached input) then decode (the output,
-    // at the aggregate batched throughput — not N × single-stream, which ignores
-    // the weight-read amortization of a loaded batch). The node serializes the
-    // phases, so per-request node time is their sum and requests/h = 3600 / it.
-    const est = stats.deploymentEstimate;
-    const requestsPerHour =
-      fits &&
-      est?.aggregateTokS != null &&
-      est.aggregateTokS > 0 &&
-      est.prefillComputeTokS != null &&
-      est.prefillComputeTokS > 0 &&
-      settings.avgOutputTokens > 0
-        ? 3600 /
-          ((settings.avgInputTokens * (1 - PREFILL_CACHE_HIT_RATE)) / est.prefillComputeTokS +
-            settings.avgOutputTokens / est.aggregateTokS)
-        : null;
+    // Requests/hour at scale (prefill + decode time-share on the aggregate
+    // throughput). Shared with the API-vs-self-hosting cost so both agree.
+    const requestsPerHour = fits
+      ? requestsPerHourFor(stats.deploymentEstimate, settings.avgInputTokens, settings.avgOutputTokens)
+      : null;
 
     return {
       modelName: model.model_name,

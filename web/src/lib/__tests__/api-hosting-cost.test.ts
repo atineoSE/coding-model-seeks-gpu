@@ -8,7 +8,7 @@ import {
   selfHostingStepCost,
   type CostConfig,
 } from "../api-hosting-cost";
-import { DEFAULT_ADVANCED_SETTINGS } from "../matrix-calculator";
+import { DEFAULT_ADVANCED_SETTINGS, calcGpuSetupStats, requestsPerHourFor } from "../matrix-calculator";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -304,6 +304,26 @@ describe("computeSelfHostingCostForConfig", () => {
     expect(result).not.toBeNull();
     expect(result!.maxRequestsPerMonth).not.toBeNull();
     expect(result!.maxRequestsPerMonth!).toBeGreaterThan(0);
+  });
+
+  it("sizes maxRequestsPerMonth at the aggregate (scale) throughput, not N×single-stream", () => {
+    const result = computeSelfHostingCostForConfig(SMALL_MODEL, B300_CONFIG, [B300_X1], DEFAULT_ADVANCED_SETTINGS, 0.9)!;
+    const stats = calcGpuSetupStats(
+      SMALL_MODEL, B300_CONFIG.gpuName, B300_CONFIG.gpuCount, B300_CONFIG.totalVramGb,
+      B300_CONFIG.interconnect, DEFAULT_ADVANCED_SETTINGS, 0.9,
+    );
+    const rph = requestsPerHourFor(
+      stats.deploymentEstimate,
+      DEFAULT_ADVANCED_SETTINGS.avgInputTokens,
+      DEFAULT_ADVANCED_SETTINGS.avgOutputTokens,
+    )!;
+    // Equals the shared scale-throughput helper × 720 hours/month...
+    expect(result.maxRequestsPerMonth!).toBeCloseTo(rph * 720, 3);
+    // ...which clears the old fit rate (N_low × single-stream decode).
+    const fitRate =
+      (stats.maxConcurrentStreams * stats.decodeThroughputTokS!) /
+      DEFAULT_ADVANCED_SETTINGS.avgOutputTokens * 720;
+    expect(result.maxRequestsPerMonth!).toBeGreaterThan(fitRate);
   });
 });
 
