@@ -19,7 +19,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import type { BudgetChartDataPoint } from "@/lib/matrix-calculator";
-import { DeploymentEstimatePanel } from "@/components/deployment-estimate-panel";
+import { describeAssumptions, formatTokS } from "@/components/deployment-estimate-panel";
 import { formatModelName } from "@/lib/utils";
 
 const DEFAULT_REQ_PER_DEV_HOUR = 200;
@@ -333,11 +333,17 @@ function BudgetTooltip({ active, payload, mode, reqPerDevPerHour }: {
                   <span className="font-medium text-foreground">{Math.round(point.decodeThroughputTokS)} tok/s</span>
                 </>
               )}
+              {point.deploymentEstimate?.aggregateTokS != null && (
+                <>
+                  <span>Aggregate:</span>
+                  <span className="font-medium text-foreground">{formatTokS(point.deploymentEstimate.aggregateTokS)}</span>
+                </>
+              )}
             </div>
-            {/* First-principles deployment estimate (read-only) */}
+            {/* Key assumptions the estimate was derived under. */}
             {point.deploymentEstimate && (
-              <div className="pt-1 border-t">
-                <DeploymentEstimatePanel estimate={point.deploymentEstimate} />
+              <div className="pt-1 border-t text-[10px] leading-tight text-muted-foreground/70">
+                {describeAssumptions(point.deploymentEstimate).join(" · ")}
               </div>
             )}
           </>
