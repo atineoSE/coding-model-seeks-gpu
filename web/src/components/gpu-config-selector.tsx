@@ -105,7 +105,7 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-2">
-              <div className="grid grid-cols-2 items-center gap-4">
+              <div className="grid grid-cols-[8rem_1fr] items-center gap-4">
                 <Label>GPU Type</Label>
                 <Select value={customGpu} onValueChange={setCustomGpu}>
                   <SelectTrigger className="w-full min-w-0">
@@ -120,7 +120,7 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 items-center gap-4">
+              <div className="grid grid-cols-[8rem_1fr] items-center gap-4">
                 <Label>Number of GPUs</Label>
                 <input
                   type="number"
