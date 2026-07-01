@@ -239,6 +239,7 @@ describe("DeploymentEstimate type", () => {
       singleStreamTokS: 42,
       operatingStreams: { low: 1, high: 8 },
       aggregateTokS: 300,
+      prefillComputeTokS: 40000,
       throughputState: "modeled",
       assumptions: {
         context: { avgInputTokens: 50_000, avgOutputTokens: 1000 },

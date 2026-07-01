@@ -107,6 +107,15 @@ export function calcGpuSetupStats(
 const FORWARD_FLOPS_PER_PARAM = 2;
 
 /**
+ * Assumed prompt-prefix cache hit rate used only for request-throughput sizing.
+ * In a multi-turn conversation the prior context is served from the prefix
+ * cache, so only the un-cached remainder of the input is prefilled per request.
+ * Hardcoded (not a user-facing setting); mirrors the rate the API-hosting cost
+ * view assumes. Caching shortens the prefill phase, not the decode read.
+ */
+const PREFILL_CACHE_HIT_RATE = 0.9;
+
+/**
  * Pick the effective unidirectional inter-GPU link bandwidth (GB/s) the decode
  * latency model should charge collectives against, given the GPU's normalized
  * interconnect tier. NVLink/NVSwitch tiers use the NVLink figure; PCIe-only
@@ -199,6 +208,7 @@ export function calcDeploymentEstimate(
   const tState = throughputState(model);
   let singleStreamTokS: number | null = null;
   let aggregateTokS: number | null = null;
+  let prefillComputeTokS: number | null = null;
 
   const activeParamsB = isMoe ? model.active_params_b : model.learnable_params_b;
   const activeMemGb = getActiveModelMemory(model, precision);
@@ -252,7 +262,7 @@ export function calcDeploymentEstimate(
     // Aggregate (bonus) throughput: the batched bandwidth roofline capped by the
     // prefill compute roofline (FLOPs across the used GPUs).
     const batchedRooflineTokS = operatingStreams.high * decode.bandwidthRooflineTokS;
-    const prefillComputeTokS =
+    prefillComputeTokS =
       (layout.gpusUsed * spec.fp16_tflops * 1e12) /
       (FORWARD_FLOPS_PER_PARAM * activeParamsB * 1e9);
     aggregateTokS = Math.min(batchedRooflineTokS, prefillComputeTokS);
@@ -262,6 +272,7 @@ export function calcDeploymentEstimate(
     singleStreamTokS,
     operatingStreams,
     aggregateTokS,
+    prefillComputeTokS,
     throughputState: tState,
     assumptions: {
       context: {
@@ -792,9 +803,22 @@ export function calculateBudgetChartData(
 
     const doesntFitReason: string | null = fits ? null : "Not enough VRAM for KV cache";
 
+    // Requests/hour as a time-share of the node between the two request phases:
+    // prefill (compute-bound, only the un-cached input) then decode (the output,
+    // at the aggregate batched throughput — not N × single-stream, which ignores
+    // the weight-read amortization of a loaded batch). The node serializes the
+    // phases, so per-request node time is their sum and requests/h = 3600 / it.
+    const est = stats.deploymentEstimate;
     const requestsPerHour =
-      fits && stats.decodeThroughputTokS !== null && stats.decodeThroughputTokS > 0
-        ? stats.maxConcurrentStreams * stats.decodeThroughputTokS / settings.avgOutputTokens * 3600
+      fits &&
+      est?.aggregateTokS != null &&
+      est.aggregateTokS > 0 &&
+      est.prefillComputeTokS != null &&
+      est.prefillComputeTokS > 0 &&
+      settings.avgOutputTokens > 0
+        ? 3600 /
+          ((settings.avgInputTokens * (1 - PREFILL_CACHE_HIT_RATE)) / est.prefillComputeTokS +
+            settings.avgOutputTokens / est.aggregateTokS)
         : null;
 
     return {

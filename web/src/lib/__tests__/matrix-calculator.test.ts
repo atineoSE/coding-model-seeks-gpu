@@ -857,6 +857,32 @@ describe("DeploymentEstimate surfaced on view data", () => {
     expect(point.deploymentEstimate).toEqual(direct);
   });
 
+  it("sizes requestsPerHour as a prefill+decode time-share on the aggregate throughput", () => {
+    const gpuConfig = {
+      label: "8×H100", gpuName: "H100", gpuCount: 8,
+      vramPerGpu: vram, totalVramGb: vram * 8, interconnect: "nvlink" as const,
+    };
+    const data = calculateBudgetChartData(
+      gpuConfig, [MOE], [], [], "swe_bench_verified", DEFAULT_MEMORY_UTILIZATION, SETTINGS,
+    );
+    const point = data.find((d) => d.modelName === MOE.model_name)!;
+    const est = point.deploymentEstimate!;
+    expect(est.aggregateTokS).not.toBeNull();
+    expect(est.prefillComputeTokS).not.toBeNull();
+
+    // 90% prefix cache ⇒ only 10% of input is prefilled; decode runs at the
+    // aggregate batched throughput; the node serializes the two phases.
+    const CACHE = 0.9;
+    const prefillSec = (SETTINGS.avgInputTokens * (1 - CACHE)) / est.prefillComputeTokS!;
+    const decodeSec = SETTINGS.avgOutputTokens / est.aggregateTokS!;
+    expect(point.requestsPerHour!).toBeCloseTo(3600 / (prefillSec + decodeSec), 3);
+
+    // Uses the aggregate throughput, not N × single-stream (materially higher).
+    const nTimesSingle =
+      (point.maxConcurrentStreams * est.singleStreamTokS!) / SETTINGS.avgOutputTokens * 3600;
+    expect(point.requestsPerHour!).toBeGreaterThan(nTimesSingle);
+  });
+
   it("leaves the estimate null for a model that does not fit", () => {
     const gpuConfig = {
       label: "1×H100",

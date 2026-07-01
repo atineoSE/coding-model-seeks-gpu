@@ -186,6 +186,12 @@ export interface DeploymentEstimate {
   operatingStreams: { low: number; high: number };
   /** Aggregate decode throughput (tok/s). Null when throughput is not modeled. */
   aggregateTokS: number | null;
+  /**
+   * Prefill compute roofline (tok/s) across the used GPUs — the rate the node
+   * can process prompt tokens through a forward pass. Null when throughput is
+   * not modeled. Used for request-throughput sizing (prefill phase cost).
+   */
+  prefillComputeTokS: number | null;
   /** Whether the throughput figures above are modeled, and if not, why. */
   throughputState: ThroughputState;
   /** The public assumptions the estimate was derived under. */
