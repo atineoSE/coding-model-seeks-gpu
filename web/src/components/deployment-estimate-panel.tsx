@@ -39,12 +39,14 @@ export function formatInterconnectTier(tier: InterconnectTier): string {
 }
 
 /**
- * Badge label for a GPU's interconnect — "NVSwitch" or "NVLink+PCIe" — taken
- * from the GPU's datasheet tier. Returns null for PCIe-only GPUs (no badge).
+ * Badge label for a deployment's interconnect — always a label, so it's shown
+ * for every config. A single GPU has no inter-GPU fabric, only its host PCIe
+ * link ⇒ "PCIe"; a multi-GPU config uses the GPU's datasheet tier ("NVSwitch",
+ * "NVLink+PCIe", or "PCIe").
  */
-export function interconnectBadgeLabel(gpuName: string): string | null {
-  const tier = gpuInterconnectTier(gpuName);
-  return tier === "none" ? null : formatInterconnectTier(tier);
+export function interconnectBadgeLabel(gpuName: string, gpuCount: number): string {
+  const tier = gpuCount > 1 ? gpuInterconnectTier(gpuName) : "none";
+  return formatInterconnectTier(tier);
 }
 
 /** Compact label for the context-window assumption. */

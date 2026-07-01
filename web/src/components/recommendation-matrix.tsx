@@ -329,8 +329,7 @@ function CellContent({ cell, currencySymbol = "$" }: { cell: MatrixCell; currenc
   const setup: GpuSetupOption | null = cell.gpuSetups[0] ?? null;
   if (!setup) return null;
   const est = setup.deploymentEstimate;
-  const interconnectBadge =
-    setup.gpuCount > 1 ? interconnectBadgeLabel(setup.gpuName) : null;
+  const interconnectBadge = interconnectBadgeLabel(setup.gpuName, setup.gpuCount);
 
   return (
     <div className="space-y-1">

@@ -113,8 +113,7 @@ export function BudgetFlow({
     );
   }
 
-  const interconnectBadge = interconnectBadgeLabel(gpuConfig.gpuName);
-  const interconnectLabel = interconnectBadge ? ` ${interconnectBadge}` : "";
+  const interconnectLabel = ` ${interconnectBadgeLabel(gpuConfig.gpuName, gpuConfig.gpuCount)}`;
 
   const teamCapacityContent = (
     <Card>

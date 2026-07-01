@@ -44,13 +44,15 @@ describe("formatInterconnectTier", () => {
 });
 
 describe("interconnectBadgeLabel", () => {
-  it("labels a GPU by its datasheet interconnect tier", () => {
-    expect(interconnectBadgeLabel("H100")).toBe("NVSwitch");
-    expect(interconnectBadgeLabel("H100_PCIe")).toBe("NVLink+PCIe");
+  it("labels a multi-GPU config by the GPU's datasheet tier", () => {
+    expect(interconnectBadgeLabel("H100", 8)).toBe("NVSwitch");
+    expect(interconnectBadgeLabel("H100_PCIe", 4)).toBe("NVLink+PCIe");
+    // PCIe-only GPUs still get a label (never blank).
+    expect(interconnectBadgeLabel("L40S", 8)).toBe("PCIe");
   });
 
-  it("returns null for PCIe-only GPUs (no badge)", () => {
-    expect(interconnectBadgeLabel("L40S")).toBeNull();
+  it("shows PCIe for a single GPU (no inter-GPU fabric)", () => {
+    expect(interconnectBadgeLabel("H100", 1)).toBe("PCIe");
   });
 });
 

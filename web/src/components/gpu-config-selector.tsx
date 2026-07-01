@@ -38,7 +38,7 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
 
   const parsedCount = parseInt(customCount) || 1;
 
-  const valueBadge = value ? interconnectBadgeLabel(value.gpuName) : null;
+  const valueBadge = value ? interconnectBadgeLabel(value.gpuName, value.gpuCount) : null;
 
   function handleCustomSave() {
     const gpuName = customGpu;
@@ -63,7 +63,7 @@ export function GpuConfigSelector({ value, onChange, presets }: GpuConfigSelecto
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
         {presets.map((preset) => {
-          const badge = interconnectBadgeLabel(preset.gpuName);
+          const badge = interconnectBadgeLabel(preset.gpuName, preset.gpuCount);
           return (
           <button
             key={preset.label}
