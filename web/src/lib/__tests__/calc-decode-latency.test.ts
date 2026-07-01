@@ -109,24 +109,14 @@ describe("calcDecodeLatency", () => {
       expect(b.breakdown.kvReadS).toBeCloseTo(2 * a.breakdown.kvReadS, 12);
     });
 
-    it("charges only (1 − reuse) of the KV read; reuse=1 removes it", () => {
-      const full = calcDecodeLatency(NVSWITCH, GQA, {
-        tp: TP,
-        contextTokens: 51_000,
-        intraConversationKvReuse: 0,
-      });
-      const discounted = calcDecodeLatency(NVSWITCH, GQA, {
-        tp: TP,
-        contextTokens: 51_000,
-        intraConversationKvReuse: 0.9,
-      });
-      const none = calcDecodeLatency(NVSWITCH, GQA, {
-        tp: TP,
-        contextTokens: 51_000,
-        intraConversationKvReuse: 1,
-      });
-      expect(discounted.breakdown.kvReadS).toBeCloseTo(0.1 * full.breakdown.kvReadS, 12);
-      expect(none.breakdown.kvReadS).toBe(0);
+    it("charges the full context KV read, sharded across the KV-head TP group", () => {
+      const tp = 4;
+      const ctx = 51_000;
+      const result = calcDecodeLatency(NVSWITCH, GQA, { tp, contextTokens: ctx });
+      // kvShard = min(tp, numKvHeads) = min(4, 8) = 4; full read, no discount.
+      const expected =
+        (GQA.kvBytesPerToken! * ctx) / Math.min(tp, GQA.numKvHeads!) / (HBM_TB_S * 1024 ** 4);
+      expect(result.breakdown.kvReadS).toBeCloseTo(expected, 12);
     });
   });
 });

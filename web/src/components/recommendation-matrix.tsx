@@ -347,7 +347,7 @@ function CellContent({ cell, currencySymbol = "$" }: { cell: MatrixCell; currenc
         {formatCurrency(setup.monthlyCost, currencySymbol)}/mo
       </div>
 
-      {/* Operating streams — a single count at the configured prefix reuse */}
+      {/* Operating streams — whole-prompt admission (KV for the full context per stream) */}
       <div className="text-xs text-muted-foreground">{setup.maxConcurrentStreams} streams</div>
 
       {/* Single-stream throughput — omitted when not modeled */}
