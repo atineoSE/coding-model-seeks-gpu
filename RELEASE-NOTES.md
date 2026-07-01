@@ -1,5 +1,35 @@
 # Release Notes
 
+## 0.10.0 — 2026-07-01
+
+- **Performance persona recast around Fit and Scale.** The four concurrency
+  tiers (Single Agent … Agent Swarm) are replaced by two operating points, both
+  sized at the fixed 90% memory utilization the calculator assumes: **Fit** (the
+  cheapest GPU setup that fits the model and serves ≥1 stream) and **Scale** (the
+  cheapest that sustains 100+ streams). Each cell is now a compact card — GPU
+  layout, monthly price, a single stream count, and single-stream/aggregate tok/s
+  when the architecture is modeled.
+- **Decode model gains the KV-cache read (F-5).** Single-stream decode now
+  charges the decode-time attention read of the resident KV cache from HBM on
+  every token (the full context, sharded across the KV-head TP group), on top of
+  the F-4 op-chain / EP-dispatch / expert-imbalance terms. Prefix caching speeds
+  prefill, not this read, so it is charged in full — sizeable on bandwidth-bound
+  layouts, bringing paired-NVLink/PCIe decode close to measured. Concurrent
+  streams are sized at whole-prompt admission (each reserves KV for its full
+  context; prefix reuse no longer inflates the count).
+- **Budget requests/hour is prefill-aware on aggregate throughput.** Serving
+  capacity now models a request as a time-share of the node between prefill
+  (compute-bound, discounted by a 90% prefix-cache hit) and decode (at the
+  aggregate batched throughput, not N × single-stream). The capacity chart lists
+  architectures it can't model separately from models that simply don't fit, and
+  the tooltip surfaces aggregate tok/s under decode.
+- **Interconnect tier is data-driven and shown consistently.** Every GPU carries
+  one of three datasheet tiers — **NVSwitch** (fully-connected mesh),
+  **NVLink+PCIe** (paired NVLink, pipeline across pairs), or **PCIe** — and the
+  topology is taken straight from the GPU, never overridden by the UI. The custom
+  GPU picker shows each GPU's tier and every config displays its interconnect
+  badge (a single GPU shows PCIe).
+
 ## 0.9.0 — 2026-06-23
 
 - **KV cache dtype setting (default 2 bytes).** The calculator hardcoded KV
