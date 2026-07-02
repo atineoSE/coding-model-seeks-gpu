@@ -15,7 +15,7 @@ Data pipeline that fetches GPU pricing, enriches model specs, and generates benc
 Best-in-lab selection is normally score-derived. To pin a different model, or to surface a closed model **before** it has OpenHands Index scores, edit `CLOSED_MODEL_OVERRIDES` (keyed by lab → `model_name`) in `pipeline/pipeline/sources/litellm_source.py`:
 
 ```python
-CLOSED_MODEL_OVERRIDES = { "anthropic": "claude-opus-5" }
+CLOSED_MODEL_OVERRIDES = { "anthropic": "claude-opus-4-8" }
 ```
 
 The value must resolve to a valid LiteLLM key via `model_name.lower()` → `+ "-preview"` → `LITELLM_ID_MAP`. Verify a candidate against the [LiteLLM price file](https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json) before adding it (pricing still comes live from LiteLLM; a required lab that can't resolve fails the pipeline). Mirror the same entry in `web/src/lib/snapshot-matrix.ts` (`CLOSED_MODEL_OVERRIDES`) to keep the Snapshot Coverage Matrix consistent — an injected model with no scores yet shows there as an unranked closed row.
