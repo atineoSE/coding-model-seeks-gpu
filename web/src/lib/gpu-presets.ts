@@ -37,8 +37,18 @@ export function buildGpuPresets(
     ? gpus.filter(g => ALLOWED_GPU_COUNTS.has(g.gpu_count) && topModels.some(m => fitsOnGpu(m, g)))
     : gpus.filter(g => ALLOWED_GPU_COUNTS.has(g.gpu_count));
 
+  const seenConfig = new Set<string>();
   return filtered
     .sort((a, b) => a.price_per_hour - b.price_per_hour)
+    // Collapse offerings that map to the same config (same GPU × count). After
+    // datasheet-VRAM normalization their labels are identical, which would give
+    // duplicate React keys; keep the cheapest (first after the sort).
+    .filter(g => {
+      const key = `${g.gpu_name}|${g.gpu_count}`;
+      if (seenConfig.has(key)) return false;
+      seenConfig.add(key);
+      return true;
+    })
     .slice(0, MAX_PRESETS)
     .map(g => {
       // Use the GPU's datasheet VRAM, not the offering's reported value, which
