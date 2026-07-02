@@ -1,5 +1,26 @@
 # Release Notes
 
+## 0.11.0 — 2026-07-02
+
+- **API-vs-Self-Hosting chart reworked around cost per request.** It now plots
+  cost per 1k requests against monthly volume: API models are flat metered
+  lines, and self-hosting is a capacity-aware curve that amortizes the box's
+  fixed cost over its throughput — falling as the box fills, flooring at the
+  full-utilization cost, and stepping up as boxes are added. The self-hosting
+  box is sized at its **scale** (aggregate batched-decode) throughput, not a
+  single stream. Each break-even dot is labelled with the **box utilization**
+  needed to beat that API model (e.g. "40% used"), the chart names the box and
+  its monthly price, and the hover shows each option's total monthly cost at
+  that volume.
+- **"Models served" split by whether capacity is modeled.** Only architectures
+  we can size at scale are listed with their throughput; architectures whose
+  capacity we can't compute are called out separately.
+- **Manual override of the API model shown per lab** in the cost comparison.
+- **GPU presets use datasheet VRAM.** Preset labels and config now take VRAM
+  from the GPU datasheet rather than an offering's occasionally-noisy reported
+  value (so "8× B200 180GB", not "179.06…GB"), and presets are deduped per
+  config.
+
 ## 0.10.0 — 2026-07-01
 
 - **Performance persona recast around Fit and Scale.** The four concurrency
