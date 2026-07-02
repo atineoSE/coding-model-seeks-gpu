@@ -72,7 +72,7 @@ function niceYTicks(maxY: number, extras: number[]): number[] {
 
 interface ApiHostingChartProps {
   closedPricing: ApiPricingEntry[];
-  availableModels: Array<{ model: Model; sotaPercent: number | null }>;
+  availableModels: Array<{ model: Model; sotaPercent: number | null; throughputModeled: boolean }>;
   gpuConfig: PresetGpuConfig;
   gpus: GpuOffering[];
   memoryUtilization: number;
@@ -94,9 +94,20 @@ export function ApiHostingChart({
   const [requestsPerConversation, setRequestsPerConversation] = useState(DEFAULT_REQUESTS);
   const [cacheHitRate, setCacheHitRate] = useState(DEFAULT_CACHE_HIT_RATE);
 
-  const openModels = useMemo(
-    () => (availableModels[0] ? [availableModels[0].model] : []),
+  // Models whose capacity we can size at scale (throughput modeled) vs those we
+  // can't (unsupported architectures — listed separately, no capacity shown).
+  const servedModels = useMemo(
+    () => availableModels.filter((m) => m.throughputModeled),
     [availableModels],
+  );
+  const unsupportedModels = useMemo(
+    () => availableModels.filter((m) => !m.throughputModeled),
+    [availableModels],
+  );
+
+  const openModels = useMemo(
+    () => (servedModels[0] ? [servedModels[0].model] : []),
+    [servedModels],
   );
 
   const chartConfig = useMemo(() => {
@@ -231,11 +242,11 @@ export function ApiHostingChart({
   );
 
   const modelCapacitiesReqH = useMemo(() =>
-    availableModels.map(({ model }) => {
+    servedModels.map(({ model }) => {
       const cfg = computeSelfHostingCostForConfig(model, gpuConfig, gpus, settings, memoryUtilization);
       return cfg?.maxRequestsPerMonth != null ? Math.round(cfg.maxRequestsPerMonth / 720) : null;
     }),
-    [availableModels, gpuConfig, gpus, settings, memoryUtilization],
+    [servedModels, gpuConfig, gpus, settings, memoryUtilization],
   );
 
   function formatRequests(n: number) {
@@ -534,11 +545,11 @@ export function ApiHostingChart({
           </p>
         )}
 
-        {availableModels.length > 0 && (
+        {servedModels.length > 0 && (
           <div className="text-sm space-y-1.5 pt-1 border-t">
             <p className="font-medium text-muted-foreground">Models served by this GPU config</p>
             <div className="flex flex-col gap-y-0.5">
-              {availableModels.map((entry, i) => {
+              {servedModels.map((entry, i) => {
                 const reqH = modelCapacitiesReqH[i] ?? null;
                 const reqHFormatted = reqH != null
                   ? (reqH >= 10_000 ? `${Math.round(reqH / 1000)}k` : reqH >= 1_000 ? `${(reqH / 1000).toFixed(1)}k` : String(reqH))
@@ -558,6 +569,13 @@ export function ApiHostingChart({
               })}
             </div>
           </div>
+        )}
+
+        {unsupportedModels.length > 0 && (
+          <p className="text-xs text-muted-foreground px-1">
+            Capacity is not modeled for these architectures, so they&apos;re excluded above:{" "}
+            {unsupportedModels.map((m) => formatModelName(m.model.model_name)).join(", ")}.
+          </p>
         )}
       </CardContent>
     </Card>

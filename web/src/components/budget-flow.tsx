@@ -83,15 +83,18 @@ export function BudgetFlow({
     () =>
       chartData
         // Every model that fits the config, ranked or not. Unranked models have
-        // no SOTA % (it's simply omitted in the list); the self-hosting curve
-        // uses the first entry, which is the top-ranked model when one fits.
+        // no SOTA % (omitted in the list). `throughputModeled` lets the chart
+        // split off architectures whose capacity we can't compute.
         .filter((d) => d.fits)
         .map((d) => {
           const model = models.find((m) => m.model_name === d.modelName);
           if (!model) return null;
-          return { model, sotaPercent: d.percentOfSota };
+          return { model, sotaPercent: d.percentOfSota, throughputModeled: d.throughputModeled };
         })
-        .filter((x): x is { model: Model; sotaPercent: number | null } => x !== null),
+        .filter(
+          (x): x is { model: Model; sotaPercent: number | null; throughputModeled: boolean } =>
+            x !== null,
+        ),
     [chartData, models],
   );
 
