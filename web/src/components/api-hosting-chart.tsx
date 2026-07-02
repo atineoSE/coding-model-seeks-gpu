@@ -244,14 +244,14 @@ export function ApiHostingChart({
     return String(Math.round(n));
   }
 
-  // Per-request costs are sub-cent, so show them per MILLION requests. Takes a
-  // per-request value and formats it as the cost for 1,000,000 requests.
-  function formatPerMillion(perRequest: number) {
-    const v = perRequest * 1_000_000;
-    if (v >= 1_000_000) return `${currencySymbol}${(v / 1_000_000).toFixed(2)}M`;
-    if (v >= 1_000) return `${currencySymbol}${(v / 1_000).toFixed(0)}k`;
-    if (v >= 1) return `${currencySymbol}${v.toFixed(0)}`;
-    if (v > 0) return `${currencySymbol}${v.toFixed(2)}`;
+  // Per-request costs are sub-cent, so show them per THOUSAND requests. Takes a
+  // per-request value and formats it as the cost for 1,000 requests.
+  function formatPerThousand(perRequest: number) {
+    const v = perRequest * 1_000;
+    if (v >= 1_000) return `${currencySymbol}${(v / 1_000).toFixed(1)}k`;
+    if (v >= 100) return `${currencySymbol}${v.toFixed(0)}`;
+    if (v >= 1) return `${currencySymbol}${v.toFixed(2)}`;
+    if (v > 0) return `${currencySymbol}${v.toFixed(3)}`;
     return `${currencySymbol}0`;
   }
 
@@ -271,7 +271,7 @@ export function ApiHostingChart({
       <CardHeader>
         <CardTitle>API vs. Self-Hosting Cost</CardTitle>
         <CardDescription>
-          Cost per million requests at a given monthly volume. Solid lines = API (flat, metered per request); the dashed curve = self-hosting, amortizing the box&apos;s fixed cost over its throughput — it falls as the box fills, floors at the full-utilization cost, and steps up when another box is added. Each dot marks where self-hosting undercuts an API model, labelled with the box utilization (requests served ÷ monthly capacity) needed to break even — a low % means self-hosting pays off well before the box is full.
+          Cost per thousand requests at a given monthly volume. Solid lines = API (flat, metered per request); the dashed curve = self-hosting, amortizing the box&apos;s fixed cost over its throughput — it falls as the box fills, floors at the full-utilization cost, and steps up when another box is added. Each dot marks where self-hosting undercuts an API model, labelled with the box utilization (requests served ÷ monthly capacity) needed to break even — a low % means self-hosting pays off well before the box is full.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -364,9 +364,9 @@ export function ApiHostingChart({
               axisLine={false}
               tickMargin={8}
               ticks={yAxisTicks}
-              tickFormatter={formatPerMillion}
+              tickFormatter={formatPerThousand}
               label={{
-                value: "Cost per 1M requests",
+                value: "Cost per 1k requests",
                 angle: -90,
                 position: "insideLeft",
                 offset: 4,
@@ -392,7 +392,7 @@ export function ApiHostingChart({
                           />
                           <span className="text-muted-foreground">{p.name}:</span>
                           <span className="font-medium">
-                            {formatPerMillion(p.value as number)} / 1M req
+                            {formatPerThousand(p.value as number)} / 1k req
                           </span>
                         </div>
                       ))}
@@ -409,7 +409,7 @@ export function ApiHostingChart({
                 strokeWidth={1}
                 strokeDasharray="2 3"
                 label={{
-                  value: `full-utilization ${formatPerMillion(floorPerReq)} / 1M req`,
+                  value: `full-utilization ${formatPerThousand(floorPerReq)} / 1k req`,
                   position: "insideTopRight",
                   fontSize: 10,
                   fill: OPEN_MODEL_COLORS[0] ?? "#22c55e",
@@ -519,7 +519,7 @@ export function ApiHostingChart({
 
         {selfConfig && crossovers.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            At this box&apos;s full-utilization cost{floorPerReq != null ? ` (${formatPerMillion(floorPerReq)} / 1M req)` : ""}, self-hosting {selfModelName} stays pricier than every API option shown — no break-even.
+            At this box&apos;s full-utilization cost{floorPerReq != null ? ` (${formatPerThousand(floorPerReq)} / 1k req)` : ""}, self-hosting {selfModelName} stays pricier than every API option shown — no break-even.
           </p>
         )}
 
