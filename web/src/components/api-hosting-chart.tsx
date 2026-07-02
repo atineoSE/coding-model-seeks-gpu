@@ -35,6 +35,7 @@ import {
   computeSelfHostingCostForConfig,
   selfHostingCostPerRequest,
   selfHostingFloorCostPerRequest,
+  findGpuOfferingForConfig,
   getProviderCacheTtls,
   type CostConfig,
 } from "@/lib/api-hosting-cost";
@@ -225,6 +226,13 @@ export function ApiHostingChart({
 
   const selfModelName = openModels[0] ? formatModelName(openModels[0].model_name) : "";
 
+  // The cheapest offering matching the selected GPU config — the box the
+  // self-hosting curve is priced against.
+  const selfOffering = useMemo(
+    () => findGpuOfferingForConfig(gpuConfig, gpus),
+    [gpuConfig, gpus],
+  );
+
   const yAxisTicks = useMemo(
     () => niceYTicks(fixedMaxY, floorPerReq != null && floorPerReq > 0 ? [floorPerReq] : []),
     [fixedMaxY, floorPerReq],
@@ -318,6 +326,24 @@ export function ApiHostingChart({
             </Select>
           </div>
         </div>
+
+        {selfConfig && selfOffering && (
+          <p className="text-sm text-muted-foreground">
+            Self-hosting on{" "}
+            <span className="font-medium text-foreground">
+              {gpuConfig.gpuCount}× {gpuConfig.gpuName}
+            </span>{" "}
+            <span className="font-medium text-foreground">
+              {currencySymbol}{selfOffering.price_per_hour.toFixed(2)}/hr
+            </span>{" "}
+            ({currencySymbol}{Math.round(selfConfig.baseMonthlyCost).toLocaleString("en-US")}/mo)
+            {selfOffering.provider && (
+              <span className="text-xs">
+                {" · "}{selfOffering.provider}{selfOffering.location ? `, ${selfOffering.location}` : ""}
+              </span>
+            )}
+          </p>
+        )}
 
         <ChartContainer
           config={chartConfig}
