@@ -123,6 +123,27 @@ describe("findBestModelsPerLab", () => {
 
     expect(findBestModelsPerLab(benchmarks)).toEqual({});
   });
+
+  it("override wins over the score-derived selection", () => {
+    const benchmarks: BenchmarkScore[] = [
+      makeEntry({ model_name: "claude-opus-4-6", benchmark_name: "overall", score: 66.7, openness: "closed_api_available" }),
+      makeEntry({ model_name: "GPT-5.4", benchmark_name: "overall", score: 63.8, openness: "closed_api_available" }),
+    ];
+
+    const result = findBestModelsPerLab(benchmarks, { anthropic: "claude-opus-5" });
+    expect(result.anthropic).toBe("claude-opus-5"); // pinned
+    expect(result.openai).toBe("GPT-5.4"); // untouched
+  });
+
+  it("override injects a lab absent from benchmarks", () => {
+    const benchmarks: BenchmarkScore[] = [
+      makeEntry({ model_name: "GPT-5.4", benchmark_name: "overall", score: 63.8, openness: "closed_api_available" }),
+    ];
+
+    const result = findBestModelsPerLab(benchmarks, { anthropic: "claude-fable-5" });
+    expect(result.anthropic).toBe("claude-fable-5");
+    expect(result.openai).toBe("GPT-5.4");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -224,6 +245,29 @@ describe("getMatrixModels", () => {
   it("sorts unranked models (no score) to the bottom", () => {
     const models = getMatrixModels(benchmarks, [makeModel("GLM-5.2")]);
     expect(models[models.length - 1].modelName).toBe("GLM-5.2");
+  });
+
+  it("pins a benchmarked closed model over the score-max default", () => {
+    const models = getMatrixModels(benchmarks, [], { anthropic: "claude-opus-4-5" });
+    const names = models.map((m) => m.modelName);
+    expect(names).toContain("claude-opus-4-5");
+    expect(names).not.toContain("claude-opus-4-6"); // score-max default is replaced
+    const pinned = models.find((m) => m.modelName === "claude-opus-4-5")!;
+    expect(pinned.lab).toBe("anthropic");
+    expect(pinned.unranked).toBe(false); // it has benchmark scores
+  });
+
+  it("surfaces an injected closed model with no benchmark entry as an unranked closed row", () => {
+    const models = getMatrixModels(benchmarks, [], { anthropic: "claude-fable-5" });
+    const injected = models.filter((m) => m.modelName === "claude-fable-5");
+    expect(injected).toHaveLength(1);
+    expect(injected[0].lab).toBe("anthropic"); // shows in the closed section
+    expect(injected[0].unranked).toBe(true); // no scores until OpenHands lands
+    expect(injected[0].scores["frontend"]).toBeUndefined();
+    // Injected (unranked) closed model sorts to the bottom.
+    expect(models[models.length - 1].modelName).toBe("claude-fable-5");
+    // The score-derived anthropic model is replaced, not shown alongside.
+    expect(models.map((m) => m.modelName)).not.toContain("claude-opus-4-6");
   });
 
   it("models without overall are sorted by average available score descending", () => {

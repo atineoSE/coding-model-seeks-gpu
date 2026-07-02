@@ -8,6 +8,17 @@ Data pipeline that fetches GPU pricing, enriches model specs, and generates benc
 2. **Benchmark snapshots** — Reads the [OpenHands Index](https://index.openhands.dev) git submodule history, generates per-date snapshots with scores, rankings, and SOTA entries. Exports to `snapshots/`.
 3. **Model enrichment** — Fetches HuggingFace configs for each benchmarked model: parameter counts, architecture (Dense/MoE), context length, precision, attention type, KV cache fields. Exports to `models.json`.
 4. **Export** — Writes all JSON to `web/public/data/`.
+5. **API pricing** — Picks the best closed model per lab (Anthropic/OpenAI/Google) from the latest snapshot, fetches per-token pricing from [LiteLLM](https://github.com/BerriAI/litellm), and exports `api_pricing.json` (drives the API-vs-self-hosting chart).
+
+## Overriding the closed model per lab
+
+Best-in-lab selection is normally score-derived. To pin a different model, or to surface a closed model **before** it has OpenHands Index scores, edit `CLOSED_MODEL_OVERRIDES` (keyed by lab → `model_name`) in `pipeline/pipeline/sources/litellm_source.py`:
+
+```python
+CLOSED_MODEL_OVERRIDES = { "anthropic": "claude-opus-5" }
+```
+
+The value must resolve to a valid LiteLLM key via `model_name.lower()` → `+ "-preview"` → `LITELLM_ID_MAP`. Verify a candidate against the [LiteLLM price file](https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json) before adding it (pricing still comes live from LiteLLM; a required lab that can't resolve fails the pipeline). Mirror the same entry in `web/src/lib/snapshot-matrix.ts` (`CLOSED_MODEL_OVERRIDES`) to keep the Snapshot Coverage Matrix consistent — an injected model with no scores yet shows there as an unranked closed row.
 
 ## Daily run flow
 

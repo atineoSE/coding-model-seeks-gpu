@@ -97,6 +97,54 @@ class TestRunApiPricingPipeline:
         updates = run_api_pricing_pipeline(snapshots_dir=empty_dir)
         assert updates == []
 
+    def test_override_pins_model_over_score_derived(self, tmp_path):
+        snapshots_dir = _write_snapshot(tmp_path, SAMPLE_BENCHMARKS)
+        captured = {}
+
+        def fake_fetch(best_models):
+            captured["best_models"] = dict(best_models)
+            return {
+                m: {"lab": lab, "model_name": m, "litellm_id": m.lower(), "context_window": 1}
+                for lab, m in best_models.items()
+            }
+
+        with (
+            patch("pipeline.main.CLOSED_MODEL_OVERRIDES", {"anthropic": "claude-opus-5"}),
+            patch("pipeline.main.fetch_api_pricing", side_effect=fake_fetch),
+            patch("pipeline.main.export_api_pricing"),
+        ):
+            run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
+
+        # Override wins over the score-derived claude-opus-4-6; other labs untouched.
+        assert captured["best_models"]["anthropic"] == "claude-opus-5"
+        assert captured["best_models"]["openai"] == "GPT-5.4"
+
+    def test_override_injects_model_absent_from_benchmarks(self, tmp_path):
+        # Benchmarks have no Anthropic closed entry at all.
+        benches = [
+            {"model_name": "GPT-5.4", "benchmark_name": "overall", "score": 63.8, "openness": "closed_api_available"},
+            {"model_name": "Gemini-3.1-Pro", "benchmark_name": "overall", "score": 55.7, "openness": "closed_api_available"},
+        ]
+        snapshots_dir = _write_snapshot(tmp_path, benches)
+        captured = {}
+
+        def fake_fetch(best_models):
+            captured["best_models"] = dict(best_models)
+            return {
+                m: {"lab": lab, "model_name": m, "litellm_id": m.lower(), "context_window": 1}
+                for lab, m in best_models.items()
+            }
+
+        with (
+            patch("pipeline.main.CLOSED_MODEL_OVERRIDES", {"anthropic": "claude-fable-5"}),
+            patch("pipeline.main.fetch_api_pricing", side_effect=fake_fetch),
+            patch("pipeline.main.export_api_pricing"),
+        ):
+            run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
+
+        # Injected even though it never appeared in benchmarks.json.
+        assert captured["best_models"]["anthropic"] == "claude-fable-5"
+
     def test_export_not_called_when_no_pricing(self, tmp_path):
         snapshots_dir = _write_snapshot(tmp_path, SAMPLE_BENCHMARKS)
 

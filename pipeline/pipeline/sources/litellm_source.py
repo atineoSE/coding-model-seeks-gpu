@@ -26,6 +26,20 @@ LITELLM_ID_MAP: dict[str, str] = {
     "Gemini-3.1-Pro": "gemini-3.1-pro-preview",
 }
 
+# Manual overrides for best-in-lab selection, applied AFTER the score-derived
+# find_best_models_per_lab pass (see run_api_pricing_pipeline in main.py). Keyed
+# by lab so each entry slots straight into the {lab: model_name} result and drives
+# the chart color. Two uses:
+#   (a) pin a specific model when the score-max default is wrong;
+#   (b) surface a closed model that has no OpenHands Index scores yet.
+# The value is the OpenHands-style model_name; it must resolve to a valid LiteLLM
+# key via the fetch_api_pricing chain (lower → +"-preview" → LITELLM_ID_MAP). Check
+# a candidate against the LiteLLM price file before adding it here.
+# Mirror any change in web/src/lib/snapshot-matrix.ts CLOSED_MODEL_OVERRIDES.
+CLOSED_MODEL_OVERRIDES: dict[str, str] = {
+    # "anthropic": "claude-opus-5",
+}
+
 PROVIDER_EXCLUDE_PREFIXES = ["bedrock/", "vertex_ai/", "azure/", "sagemaker/"]
 
 

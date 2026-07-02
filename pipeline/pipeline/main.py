@@ -27,7 +27,11 @@ from pipeline.sources.huggingface import (
     MODEL_NAME_TO_HF_ID,
     fetch_all_models,
 )
-from pipeline.sources.litellm_source import fetch_api_pricing, find_best_models_per_lab
+from pipeline.sources.litellm_source import (
+    CLOSED_MODEL_OVERRIDES,
+    fetch_api_pricing,
+    find_best_models_per_lab,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +117,9 @@ def run_api_pricing_pipeline(snapshots_dir=None) -> list[str]:
     benchmarks = json.loads(benchmarks_path.read_text())
 
     best_models = find_best_models_per_lab(benchmarks)
+    # Manual overrides win over the score-derived selection — pin a different default
+    # or surface a model before it has OpenHands Index scores (CLOSED_MODEL_OVERRIDES).
+    best_models.update(CLOSED_MODEL_OVERRIDES)
     if not best_models:
         logger.warning("No best-per-lab models found in benchmarks, skipping API pricing")
         return []
