@@ -37,7 +37,7 @@ LITELLM_ID_MAP: dict[str, str] = {
 # a candidate against the LiteLLM price file before adding it here.
 # Mirror any change in web/src/lib/snapshot-matrix.ts CLOSED_MODEL_OVERRIDES.
 CLOSED_MODEL_OVERRIDES: dict[str, str] = {
-    # "anthropic": "claude-opus-5",
+    "anthropic": "claude-opus-4-8",
 }
 
 PROVIDER_EXCLUDE_PREFIXES = ["bedrock/", "vertex_ai/", "azure/", "sagemaker/"]
