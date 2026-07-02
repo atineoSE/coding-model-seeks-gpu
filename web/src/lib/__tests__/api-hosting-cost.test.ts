@@ -6,6 +6,8 @@ import {
   findGpuOfferingForConfig,
   computeSelfHostingCostForConfig,
   selfHostingStepCost,
+  selfHostingCostPerRequest,
+  selfHostingFloorCostPerRequest,
   type CostConfig,
 } from "../api-hosting-cost";
 import { DEFAULT_ADVANCED_SETTINGS, calcGpuSetupStats, requestsPerHourFor } from "../matrix-calculator";
@@ -359,5 +361,39 @@ describe("selfHostingStepCost", () => {
     const config = { baseMonthlyCost: 500, maxRequestsPerMonth: 10000 };
     expect(selfHostingStepCost(20001, config)).toBe(1500);
     expect(selfHostingStepCost(30000, config)).toBe(1500);
+  });
+});
+
+describe("selfHostingCostPerRequest", () => {
+  const config = { baseMonthlyCost: 1000, maxRequestsPerMonth: 100 };
+
+  it("falls as one box fills and floors at B/capacity", () => {
+    expect(selfHostingCostPerRequest(50, config)).toBeCloseTo(20, 6); // 1×1000/50
+    expect(selfHostingCostPerRequest(100, config)).toBeCloseTo(10, 6); // floor B/C
+  });
+
+  it("steps up when another box is added (sawtooth), back to the floor when full", () => {
+    expect(selfHostingCostPerRequest(150, config)!).toBeGreaterThan(10); // 2×1000/150 ≈ 13.3
+    expect(selfHostingCostPerRequest(200, config)).toBeCloseTo(10, 6); // 2×1000/200 = floor
+  });
+
+  it("is B/x with no floor when capacity is unmodeled", () => {
+    const noCap = { baseMonthlyCost: 1000, maxRequestsPerMonth: null };
+    expect(selfHostingCostPerRequest(50, noCap)).toBeCloseTo(20, 6);
+    expect(selfHostingCostPerRequest(500, noCap)).toBeCloseTo(2, 6);
+  });
+
+  it("returns null for non-positive volume", () => {
+    expect(selfHostingCostPerRequest(0, config)).toBeNull();
+    expect(selfHostingCostPerRequest(-5, config)).toBeNull();
+  });
+});
+
+describe("selfHostingFloorCostPerRequest", () => {
+  it("is baseMonthlyCost / capacity", () => {
+    expect(selfHostingFloorCostPerRequest({ baseMonthlyCost: 1000, maxRequestsPerMonth: 100 })).toBeCloseTo(10, 6);
+  });
+  it("is null when capacity is unmodeled", () => {
+    expect(selfHostingFloorCostPerRequest({ baseMonthlyCost: 1000, maxRequestsPerMonth: null })).toBeNull();
   });
 });

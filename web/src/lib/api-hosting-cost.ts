@@ -158,3 +158,28 @@ export function selfHostingStepCost(
   if (config.maxRequestsPerMonth === null) return config.baseMonthlyCost;
   return Math.max(1, Math.ceil(x / config.maxRequestsPerMonth)) * config.baseMonthlyCost;
 }
+
+/**
+ * Self-hosting cost per request at a monthly volume `x`: the staircase monthly
+ * cost amortized over the requests served. Falls as one box fills (B/x), floors
+ * at the box's full-utilization cost B/capacity, then steps up when another box
+ * is added (a sawtooth). Returns null for x ≤ 0. This is the number to compare
+ * against an API's flat per-request price.
+ */
+export function selfHostingCostPerRequest(
+  x: number,
+  config: ConfigSelfHostingCost,
+): number | null {
+  if (x <= 0) return null;
+  return selfHostingStepCost(x, config) / x;
+}
+
+/**
+ * The floor (best-case) self-hosting cost per request — one box's monthly cost
+ * over its full capacity (B / capacity). Null when capacity isn't modeled. The
+ * crossover with an API price only exists when this floor is below that price.
+ */
+export function selfHostingFloorCostPerRequest(config: ConfigSelfHostingCost): number | null {
+  if (config.maxRequestsPerMonth === null || config.maxRequestsPerMonth <= 0) return null;
+  return config.baseMonthlyCost / config.maxRequestsPerMonth;
+}
