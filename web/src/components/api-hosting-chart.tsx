@@ -255,6 +255,14 @@ export function ApiHostingChart({
     return `${currencySymbol}0`;
   }
 
+  // A plain dollar total (e.g. total monthly spend at a given volume).
+  function formatMoney(v: number) {
+    if (v >= 1_000_000) return `${currencySymbol}${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `${currencySymbol}${(v / 1_000).toFixed(1)}k`;
+    if (v >= 1) return `${currencySymbol}${v.toFixed(0)}`;
+    return `${currencySymbol}${v.toFixed(2)}`;
+  }
+
   if (closedPricing.length === 0) {
     return (
       <Card>
@@ -392,7 +400,10 @@ export function ApiHostingChart({
                           />
                           <span className="text-muted-foreground">{p.name}:</span>
                           <span className="font-medium">
-                            {formatPerThousand(p.value as number)} / 1k req
+                            {formatMoney((p.value as number) * x)}/mo
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ({formatPerThousand(p.value as number)}/1k)
                           </span>
                         </div>
                       ))}
