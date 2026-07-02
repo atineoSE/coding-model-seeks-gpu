@@ -83,13 +83,14 @@ describe("buildGpuPresets", () => {
   it("returns presets when a pod is large enough for a top model", () => {
     const pods: GpuOffering[] = [
       gpu({ gpu_name: "A100-80G", vram_gb: 80, gpu_count: 8, total_vram_gb: 640 }),
-      // 96 GB × 16 = 1536 GB on a card big enough for the big model's weights.
+      // Offering advertises 144 GB; H200's datasheet VRAM is 141 GB.
       gpu({ gpu_name: "H200", vram_gb: 144, gpu_count: 16, total_vram_gb: 2304 }),
     ];
 
     const presets = buildGpuPresets(pods, [BIG_MODEL], [BIG_MODEL_BENCHMARK]);
 
     expect(presets.length).toBeGreaterThan(0);
-    expect(presets[0]).toMatchObject({ gpuName: "H200", gpuCount: 16, vramPerGpu: 144 });
+    // The preset carries the datasheet VRAM (141), not the offering's 144.
+    expect(presets[0]).toMatchObject({ gpuName: "H200", gpuCount: 16, vramPerGpu: 141 });
   });
 });

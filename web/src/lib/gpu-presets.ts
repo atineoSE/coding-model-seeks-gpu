@@ -1,5 +1,6 @@
 import type { GpuOffering, PresetGpuConfig, Model, BenchmarkScore } from "@/types";
 import { getModelMemory, resolveModelPrecision, gpusNeeded, WEIGHT_OVERHEAD_FACTOR } from "./calculations";
+import { getGpuVram } from "./gpu-specs";
 
 const MAX_PRESETS = 8;
 
@@ -39,12 +40,17 @@ export function buildGpuPresets(
   return filtered
     .sort((a, b) => a.price_per_hour - b.price_per_hour)
     .slice(0, MAX_PRESETS)
-    .map(g => ({
-      label: `${g.gpu_count}× ${g.gpu_name} ${g.vram_gb}GB`,
-      gpuName: g.gpu_name,
-      gpuCount: g.gpu_count,
-      vramPerGpu: g.vram_gb,
-      totalVramGb: g.total_vram_gb,
-      interconnect: g.interconnect,
-    }));
+    .map(g => {
+      // Use the GPU's datasheet VRAM, not the offering's reported value, which
+      // can carry float noise (e.g. a B200 at 179.0615…GB instead of 180).
+      const vram = getGpuVram(g.gpu_name) ?? g.vram_gb;
+      return {
+        label: `${g.gpu_count}× ${g.gpu_name} ${vram}GB`,
+        gpuName: g.gpu_name,
+        gpuCount: g.gpu_count,
+        vramPerGpu: vram,
+        totalVramGb: vram * g.gpu_count,
+        interconnect: g.interconnect,
+      };
+    });
 }
