@@ -8,6 +8,7 @@ import { SotaPercentChart } from "@/components/sota-percent-chart";
 import { ModelSizeChart } from "@/components/model-size-chart";
 import { EfficiencyChart } from "@/components/efficiency-chart";
 import { ScalingChart } from "@/components/scaling-chart";
+import { GpuNodePriceChart } from "@/components/gpu-node-price-chart";
 import { ChartSelector, type ChartTab } from "@/components/chart-selector";
 import {
   Select,
@@ -28,6 +29,11 @@ import {
   findBestOpenSourceModel,
   resolveModelName,
 } from "@/lib/trend-data";
+import {
+  useGpuPriceHistory,
+  computeGpuNodePriceTrend,
+  computeGpuNodeProviders,
+} from "@/lib/gpu-trend-data";
 import { formatModelName } from "@/lib/utils";
 
 interface TrendsSectionProps {
@@ -48,6 +54,7 @@ export function TrendsSection({
   currencySymbol = "$",
 }: TrendsSectionProps) {
   const { snapshots, loading } = useSnapshotData();
+  const { history: gpuPriceHistory } = useGpuPriceHistory();
 
   // Set of open-source model names (from models.json)
   const openSourceNames = useMemo(
@@ -143,6 +150,17 @@ export function TrendsSection({
     [scalingModel, gpus, settings],
   );
 
+  // GPU node price trend — pivot stored hourly prices into $/month rows
+  const gpuNodePriceData = useMemo(
+    () => (gpuPriceHistory ? computeGpuNodePriceTrend(gpuPriceHistory) : []),
+    [gpuPriceHistory],
+  );
+
+  const gpuNodeProviders = useMemo(
+    () => (gpuPriceHistory ? computeGpuNodeProviders(gpuPriceHistory) : {}),
+    [gpuPriceHistory],
+  );
+
   const categoryDisplayName =
     benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
       ?.benchmark_display_name ?? benchmarkCategory;
@@ -175,6 +193,7 @@ export function TrendsSection({
           { value: "sota", label: "% of SOTA", content: <SotaPercentChart data={sotaPercentData} /> },
           { value: "size", label: "Model Size", content: <ModelSizeChart data={modelSizeData} categoryDisplayName={categoryDisplayName} /> },
           { value: "efficiency", label: "API costs", content: <EfficiencyChart data={efficiencyData} categoryDisplayName={categoryDisplayName} /> },
+          { value: "gpu-price", label: "GPU Node Price", content: <GpuNodePriceChart data={gpuNodePriceData} providers={gpuNodeProviders} currencySymbol={currencySymbol} /> },
           {
             value: "scaling",
             label: "Scaling Cost",

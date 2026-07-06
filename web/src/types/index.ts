@@ -48,6 +48,18 @@ export interface Model {
   license_url: string | null;
 }
 
+export interface GpuNodePricePoint {
+  gpu_name: string;
+  usd_per_node_hour: number;
+  provider: string;
+}
+
+export interface GpuNodePriceHistory {
+  generated_at: string;
+  unit: string;
+  series: { date: string; prices: GpuNodePricePoint[] }[];
+}
+
 export interface BenchmarkScore {
   model_name: string;
   benchmark_name: string;
