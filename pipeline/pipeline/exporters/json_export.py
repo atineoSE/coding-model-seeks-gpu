@@ -153,20 +153,22 @@ def export_gpu_price_history(
     offerings: list[dict],
     output_dir: Path | None = None,
 ) -> Path:
-    """Append today's cheapest node prices to gpu_price_history.json.
+    """Record today's cheapest node prices in gpu_price_history.json as a snapshot.
 
     Reduces ``offerings`` to one cheapest 8x price per curated node (via the
-    shared ``reduce_offerings_to_nodes``) and UPSERTS a
-    ``{"date": <today UTC>, "prices": [...]}`` entry into the stored history:
+    shared ``reduce_offerings_to_nodes``) and stores a
+    ``{"date": <today UTC>, "prices": [...]}`` snapshot ONLY when prices moved:
 
       * loads the existing file, or creates the
         ``{generated_at, unit, series: []}`` skeleton if missing;
-      * replaces any existing entry for today's date (no duplicates);
+      * drops any existing entry for today's date (so a rerun re-evaluates);
+      * appends today only when its prices differ from the most recent snapshot
+        (the series is a change-log, not one point per day);
       * keeps ``series`` sorted by ascending date and refreshes ``generated_at``.
 
-    Mirroring the snapshot exporter, the write is skipped when the resulting
-    content is byte-identical apart from ``generated_at`` — so a same-day rerun
-    with unchanged prices is a genuine no-op (no churn, no timestamp bump).
+    The write is skipped when the resulting content is byte-identical apart from
+    ``generated_at`` — so a rerun with unchanged prices is a genuine no-op (no
+    churn, no timestamp bump).
     """
     if output_dir is None:
         output_dir = EXPORT_DIR
@@ -187,8 +189,10 @@ def export_gpu_price_history(
         }
 
     series = [e for e in history.get("series", []) if e.get("date") != today]
-    series.append({"date": today, "prices": prices})
-    series.sort(key=lambda e: e["date"])
+    # Snapshot on change only: append today only if it moves the latest prices.
+    if not series or series[-1]["prices"] != prices:
+        series.append({"date": today, "prices": prices})
+        series.sort(key=lambda e: e["date"])
 
     history["unit"] = PRICE_HISTORY_UNIT
     history["series"] = series

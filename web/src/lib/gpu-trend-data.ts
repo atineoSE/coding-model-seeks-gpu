@@ -63,17 +63,10 @@ export interface GpuNodePriceTrendRow {
 }
 
 /**
- * Provider lookup keyed by `${date}::${gpuName}`, so the chart tooltip can show
- * which supplier set the cheapest price on a given day (a supplier switch reads
- * as a change, not a glitch).
- */
-export type GpuNodeProviderMap = Record<string, string>;
-
-/**
- * Pivot the price-history series into Recharts rows: one row per date, one
- * numeric key per GPU node holding the $/month value (monthlyCost of the stored
- * hourly node price). Nodes without a price on a given day are simply left out
- * of that row.
+ * Pivot the price-history series into Recharts rows: one row per snapshot date,
+ * one numeric key per GPU node holding the $/month value (monthlyCost of the
+ * stored hourly node price). Nodes without a price on a given day are simply
+ * left out of that row.
  */
 export function computeGpuNodePriceTrend(
   history: GpuNodePriceHistory,
@@ -85,20 +78,4 @@ export function computeGpuNodePriceTrend(
     }
     return row;
   });
-}
-
-/**
- * Build a `${date}::${gpuName}` → provider lookup from the price history so the
- * tooltip can attribute each point to the supplier that set it.
- */
-export function computeGpuNodeProviders(
-  history: GpuNodePriceHistory,
-): GpuNodeProviderMap {
-  const providers: GpuNodeProviderMap = {};
-  for (const { date, prices } of history.series) {
-    for (const p of prices) {
-      providers[`${date}::${p.gpu_name}`] = p.provider;
-    }
-  }
-  return providers;
 }

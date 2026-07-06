@@ -24,7 +24,7 @@ def test_serving_nodes_constant():
 
 
 def test_cheapest_wins_per_node():
-    """The min price_per_hour offering (and its provider) is chosen per node."""
+    """The min price_per_hour offering is chosen per node."""
     offerings = [
         _offering("H100", 8, 25.0, "expensive"),
         _offering("H100", 8, 18.32, "verda"),
@@ -32,7 +32,7 @@ def test_cheapest_wins_per_node():
     ]
     result = reduce_offerings_to_nodes(offerings)
     assert result == [
-        {"gpu_name": "H100", "usd_per_node_hour": 18.32, "provider": "verda"},
+        {"gpu_name": "H100", "usd_per_node_hour": 18.32},
     ]
 
 
@@ -44,7 +44,7 @@ def test_a100_40gb_excluded_80gb_kept():
     ]
     result = reduce_offerings_to_nodes(offerings)
     assert result == [
-        {"gpu_name": "A100", "usd_per_node_hour": 15.0, "provider": "kept80"},
+        {"gpu_name": "A100", "usd_per_node_hour": 15.0},
     ]
 
 
@@ -58,7 +58,7 @@ def test_non_8x_rows_ignored():
     ]
     result = reduce_offerings_to_nodes(offerings)
     assert result == [
-        {"gpu_name": "H200", "usd_per_node_hour": 22.0, "provider": "node"},
+        {"gpu_name": "H200", "usd_per_node_hour": 22.0},
     ]
 
 
@@ -70,7 +70,7 @@ def test_node_with_no_8x_offering_omitted():
     ]
     result = reduce_offerings_to_nodes(offerings)
     assert result == [
-        {"gpu_name": "B200", "usd_per_node_hour": 35.0, "provider": "b200node"},
+        {"gpu_name": "B200", "usd_per_node_hour": 35.0},
     ]
 
 
@@ -99,7 +99,7 @@ def test_robust_to_missing_optional_keys():
     ]
     result = reduce_offerings_to_nodes(offerings)
     assert result == [
-        {"gpu_name": "H100", "usd_per_node_hour": 19.5, "provider": "legacy"},
+        {"gpu_name": "H100", "usd_per_node_hour": 19.5},
     ]
 
 
@@ -111,5 +111,5 @@ def test_non_curated_gpu_ignored():
     ]
     result = reduce_offerings_to_nodes(offerings)
     assert result == [
-        {"gpu_name": "H100", "usd_per_node_hour": 18.0, "provider": "h100"},
+        {"gpu_name": "H100", "usd_per_node_hour": 18.0},
     ]

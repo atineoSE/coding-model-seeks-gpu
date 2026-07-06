@@ -32,7 +32,6 @@ import {
 import {
   useGpuPriceHistory,
   computeGpuNodePriceTrend,
-  computeGpuNodeProviders,
 } from "@/lib/gpu-trend-data";
 import { formatModelName } from "@/lib/utils";
 
@@ -156,11 +155,6 @@ export function TrendsSection({
     [gpuPriceHistory],
   );
 
-  const gpuNodeProviders = useMemo(
-    () => (gpuPriceHistory ? computeGpuNodeProviders(gpuPriceHistory) : {}),
-    [gpuPriceHistory],
-  );
-
   const categoryDisplayName =
     benchmarks.find((b) => b.benchmark_name === benchmarkCategory)
       ?.benchmark_display_name ?? benchmarkCategory;
@@ -193,7 +187,7 @@ export function TrendsSection({
           { value: "sota", label: "% of SOTA", content: <SotaPercentChart data={sotaPercentData} /> },
           { value: "size", label: "Model Size", content: <ModelSizeChart data={modelSizeData} categoryDisplayName={categoryDisplayName} /> },
           { value: "efficiency", label: "API costs", content: <EfficiencyChart data={efficiencyData} categoryDisplayName={categoryDisplayName} /> },
-          { value: "gpu-price", label: "GPU Node Price", content: <GpuNodePriceChart data={gpuNodePriceData} providers={gpuNodeProviders} currencySymbol={currencySymbol} /> },
+          { value: "gpu-price", label: "GPU Node Price", content: <GpuNodePriceChart data={gpuNodePriceData} currencySymbol={currencySymbol} /> },
           {
             value: "scaling",
             label: "Scaling Cost",

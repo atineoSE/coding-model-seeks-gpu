@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-06T11:25:56.943737+00:00",
+  "generated_at": "2026-07-06T13:22:54.052592+00:00",
   "unit": "usd_per_node_hour",
   "series": [
     {
@@ -7,103 +7,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
+          "usd_per_node_hour": 45.92
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
+          "usd_per_node_hour": 39.12
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
+          "usd_per_node_hour": 27.12
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
+          "usd_per_node_hour": 18.32
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
+          "usd_per_node_hour": 10.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-02-19",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-02-20",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
+          "usd_per_node_hour": 10.72
         }
       ]
     },
@@ -112,313 +36,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
+          "usd_per_node_hour": 45.92
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
+          "usd_per_node_hour": 39.12
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
+          "usd_per_node_hour": 27.12
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
+          "usd_per_node_hour": 18.32
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
+          "usd_per_node_hour": 10.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-02-22",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-02-23",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-02-26",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-02-27",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-02-28",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-01",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-02",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-03",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.32,
-          "provider": "cloudrift"
+          "usd_per_node_hour": 10.32
         }
       ]
     },
@@ -427,208 +65,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
+          "usd_per_node_hour": 45.92
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
+          "usd_per_node_hour": 39.12
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
+          "usd_per_node_hour": 27.12
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
+          "usd_per_node_hour": 18.32
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
+          "usd_per_node_hour": 10.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-05",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-06",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-07",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-08",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-09",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 45.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
+          "usd_per_node_hour": 10.72
         }
       ]
     },
@@ -637,2028 +94,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
+          "usd_per_node_hour": 55.92
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
+          "usd_per_node_hour": 39.12
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
+          "usd_per_node_hour": 27.12
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
+          "usd_per_node_hour": 18.32
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
+          "usd_per_node_hour": 10.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-11",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-12",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-19",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-20",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-21",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-22",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-23",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-24",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-25",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-26",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-27",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-28",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-29",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-30",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-03-31",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-01",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-03",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-04",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-05",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-06",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-07",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-08",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-09",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-10",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-11",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-12",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-13",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-14",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-15",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-16",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-17",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-18",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-19",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-20",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-21",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-22",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-23",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-24",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-25",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-26",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-27",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-28",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-29",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-04-30",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-01",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-04",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-05",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-07",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-11",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-15",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-16",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-17",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-19",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-21",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-23",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-24",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-25",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 55.92,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 39.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 27.12,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 18.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 10.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 10.72,
-          "provider": "cloudrift"
+          "usd_per_node_hour": 10.72
         }
       ]
     },
@@ -2667,68 +123,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 44.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 44.0
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 28.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 28.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 23.6,
-          "provider": "nebius"
+          "usd_per_node_hour": 23.6
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
+          "usd_per_node_hour": 14.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-27",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 44.0,
-          "provider": "nebius"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 28.0,
-          "provider": "nebius"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 23.6,
-          "provider": "nebius"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -2737,33 +152,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 44.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 44.0
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 28.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 28.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 23.6,
-          "provider": "nebius"
+          "usd_per_node_hour": 23.6
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.304,
-          "provider": "runpod"
+          "usd_per_node_hour": 14.304
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -2772,68 +181,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 44.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 44.0
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 28.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 28.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 23.6,
-          "provider": "nebius"
+          "usd_per_node_hour": 23.6
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
+          "usd_per_node_hour": 11.92
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
-        }
-      ]
-    },
-    {
-      "date": "2026-05-30",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 44.0,
-          "provider": "nebius"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 28.0,
-          "provider": "nebius"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 23.6,
-          "provider": "nebius"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -2842,33 +210,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 44.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 44.0
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 28.0,
-          "provider": "nebius"
+          "usd_per_node_hour": 28.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 23.6,
-          "provider": "nebius"
+          "usd_per_node_hour": 23.6
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
+          "usd_per_node_hour": 14.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -2877,33 +239,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
+          "usd_per_node_hour": 14.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -2912,33 +268,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
+          "usd_per_node_hour": 11.92
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -2947,33 +297,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
+          "usd_per_node_hour": 14.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -2982,68 +326,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
+          "usd_per_node_hour": 11.92
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-05",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -3052,33 +355,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 47.12,
-          "provider": "runpod"
+          "usd_per_node_hour": 47.12
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.304,
-          "provider": "runpod"
+          "usd_per_node_hour": 14.304
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -3087,103 +384,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
+          "usd_per_node_hour": 11.92
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-08",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-09",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -3192,68 +413,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.304,
-          "provider": "runpod"
+          "usd_per_node_hour": 14.304
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-11",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 14.304,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -3262,33 +442,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
+          "usd_per_node_hour": 14.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 15.12,
-          "provider": "verda"
+          "usd_per_node_hour": 15.12
         }
       ]
     },
@@ -3297,33 +471,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
+          "usd_per_node_hour": 11.92
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
+          "usd_per_node_hour": 14.4
         }
       ]
     },
@@ -3332,68 +500,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
+          "usd_per_node_hour": 14.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-15",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
+          "usd_per_node_hour": 14.4
         }
       ]
     },
@@ -3402,103 +529,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
+          "usd_per_node_hour": 11.92
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-17",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-18",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
+          "usd_per_node_hour": 14.4
         }
       ]
     },
@@ -3507,68 +558,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
+          "usd_per_node_hour": 14.32
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-20",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 14.32,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
+          "usd_per_node_hour": 14.4
         }
       ]
     },
@@ -3577,208 +587,27 @@
       "prices": [
         {
           "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
+          "usd_per_node_hour": 60.0
         },
         {
           "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
+          "usd_per_node_hour": 48.88
         },
         {
           "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
+          "usd_per_node_hour": 32.0
         },
         {
           "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
+          "usd_per_node_hour": 26.0
         },
         {
           "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
+          "usd_per_node_hour": 11.92
         },
         {
           "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-22",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-23",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-24",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-06-25",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
-        }
-      ]
-    },
-    {
-      "date": "2026-07-01",
-      "prices": [
-        {
-          "gpu_name": "B300",
-          "usd_per_node_hour": 60.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "B200",
-          "usd_per_node_hour": 48.88,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H200",
-          "usd_per_node_hour": 32.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "H100",
-          "usd_per_node_hour": 26.0,
-          "provider": "verda"
-        },
-        {
-          "gpu_name": "A100",
-          "usd_per_node_hour": 11.92,
-          "provider": "runpod"
-        },
-        {
-          "gpu_name": "RTXPRO6000",
-          "usd_per_node_hour": 14.4,
-          "provider": "nebius"
+          "usd_per_node_hour": 14.4
         }
       ]
     }

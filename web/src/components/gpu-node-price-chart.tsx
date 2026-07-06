@@ -14,10 +14,11 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import type {
-  GpuNodePriceTrendRow,
-  GpuNodeProviderMap,
-} from "@/lib/gpu-trend-data";
+import type { GpuNodePriceTrendRow } from "@/lib/gpu-trend-data";
+
+// Every node is the 8-GPU serving tier; the chart tracks the whole-node
+// (bundle) price, so labels read e.g. "8× H100".
+const NODE_GPU_COUNT = 8;
 
 // One <Line> per GPU node, in draw order. Colors cycle through the five chart
 // palette slots (there are more nodes than palette colors).
@@ -36,7 +37,6 @@ const chartConfig = Object.fromEntries(
 
 interface GpuNodePriceChartProps {
   data: GpuNodePriceTrendRow[];
-  providers: GpuNodeProviderMap;
   currencySymbol?: string;
 }
 
@@ -49,7 +49,6 @@ interface GpuNodePriceTooltipProps {
     payload: GpuNodePriceTrendRow;
   }>;
   label?: string;
-  providers: GpuNodeProviderMap;
   currencySymbol: string;
 }
 
@@ -57,39 +56,35 @@ function CustomTooltip({
   active,
   payload,
   label,
-  providers,
   currencySymbol,
 }: GpuNodePriceTooltipProps) {
   if (!active || !payload?.length) return null;
+
+  // Sort most-expensive node first so the overlay reads high → low.
+  const rows = [...payload].sort((a, b) => b.value - a.value);
 
   return (
     <div className="rounded-lg border bg-background p-3 shadow-sm">
       <p className="text-sm font-medium mb-1.5">{label}</p>
       <div className="space-y-1 text-sm">
-        {payload.map((entry) => {
-          const provider = providers[`${entry.payload.date}::${entry.dataKey}`];
-          return (
-            <div key={entry.dataKey} className="flex items-center gap-2">
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-muted-foreground">{entry.dataKey}:</span>
-              <span className="font-medium">
-                {currencySymbol}
-                {entry.value.toLocaleString("en-US", {
-                  maximumFractionDigits: 0,
-                })}
-                /mo
-              </span>
-              {provider ? (
-                <span className="text-muted-foreground text-xs">
-                  ({provider})
-                </span>
-              ) : null}
-            </div>
-          );
-        })}
+        {rows.map((entry) => (
+          <div key={entry.dataKey} className="flex items-center gap-2">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-muted-foreground">
+              {NODE_GPU_COUNT}× {entry.dataKey}:
+            </span>
+            <span className="font-medium">
+              {currencySymbol}
+              {entry.value.toLocaleString("en-US", {
+                maximumFractionDigits: 0,
+              })}
+              /mo
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -97,7 +92,6 @@ function CustomTooltip({
 
 export function GpuNodePriceChart({
   data,
-  providers,
   currencySymbol = "$",
 }: GpuNodePriceChartProps) {
   const dates = useMemo(() => data.map((row) => row.date), [data]);
@@ -118,7 +112,8 @@ export function GpuNodePriceChart({
       <CardHeader>
         <CardTitle>Are GPU Nodes Getting Cheaper to Rent?</CardTitle>
         <CardDescription>
-          Cheapest monthly rental cost per GPU node over time.
+          Cheapest monthly rental cost for an 8× GPU node, tracked at each price
+          change.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -159,12 +154,7 @@ export function GpuNodePriceChart({
               }
             />
             <ChartTooltip
-              content={
-                <CustomTooltip
-                  providers={providers}
-                  currencySymbol={currencySymbol}
-                />
-              }
+              content={<CustomTooltip currencySymbol={currencySymbol} />}
             />
             {NODES.map((node) => (
               <Line

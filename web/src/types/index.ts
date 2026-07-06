@@ -51,7 +51,6 @@ export interface Model {
 export interface GpuNodePricePoint {
   gpu_name: string;
   usd_per_node_hour: number;
-  provider: string;
 }
 
 export interface GpuNodePriceHistory {

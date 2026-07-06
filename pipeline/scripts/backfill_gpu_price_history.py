@@ -95,13 +95,22 @@ def prices_for_commit(commit_hash: str) -> list[dict] | None:
 
 
 def build_series() -> list[dict]:
-    """Build the ascending-by-date list of ``{"date", "prices"}`` entries."""
+    """Build the ascending-by-date change-log of ``{"date", "prices"}`` entries.
+
+    A "snapshot" is kept only when a day's prices differ from the previous kept
+    snapshot, so the series records price *changes* rather than one point per
+    day (the first day with prices always seeds the log).
+    """
     series: list[dict] = []
+    prev_prices: list[dict] | None = None
     for day, commit_hash in last_commit_per_day():
         prices = prices_for_commit(commit_hash)
         if prices is None:
             continue
+        if prices == prev_prices:
+            continue
         series.append({"date": day, "prices": prices})
+        prev_prices = prices
     return series
 
 
@@ -116,7 +125,7 @@ def main() -> int:
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(document, indent=2) + "\n")
 
-    print(f"Wrote {len(series)} daily points to {OUTPUT_PATH}")
+    print(f"Wrote {len(series)} price-change snapshots to {OUTPUT_PATH}")
     if series:
         print(f"Span: {series[0]['date']} -> {series[-1]['date']}")
     return 0

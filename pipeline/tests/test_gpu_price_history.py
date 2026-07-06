@@ -43,13 +43,13 @@ def test_creates_fresh_file(tmp_path):
     entry = data["series"][0]
     assert entry["date"] == _today()
     assert entry["prices"] == [
-        {"gpu_name": "B200", "usd_per_node_hour": 35.0, "provider": "b200node"},
-        {"gpu_name": "H100", "usd_per_node_hour": 18.32, "provider": "verda"},
+        {"gpu_name": "B200", "usd_per_node_hour": 35.0},
+        {"gpu_name": "H100", "usd_per_node_hour": 18.32},
     ]
 
 
-def test_appends_new_date(tmp_path):
-    """A pre-existing older-date entry is preserved and today's row is appended, sorted."""
+def test_appends_snapshot_when_prices_change(tmp_path):
+    """A pre-existing snapshot is preserved and today's row is appended when prices move."""
     path = tmp_path / "gpu_price_history.json"
     path.write_text(
         json.dumps(
@@ -59,9 +59,7 @@ def test_appends_new_date(tmp_path):
                 "series": [
                     {
                         "date": "2020-01-01",
-                        "prices": [
-                            {"gpu_name": "H100", "usd_per_node_hour": 99.0, "provider": "old"}
-                        ],
+                        "prices": [{"gpu_name": "H100", "usd_per_node_hour": 99.0}],
                     }
                 ],
             }
@@ -74,11 +72,42 @@ def test_appends_new_date(tmp_path):
     data = json.loads(path.read_text())
     dates = [e["date"] for e in data["series"]]
     assert dates == ["2020-01-01", _today()]
-    # The old row is untouched; today's row reflects the new offerings.
-    assert data["series"][0]["prices"][0]["provider"] == "old"
-    assert data["series"][1]["prices"] == [
-        {"gpu_name": "H100", "usd_per_node_hour": 18.0, "provider": "verda"},
+    # The old snapshot is untouched; today's snapshot reflects the new price.
+    assert data["series"][0]["prices"] == [
+        {"gpu_name": "H100", "usd_per_node_hour": 99.0}
     ]
+    assert data["series"][1]["prices"] == [
+        {"gpu_name": "H100", "usd_per_node_hour": 18.0},
+    ]
+
+
+def test_no_snapshot_when_prices_unchanged(tmp_path):
+    """When today's prices match the latest snapshot, no new entry is added."""
+    path = tmp_path / "gpu_price_history.json"
+    path.write_text(
+        json.dumps(
+            {
+                "generated_at": "2026-01-01T00:00:00+00:00",
+                "unit": "usd_per_node_hour",
+                "series": [
+                    {
+                        "date": "2020-01-01",
+                        "prices": [{"gpu_name": "H100", "usd_per_node_hour": 18.0}],
+                    }
+                ],
+            }
+        )
+    )
+    first_bytes = path.read_bytes()
+
+    # Same cheapest price as the latest snapshot -> nothing to record.
+    offerings = [_offering("H100", 8, 18.0, "verda")]
+    export_gpu_price_history(offerings, output_dir=tmp_path)
+
+    data = json.loads(path.read_text())
+    assert [e["date"] for e in data["series"]] == ["2020-01-01"]
+    # Content is byte-identical: the unchanged-series guard skipped the write.
+    assert path.read_bytes() == first_bytes
 
 
 def test_idempotent_same_day_rerun_no_churn(tmp_path):
@@ -104,7 +133,7 @@ def test_delegates_node_selection_to_reduce_offerings_to_nodes(tmp_path, monkeyp
     """The exporter obtains today's prices from reduce_offerings_to_nodes."""
     offerings = [_offering("H100", 8, 18.0, "verda")]
     sentinel_prices = [
-        {"gpu_name": "SENTINEL", "usd_per_node_hour": 1.23, "provider": "mock"},
+        {"gpu_name": "SENTINEL", "usd_per_node_hour": 1.23},
     ]
     calls = []
 

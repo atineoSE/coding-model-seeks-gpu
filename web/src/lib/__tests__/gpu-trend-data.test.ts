@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { GpuNodePriceHistory } from "@/types";
-import {
-  computeGpuNodePriceTrend,
-  computeGpuNodeProviders,
-} from "../gpu-trend-data";
+import { computeGpuNodePriceTrend } from "../gpu-trend-data";
 
 const HOURS_PER_MONTH = 720;
 
@@ -14,15 +11,15 @@ const FIXTURE: GpuNodePriceHistory = {
     {
       date: "2026-06-01",
       prices: [
-        { gpu_name: "H100", usd_per_node_hour: 2, provider: "runpod" },
-        { gpu_name: "A100", usd_per_node_hour: 1.5, provider: "lambda" },
+        { gpu_name: "H100", usd_per_node_hour: 2 },
+        { gpu_name: "A100", usd_per_node_hour: 1.5 },
       ],
     },
     {
       date: "2026-06-02",
       prices: [
         // H100 only this day — A100 is absent, so its key must be missing.
-        { gpu_name: "H100", usd_per_node_hour: 1.8, provider: "vast" },
+        { gpu_name: "H100", usd_per_node_hour: 1.8 },
       ],
     },
   ],
@@ -56,16 +53,5 @@ describe("computeGpuNodePriceTrend", () => {
       series: [],
     });
     expect(rows).toEqual([]);
-  });
-});
-
-describe("computeGpuNodeProviders", () => {
-  it("keys provider by `${date}::${gpuName}` so a supplier switch is legible", () => {
-    const providers = computeGpuNodeProviders(FIXTURE);
-    expect(providers["2026-06-01::H100"]).toBe("runpod");
-    expect(providers["2026-06-01::A100"]).toBe("lambda");
-    // H100's cheapest supplier switched runpod → vast between the two days.
-    expect(providers["2026-06-02::H100"]).toBe("vast");
-    expect(providers["2026-06-02::A100"]).toBeUndefined();
   });
 });
