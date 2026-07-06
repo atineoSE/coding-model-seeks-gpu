@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Allow re-triggering a deploy manually (e.g. after a transient
+  # deploy-pages failure) without pushing an empty commit.
+  workflow_dispatch:
 
 permissions:
   contents: read
