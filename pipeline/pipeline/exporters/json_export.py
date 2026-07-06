@@ -7,8 +7,11 @@ from pathlib import Path
 
 from pipeline.config import EXPORT_DIR
 from pipeline.enrichment import ModelSpec
+from pipeline.gpu_nodes import reduce_offerings_to_nodes
 
 logger = logging.getLogger(__name__)
+
+PRICE_HISTORY_UNIT = "usd_per_node_hour"
 
 
 def export_gpus(
@@ -89,18 +92,20 @@ def export_gpu_specs(
     # Memory bandwidth: Up to 4 TB/s (HBM3)
     # NVLink-C2C: 900 GB/s
     specs = list(gpu_specs)
-    specs.append({
-        "gpu_name": "GH200",
-        "memory_size_gb": 96,
-        "fp16_tflops": 990,
-        "memory_bandwidth_tb_s": 4.0,
-        "pcie_bandwidth_gb_s": 64.0,  # PCIe 5.0 x16
-        "nvlink_bandwidth_gb_s": 900,  # NVLink-C2C
-        "fp8_multiplier": 2,
-        "architecture": "Hopper",
-        "interconnect_tier": "nvswitch",
-        "memory_type": "HBM3e",
-    })
+    specs.append(
+        {
+            "gpu_name": "GH200",
+            "memory_size_gb": 96,
+            "fp16_tflops": 990,
+            "memory_bandwidth_tb_s": 4.0,
+            "pcie_bandwidth_gb_s": 64.0,  # PCIe 5.0 x16
+            "nvlink_bandwidth_gb_s": 900,  # NVLink-C2C
+            "fp8_multiplier": 2,
+            "architecture": "Hopper",
+            "interconnect_tier": "nvswitch",
+            "memory_type": "HBM3e",
+        }
+    )
 
     specs.sort(key=lambda r: r["gpu_name"])
 
@@ -144,6 +149,64 @@ def export_api_pricing(
     return path
 
 
+def export_gpu_price_history(
+    offerings: list[dict],
+    output_dir: Path | None = None,
+) -> Path:
+    """Append today's cheapest node prices to gpu_price_history.json.
+
+    Reduces ``offerings`` to one cheapest 8x price per curated node (via the
+    shared ``reduce_offerings_to_nodes``) and UPSERTS a
+    ``{"date": <today UTC>, "prices": [...]}`` entry into the stored history:
+
+      * loads the existing file, or creates the
+        ``{generated_at, unit, series: []}`` skeleton if missing;
+      * replaces any existing entry for today's date (no duplicates);
+      * keeps ``series`` sorted by ascending date and refreshes ``generated_at``.
+
+    Mirroring the snapshot exporter, the write is skipped when the resulting
+    content is byte-identical apart from ``generated_at`` — so a same-day rerun
+    with unchanged prices is a genuine no-op (no churn, no timestamp bump).
+    """
+    if output_dir is None:
+        output_dir = EXPORT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    prices = reduce_offerings_to_nodes(offerings)
+    today = datetime.now(UTC).date().isoformat()
+
+    path = output_dir / "gpu_price_history.json"
+    existing_text = path.read_text() if path.exists() else None
+    if existing_text is not None:
+        history = json.loads(existing_text)
+    else:
+        history = {
+            "generated_at": datetime.now(UTC).isoformat(),
+            "unit": PRICE_HISTORY_UNIT,
+            "series": [],
+        }
+
+    series = [e for e in history.get("series", []) if e.get("date") != today]
+    series.append({"date": today, "prices": prices})
+    series.sort(key=lambda e: e["date"])
+
+    history["unit"] = PRICE_HISTORY_UNIT
+    history["series"] = series
+    history["generated_at"] = datetime.now(UTC).isoformat()
+
+    # Skip the write when the content is unchanged (ignoring generated_at), so a
+    # same-day rerun leaves the file byte-identical rather than bumping the stamp.
+    if existing_text is not None:
+        old = json.loads(existing_text)
+        if old.get("unit") == history["unit"] and old.get("series") == series:
+            logger.info("GPU price history unchanged for %s; skipping write", today)
+            return path
+
+    path.write_text(json.dumps(history, indent=2) + "\n")
+    logger.info("Exported GPU node prices for %s to %s", today, path)
+    return path
+
+
 def export_all(
     offerings: list[dict],
     specs: list[ModelSpec],
@@ -159,6 +222,7 @@ def export_all(
         "gpus": export_gpus(offerings, output_dir),
         "models": export_models(specs, output_dir),
         "metadata": export_metadata(output_dir),
+        "gpu_price_history": export_gpu_price_history(offerings, output_dir),
     }
     if source_metadata is not None:
         result["gpu_source"] = export_gpu_source(source_metadata, output_dir)
