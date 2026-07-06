@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from pipeline.main import check_missing_mappings
 
 
@@ -14,7 +12,9 @@ def _write_snapshot(tmp_path: Path, benchmarks: list[dict]) -> Path:
     snapshot_dir = tmp_path / "2026-01-01"
     snapshot_dir.mkdir()
     (snapshot_dir / "benchmarks.json").write_text(json.dumps(benchmarks))
-    (tmp_path / "index.json").write_text(json.dumps({"latest": "2026-01-01", "snapshots": ["2026-01-01"]}))
+    (tmp_path / "index.json").write_text(
+        json.dumps({"latest": "2026-01-01", "snapshots": ["2026-01-01"]})
+    )
     return tmp_path
 
 
@@ -37,7 +37,10 @@ class TestCheckMissingMappings:
         snapshots_dir = _write_snapshot(tmp_path, benchmarks)
 
         with patch("pipeline.main.MODEL_NAME_TO_HF_ID", {}), \
-             patch("pipeline.main.MODEL_ARCH_SOURCE_HF_ID", {"MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.5"}), \
+             patch(
+                 "pipeline.main.MODEL_ARCH_SOURCE_HF_ID",
+                 {"MiniMax-M2.7": "MiniMaxAI/MiniMax-M2.5"},
+             ), \
              patch("pipeline.main.notify_missing_mapping") as mock_notify, \
              patch("pipeline.main.is_enabled", return_value=True):
             check_missing_mappings(snapshots_dir)

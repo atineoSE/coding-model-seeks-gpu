@@ -20,15 +20,45 @@ def _write_snapshot(tmp_path: Path, benchmarks: list[dict]) -> Path:
 
 
 SAMPLE_BENCHMARKS = [
-    {"model_name": "claude-opus-4-6", "benchmark_name": "overall", "score": 66.7, "openness": "closed_api_available"},
-    {"model_name": "GPT-5.4", "benchmark_name": "overall", "score": 63.8, "openness": "closed_api_available"},
-    {"model_name": "Gemini-3.1-Pro", "benchmark_name": "overall", "score": 55.7, "openness": "closed_api_available"},
+    {
+        "model_name": "claude-opus-4-6",
+        "benchmark_name": "overall",
+        "score": 66.7,
+        "openness": "closed_api_available",
+    },
+    {
+        "model_name": "GPT-5.4",
+        "benchmark_name": "overall",
+        "score": 63.8,
+        "openness": "closed_api_available",
+    },
+    {
+        "model_name": "Gemini-3.1-Pro",
+        "benchmark_name": "overall",
+        "score": 55.7,
+        "openness": "closed_api_available",
+    },
 ]
 
 FULL_PRICING = {
-    "claude-opus-4-6": {"lab": "anthropic", "model_name": "claude-opus-4-6", "litellm_id": "claude-opus-4-6", "context_window": 1000000},
-    "GPT-5.4": {"lab": "openai", "model_name": "GPT-5.4", "litellm_id": "gpt-5.4", "context_window": 1050000},
-    "Gemini-3.1-Pro": {"lab": "google", "model_name": "Gemini-3.1-Pro", "litellm_id": "gemini/gemini-3.1-pro-preview", "context_window": 1048576},
+    "claude-opus-4-6": {
+        "lab": "anthropic",
+        "model_name": "claude-opus-4-6",
+        "litellm_id": "claude-opus-4-6",
+        "context_window": 1000000,
+    },
+    "GPT-5.4": {
+        "lab": "openai",
+        "model_name": "GPT-5.4",
+        "litellm_id": "gpt-5.4",
+        "context_window": 1050000,
+    },
+    "Gemini-3.1-Pro": {
+        "lab": "google",
+        "model_name": "Gemini-3.1-Pro",
+        "litellm_id": "gemini/gemini-3.1-pro-preview",
+        "context_window": 1048576,
+    },
 }
 
 
@@ -52,9 +82,9 @@ class TestRunApiPricingPipeline:
         with (
             patch("pipeline.main.fetch_api_pricing", return_value=partial),
             patch("pipeline.main.export_api_pricing") as mock_export,
+            pytest.raises(RuntimeError, match="Missing required API pricing"),
         ):
-            with pytest.raises(RuntimeError, match="Missing required API pricing"):
-                run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
+            run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
 
         mock_export.assert_not_called()
 
@@ -64,10 +94,9 @@ class TestRunApiPricingPipeline:
 
         with (
             patch("pipeline.main.fetch_api_pricing", return_value=partial),
-            patch("pipeline.main.export_api_pricing"),
+            patch("pipeline.main.export_api_pricing"),pytest.raises(RuntimeError) as exc_info
         ):
-            with pytest.raises(RuntimeError) as exc_info:
-                run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
+            run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
 
         msg = str(exc_info.value)
         assert "anthropic" in msg
@@ -82,9 +111,9 @@ class TestRunApiPricingPipeline:
             patch("pipeline.main.export_api_pricing"),
             patch("pipeline.main.is_enabled", return_value=True),
             patch("pipeline.main.notify_missing_required_api_pricing") as mock_notify,
+            pytest.raises(RuntimeError),
         ):
-            with pytest.raises(RuntimeError):
-                run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
+            run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
 
         mock_notify.assert_called_once()
         missing = mock_notify.call_args[0][0]
@@ -122,8 +151,18 @@ class TestRunApiPricingPipeline:
     def test_override_injects_model_absent_from_benchmarks(self, tmp_path):
         # Benchmarks have no Anthropic closed entry at all.
         benches = [
-            {"model_name": "GPT-5.4", "benchmark_name": "overall", "score": 63.8, "openness": "closed_api_available"},
-            {"model_name": "Gemini-3.1-Pro", "benchmark_name": "overall", "score": 55.7, "openness": "closed_api_available"},
+            {
+                "model_name": "GPT-5.4",
+                "benchmark_name": "overall",
+                "score": 63.8,
+                "openness": "closed_api_available",
+            },
+            {
+                "model_name": "Gemini-3.1-Pro",
+                "benchmark_name": "overall",
+                "score": 55.7,
+                "openness": "closed_api_available",
+            },
         ]
         snapshots_dir = _write_snapshot(tmp_path, benches)
         captured = {}
@@ -150,9 +189,8 @@ class TestRunApiPricingPipeline:
 
         with (
             patch("pipeline.main.fetch_api_pricing", return_value={}),
-            patch("pipeline.main.export_api_pricing") as mock_export,
+            patch("pipeline.main.export_api_pricing") as mock_export,pytest.raises(RuntimeError)
         ):
-            with pytest.raises(RuntimeError):
-                run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
+            run_api_pricing_pipeline(snapshots_dir=snapshots_dir)
 
         mock_export.assert_not_called()

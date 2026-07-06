@@ -750,10 +750,7 @@ def _count_deepseek_v4_params(config: dict) -> ParamCountResult:
         router = d["n_routed"] * hidden
         # Hash layers (first num_hash_layers) route via the int32 tid2eid LUT
         # (excluded); all other layers — including MTP — have a float router bias.
-        if not is_mtp and layer_id < d["n_hash"]:
-            gate = router
-        else:
-            gate = router + d["n_routed"]
+        gate = router if not is_mtp and layer_id < d["n_hash"] else router + d["n_routed"]
         if is_mtp:
             # e_proj + h_proj + enorm/hnorm/norm + extra HC head
             block += 2 * hidden * hidden + 3 * hidden + (d["hc_mult"] * hc_dim + d["hc_mult"] + 1)
@@ -1006,8 +1003,12 @@ def count_params_from_config(raw_config: dict) -> ParamCountResult:
     # DSA indexer overhead (0 for non-DSA architectures)
     dsa_per_layer = _dsa_indexer_params(config)
 
-    dense_block = attn_per_layer + _dense_mlp_params(hidden, intermediate) + norms_per_layer + dsa_per_layer
-    moe_block = attn_per_layer + _moe_layer_params(config, mapping) + norms_per_layer + dsa_per_layer
+    dense_block = (
+        attn_per_layer + _dense_mlp_params(hidden, intermediate) + norms_per_layer + dsa_per_layer
+    )
+    moe_block = (
+        attn_per_layer + _moe_layer_params(config, mapping) + norms_per_layer + dsa_per_layer
+    )
 
     total = embed + lm_head + dense_layers * dense_block + moe_layers * moe_block + final_norm
 

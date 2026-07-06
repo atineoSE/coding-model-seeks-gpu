@@ -165,7 +165,10 @@ def fetch_gpu_prices() -> tuple[list[dict], dict]:
     source_metadata = {
         "service_name": "gpuhunt",
         "service_url": "https://github.com/dstackai/gpuhunt",
-        "description": "All regions considered. Interconnect (NVLink vs PCIe) is inferred from the instance name, falling back to the GPU's standard datacenter form factor.",
+        "description": (
+            "All regions considered. Interconnect (NVLink vs PCIe) is inferred from the "
+            "instance name, falling back to the GPU's standard datacenter form factor."
+        ),
         "currency": "USD",
         "currency_symbol": "$",
     }

@@ -15,8 +15,8 @@ from pipeline.sources.huggingface import fetch_model
 from tests.test_param_counter import (
     DEEPSEEK_V4_CONFIG,
     DEEPSEEK_V32_CONFIG,
-    GLM_47_CONFIG,
     GLM5_CONFIG,
+    GLM_47_CONFIG,
     KIMI_K2_THINKING_CONFIG,
     KIMI_K25_CONFIG,
     MINIMAX_M25_CONFIG,
@@ -25,7 +25,6 @@ from tests.test_param_counter import (
     QWEN3_NEXT_CONFIG,
     QWEN35_FLASH_CONFIG,
 )
-
 
 _TEST_LICENSE = ("Test License", "https://example.com/LICENSE")
 

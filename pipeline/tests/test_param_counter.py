@@ -468,7 +468,13 @@ class TestAllModels:
 
     def test_routed_expert_params_dominates(self):
         """Routed experts should be the bulk of params in large MoE models."""
-        for config in [KIMI_K2_THINKING_CONFIG, QWEN3_CODER_CONFIG, GLM5_CONFIG, QWEN3_NEXT_CONFIG, QWEN35_FLASH_CONFIG]:
+        for config in [
+            KIMI_K2_THINKING_CONFIG,
+            QWEN3_CODER_CONFIG,
+            GLM5_CONFIG,
+            QWEN3_NEXT_CONFIG,
+            QWEN35_FLASH_CONFIG,
+        ]:
             result = count_params_from_config(config)
             fraction = result.routed_expert_params / result.total_params
             assert fraction > 0.9, (
@@ -919,7 +925,8 @@ class TestTrinity:
         result = count_params_from_config(TRINITY_CONFIG)
         pct_error = abs(result.total_params - TRINITY_SAFETENSORS_TRUTH) / TRINITY_SAFETENSORS_TRUTH
         assert pct_error < 0.01, (
-            f"total={result.total_params:,} vs truth={TRINITY_SAFETENSORS_TRUTH:,}, error={pct_error:.4%}"
+            f"total={result.total_params:,} vs truth={TRINITY_SAFETENSORS_TRUTH:,}, "
+            f"error={pct_error:.4%}"
         )
 
     def test_active_params(self):

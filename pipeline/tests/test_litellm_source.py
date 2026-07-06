@@ -3,8 +3,6 @@
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from pipeline.sources.litellm_source import (
     LAB_PATTERNS,
     LITELLM_ID_MAP,
@@ -13,7 +11,6 @@ from pipeline.sources.litellm_source import (
     fetch_api_pricing,
     find_best_models_per_lab,
 )
-
 
 SAMPLE_BENCHMARKS = [
     {
@@ -147,13 +144,22 @@ class TestFindBestModelsPerLab:
 
     def test_no_closed_models(self):
         benchmarks = [
-            {"model_name": "GLM-5", "benchmark_name": "overall", "score": 50.0, "openness": "open_weights"}
+            {
+                "model_name": "GLM-5",
+                "benchmark_name": "overall",
+                "score": 50.0,
+                "openness": "open_weights",
+            }
         ]
         assert find_best_models_per_lab(benchmarks) == {}
 
     def test_missing_score_skipped(self):
         benchmarks = [
-            {"model_name": "claude-opus-4-6", "benchmark_name": "overall", "openness": "closed_api_available"},
+            {
+                "model_name": "claude-opus-4-6",
+                "benchmark_name": "overall",
+                "openness": "closed_api_available",
+            },
         ]
         result = find_best_models_per_lab(benchmarks)
         assert "anthropic" not in result
@@ -193,7 +199,11 @@ class TestFetchApiPricing:
         return response
 
     def test_returns_pricing_with_added_fields(self):
-        best_models = {"anthropic": "claude-opus-4-6", "openai": "GPT-5.4", "google": "Gemini-3.1-Pro"}
+        best_models = {
+            "anthropic": "claude-opus-4-6",
+            "openai": "GPT-5.4",
+            "google": "Gemini-3.1-Pro",
+        }
         response = self._make_response(SAMPLE_LITELLM_JSON)
 
         with patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
@@ -249,13 +259,16 @@ class TestFetchApiPricing:
         litellm_json = {k: v for k, v in litellm_json.items() if k != "gemini-3.1-pro-preview"}
 
         from unittest.mock import patch as _patch
+
         import pipeline.sources.litellm_source as src
         original_map = src.LITELLM_ID_MAP.copy()
         src.LITELLM_ID_MAP["Gemini-3.1-Pro"] = "my-model-special"
         try:
             best_models = {"google": "Gemini-3.1-Pro"}
             response = self._make_response(litellm_json)
-            with _patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):
+            with _patch(
+                "pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response
+            ):
                 result = fetch_api_pricing(best_models)
         finally:
             src.LITELLM_ID_MAP.clear()
@@ -275,7 +288,11 @@ class TestFetchApiPricing:
         assert any("not found" in r.message.lower() for r in caplog.records)
 
     def test_all_three_labs_fetched(self):
-        best_models = {"anthropic": "claude-opus-4-6", "openai": "GPT-5.4", "google": "Gemini-3.1-Pro"}
+        best_models = {
+            "anthropic": "claude-opus-4-6",
+            "openai": "GPT-5.4",
+            "google": "Gemini-3.1-Pro",
+        }
         response = self._make_response(SAMPLE_LITELLM_JSON)
 
         with patch("pipeline.sources.litellm_source.urllib.request.urlopen", return_value=response):

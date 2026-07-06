@@ -97,7 +97,8 @@ def fetch_api_pricing(
 
     Key resolution order:
       1. model_name.lower() — matches most models directly (e.g. "GPT-5.4" → "gpt-5.4")
-      2. model_name.lower() + "-preview" — handles preview variants (e.g. "Gemini-3.1-Pro" → "gemini-3.1-pro-preview")
+      2. model_name.lower() + "-preview" — handles preview variants
+         (e.g. "Gemini-3.1-Pro" → "gemini-3.1-pro-preview")
       3. LITELLM_ID_MAP[model_name] — last resort for fully custom key mappings
 
     Models whose LiteLLM key cannot be found are omitted; a warning is logged for each.

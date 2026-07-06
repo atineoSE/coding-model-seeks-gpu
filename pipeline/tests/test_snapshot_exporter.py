@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 from pipeline.snapshots.exporter import (
     ALL_CATEGORIES,
-    NewSnapshotInfo,
     extract_coverage,
     load_index,
     run_snapshot_export,
@@ -234,7 +233,10 @@ def test_new_model_detected(tmp_path):
 
     with (
         patch("pipeline.snapshots.exporter.ensure_submodule"),
-        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=[date(2026, 4, 28)]),
+        patch(
+            "pipeline.snapshots.exporter.get_dates_with_commits",
+            return_value=[date(2026, 4, 28)],
+        ),
         patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
     ):
         infos = run_snapshot_export(tmp_path, tmp_path)
@@ -251,7 +253,10 @@ def test_gained_categories_detected(tmp_path):
 
     with (
         patch("pipeline.snapshots.exporter.ensure_submodule"),
-        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=[date(2026, 4, 28)]),
+        patch(
+            "pipeline.snapshots.exporter.get_dates_with_commits",
+            return_value=[date(2026, 4, 28)],
+        ),
         patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
     ):
         infos = run_snapshot_export(tmp_path, tmp_path)
@@ -266,7 +271,10 @@ def test_unchanged_model_has_no_gained_categories(tmp_path):
 
     with (
         patch("pipeline.snapshots.exporter.ensure_submodule"),
-        patch("pipeline.snapshots.exporter.get_dates_with_commits", return_value=[date(2026, 4, 28)]),
+        patch(
+            "pipeline.snapshots.exporter.get_dates_with_commits",
+            return_value=[date(2026, 4, 28)],
+        ),
         patch("pipeline.snapshots.generator.generate_snapshot", return_value=new_snap),
     ):
         infos = run_snapshot_export(tmp_path, tmp_path)

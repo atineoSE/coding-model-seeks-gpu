@@ -15,8 +15,8 @@ from pipeline.notify import (
     notify_data_updated,
     notify_failure,
     notify_missing_api_pricing,
-    notify_missing_required_api_pricing,
     notify_missing_mapping,
+    notify_missing_required_api_pricing,
     notify_unsupported_architecture,
 )
 from pipeline.snapshots.exporter import load_index, run_snapshot_export
