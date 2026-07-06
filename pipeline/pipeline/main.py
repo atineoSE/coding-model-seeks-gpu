@@ -8,7 +8,14 @@ import traceback
 
 from pipeline.config import SNAPSHOTS_DIR, SUBMODULE_PATH
 from pipeline.errors import FormatBreakingChange
-from pipeline.exporters.json_export import export_all, export_api_pricing
+from pipeline.exporters.json_export import (
+    export_all,
+    export_api_pricing,
+    export_gpu_price_history,
+    export_gpu_source,
+    export_gpu_specs,
+    export_gpus,
+)
 from pipeline.notify import (
     is_enabled,
     notify_breaking_format_change,
@@ -82,6 +89,27 @@ def run_export(offerings, specs, source_metadata=None, gpu_specs=None):
     """Export GPU and model data to JSON."""
     logger.info("=== JSON Export ===")
     paths = export_all(offerings, specs, source_metadata=source_metadata, gpu_specs=gpu_specs)
+    for name, path in paths.items():
+        logger.info("Exported %s -> %s", name, path)
+    return paths
+
+
+def run_gpu_export(offerings, source_metadata=None, gpu_specs=None):
+    """Export only the GPU-derived JSON artifacts (no model data).
+
+    Used by the ``gpu`` step so a GPU-only run still persists its results —
+    including today's ``gpu_price_history.json`` entry — without touching
+    ``models.json``, which ``export_all`` would overwrite with empty specs.
+    """
+    logger.info("=== GPU JSON Export ===")
+    paths = {
+        "gpus": export_gpus(offerings),
+        "gpu_price_history": export_gpu_price_history(offerings),
+    }
+    if source_metadata is not None:
+        paths["gpu_source"] = export_gpu_source(source_metadata)
+    if gpu_specs is not None:
+        paths["gpu_specs"] = export_gpu_specs(gpu_specs)
     for name, path in paths.items():
         logger.info("Exported %s -> %s", name, path)
     return paths
@@ -268,6 +296,8 @@ def main():
 
         if args.step in ("export", "all"):
             run_export(offerings, specs, source_metadata=source_metadata, gpu_specs=gpu_specs)
+        elif args.step == "gpu":
+            run_gpu_export(offerings, source_metadata=source_metadata, gpu_specs=gpu_specs)
 
         if args.step in ("all",):
             updates.extend(run_api_pricing_pipeline())
