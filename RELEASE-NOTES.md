@@ -1,5 +1,20 @@
 # Release Notes
 
+## 0.12.0 — 2026-07-06
+
+- **New "GPU Node Price" chart in the Trends persona.** Tracks the cheapest
+  monthly rental cost of an **8× GPU node** (B300, B200, H200, H100, A100 80GB,
+  RTXPRO6000) over time, as a whole-node bundle price in `$/month`.
+- **Snapshot-based series.** The history is a change-log rather than one point
+  per day: a snapshot is recorded only when a node's cheapest price moves, and
+  the x-axis is labelled at those snapshot dates. This cut the stored series
+  from 109 daily points to 21 change points and stops the daily data bot from
+  committing an unchanged row every day.
+- **Readable overlay.** The hover overlay labels each node as `8× <GPU>` and
+  sorts nodes most-expensive first.
+- **No provider names recorded.** The history is a price record only — supplier
+  names are no longer stored in the data or shown anywhere in the UI.
+
 ## 0.11.0 — 2026-07-02
 
 - **API-vs-Self-Hosting chart reworked around cost per request.** It now plots
