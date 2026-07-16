@@ -20,7 +20,7 @@ pipeline = [
 # Development tools
 dev = [
     "pytest>=9.1.1",
-    "ruff>=0.15.20",
+    "ruff>=0.15.22",
     "pre-commit>=3.7",
 ]
 
