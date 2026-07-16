@@ -63,6 +63,17 @@ FULL_PRICING = {
 
 
 class TestRunApiPricingPipeline:
+    @pytest.fixture(autouse=True)
+    def _no_overrides(self):
+        """Isolate these tests from whatever CLOSED_MODEL_OVERRIDES ships in production.
+
+        Without this, adding a real override (e.g. openai → GPT-5.6) silently breaks any
+        test whose fixture pricing doesn't happen to contain that model. Tests that cover
+        override behaviour patch this themselves.
+        """
+        with patch("pipeline.main.CLOSED_MODEL_OVERRIDES", {}):
+            yield
+
     def test_succeeds_when_all_required_labs_present(self, tmp_path):
         snapshots_dir = _write_snapshot(tmp_path, SAMPLE_BENCHMARKS)
 

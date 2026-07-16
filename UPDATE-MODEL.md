@@ -214,10 +214,31 @@ source of truth for test configs — other test files import from here.
 
 ---
 
-## Updating API Pricing Mapping
+## Updating the closed model for a lab
 
-When a new model becomes the best-scoring model for its lab (Anthropic, OpenAI, or Google),
-the API pricing pipeline needs to know its LiteLLM key so it can fetch pricing data.
+One closed model per lab (Anthropic, OpenAI, Google) is shown across the app — in the
+API-vs-self-hosting chart and in the Snapshot Coverage Matrix.
+
+**How the pipeline chooses it:**
+
+1. `find_best_models_per_lab` picks each lab's highest-scoring closed model from the
+   latest snapshot. Labs are detected by name prefix via `LAB_PATTERNS`
+   (`claude-` / `gpt-` / `gemini-`), so a new model from a known lab is classified
+   automatically — there is no per-model lab list to maintain.
+2. `CLOSED_MODEL_OVERRIDES` is then applied, and wins.
+
+**`CLOSED_MODEL_OVERRIDES` is the single source of truth.** The selection it produces is
+published in `api_pricing.json` and read by *both* views, so they cannot disagree. The web
+app holds **no** copy of this list — do not add one. (`getMatrixModels` in
+`web/src/lib/snapshot-matrix.ts` receives the published rows as an argument.)
+
+Reach for an override in two cases:
+
+- **Show a lab's latest model.** The newest release is not always the highest scorer, and
+  the score-derived pass always prefers the highest scorer. Pin it to show the latest.
+- **Show a model the Index hasn't scored yet.** A brand-new model has LiteLLM pricing but
+  no OpenHands Index results, so the score-derived pass cannot see it at all. A pinned
+  model with no Index entry renders as an **unranked** row until its scores land.
 
 ### 1. Find the model's LiteLLM key
 
@@ -226,44 +247,54 @@ Open the LiteLLM pricing JSON:
 https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json
 ```
 
-Search for the model name. Look for the **direct-access** entry — not cloud-routed variants.
-Skip any key that starts with `bedrock/`, `vertex_ai/`, `azure/`, or `sagemaker/`.
+Search for the model name. Look for the **direct-access** entry — not cloud-routed
+variants. Skip any key starting with `bedrock/`, `vertex_ai/`, `azure/`, or `sagemaker/`;
+the pipeline strips those. Note that a model can appear under `azure/` before it exists as
+a direct key.
 
 Examples of valid (direct-access) keys:
-- `"claude-opus-4-6-20250901"` ← Anthropic direct
-- `"gpt-5.4"` ← OpenAI direct
-- `"gemini/gemini-3.1-pro"` ← Google direct
+- `"claude-opus-4-8"` ← Anthropic direct
+- `"gpt-5.6"` ← OpenAI direct
+- `"gemini-3.1-pro-preview"` ← Google direct
 
-### 2. Update `LITELLM_ID_MAP`
+Beware of tier variants that are *not* the flagship — e.g. `gpt-5.6-luna`, `gpt-5.6-mini`,
+`gpt-5.6-pro` sit alongside `gpt-5.6` at different prices.
+
+### 2. Add the override
+
+**File:** `pipeline/pipeline/sources/litellm_source.py` — `CLOSED_MODEL_OVERRIDES`
+
+Keyed by lab; the value is the OpenHands-style `model_name`:
+
+```python
+CLOSED_MODEL_OVERRIDES: dict[str, str] = {
+    "openai": "GPT-5.6",
+}
+```
+
+The value must resolve to a LiteLLM key through the `fetch_api_pricing` chain:
+`model_name.lower()` → `+ "-preview"` → `LITELLM_ID_MAP`. For the names above that means
+`GPT-5.6` → `gpt-5.6` and `Gemini-3.1-Pro` → `gemini-3.1-pro-preview` — both resolve with
+no extra mapping. If a name cannot resolve, add a `LITELLM_ID_MAP` entry (step 3).
+
+**Remove the entry once the model is scored** — the score-derived pass then picks it up on
+its own, and a stale pin would hold the chart on an outdated model.
+
+### 3. Update `LITELLM_ID_MAP` (only if the key won't resolve)
 
 **File:** `pipeline/pipeline/sources/litellm_source.py` — `LITELLM_ID_MAP`
 
-Add or update the mapping from the OpenHands canonical model name to the LiteLLM key:
+Only needed when `model_name.lower()` (optionally `+ "-preview"`) does not match the
+LiteLLM key:
 
 ```python
 LITELLM_ID_MAP: dict[str, str] = {
-    "claude-opus-4-6": "claude-opus-4-6-20250901",
-    "GPT-5.4": "gpt-5.4",
-    "Gemini-3.1-Pro": "gemini/gemini-3.1-pro",
-    # Add new entry here:
-    "NewModel-X": "new-model-x-litellm-key",
+    "Gemini-3.1-Pro": "gemini-3.1-pro-preview",
 }
 ```
 
-### 3. Update `MODEL_LAB_MAP` (if new model is not already present)
-
-**File:** `pipeline/pipeline/sources/litellm_source.py` — `MODEL_LAB_MAP`
-
-If the new best-in-lab model is not already in `MODEL_LAB_MAP`, add it:
-
-```python
-MODEL_LAB_MAP: dict[str, str] = {
-    ...
-    "NewModel-X": "anthropic",   # or "openai" / "google"
-}
-```
-
-Only models from the three American labs (Anthropic, OpenAI, Google) belong here.
+A model whose key cannot be found is omitted with a logged warning — and for the three
+required labs the pipeline **fails loudly** rather than shipping a chart with a lab missing.
 
 ### 4. Verify
 
@@ -273,7 +304,12 @@ Run the pipeline locally to confirm pricing is fetched successfully:
 cd pipeline && python -m pipeline.main --step all --log-level DEBUG
 ```
 
-Check that `web/public/data/api_pricing.json` is updated with the new model's pricing data.
+Check that `web/public/data/api_pricing.json` contains one row per lab, and that
+`model_name` / `litellm_id` are what you expect:
+
+```bash
+python -c "import json; [print(r['lab'], r['model_name'], r['litellm_id']) for r in json.load(open('web/public/data/api_pricing.json'))]"
+```
 
 ---
 

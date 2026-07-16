@@ -9,6 +9,7 @@ import {
   CATEGORY_DISPLAY_NAMES,
   type BenchmarkCategory,
 } from "@/lib/snapshot-matrix";
+import { useApiPricing } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { formatModelName, formatLabName } from "@/lib/utils";
 import {
@@ -87,7 +88,12 @@ function ModelRow({ model }: { model: MatrixModel }) {
 
 export function SnapshotMatrixDialog({ benchmarks, models }: SnapshotMatrixDialogProps) {
   const [open, setOpen] = useState(false);
-  const allModels = open ? getMatrixModels(benchmarks, models) : [];
+  // Which closed model represents each lab is the pipeline's decision, published in
+  // api_pricing.json — the same rows that drive the API-vs-self-hosting chart. Reading
+  // it here keeps the two views in agreement instead of re-deriving the choice.
+  const { pricing } = useApiPricing();
+  const closedModelsPerLab = Object.fromEntries(pricing.map((p) => [p.lab, p.model_name]));
+  const allModels = open ? getMatrixModels(benchmarks, models, closedModelsPerLab) : [];
   const closedModels = allModels.filter((m) => m.lab !== null);
   const rankedOpenModels = allModels.filter((m) => m.lab === null && !m.unranked);
   const unrankedOpenModels = allModels.filter((m) => m.lab === null && m.unranked);

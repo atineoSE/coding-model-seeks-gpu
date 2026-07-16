@@ -2,37 +2,15 @@
  * Logic for the Snapshot Coverage Matrix — determines which models to show
  * and how to sort them.
  *
- * Mirrors the Python `find_best_models_per_lab` from
- * `pipeline/pipeline/sources/litellm_source.py`.
+ * Which closed model represents each lab is NOT decided here. That is the
+ * pipeline's call: it picks the best-scoring closed model per lab, applies
+ * CLOSED_MODEL_OVERRIDES (the single source of truth for pinning a model — see
+ * `pipeline/pipeline/sources/litellm_source.py`), and publishes the result in
+ * api_pricing.json. The matrix reads that decision so it and the API-vs-self-hosting
+ * chart always show the same model per lab, with no selection logic to keep in sync.
  */
 
 import type { BenchmarkScore, Model } from "@/types";
-
-// Prefix-based lab detection — mirrors LAB_PATTERNS in
-// pipeline/pipeline/sources/litellm_source.py. New models are picked up
-// automatically as long as they follow the naming convention.
-export const LAB_PATTERNS: [prefix: string, lab: string][] = [
-  ["claude-", "anthropic"],
-  ["gpt-", "openai"],
-  ["gemini-", "google"],
-];
-
-// Manual overrides for best-in-lab selection — mirrors CLOSED_MODEL_OVERRIDES in
-// pipeline/pipeline/sources/litellm_source.py. Keep the two in sync. Keyed by lab;
-// the value is the model_name to pin (over the score-max default) or inject as
-// that lab's closed model before it has OpenHands Index scores. An injected model
-// with no snapshot entry surfaces as an unranked closed row.
-export const CLOSED_MODEL_OVERRIDES: Record<string, string> = {
-  // anthropic: "claude-opus-5",
-};
-
-export function getLabForModel(modelName: string): string | null {
-  const lower = modelName.toLowerCase();
-  for (const [prefix, lab] of LAB_PATTERNS) {
-    if (lower.startsWith(prefix)) return lab;
-  }
-  return null;
-}
 
 /** The 5 benchmark categories (excluding the derived "overall"). */
 export const BENCHMARK_CATEGORIES = [
@@ -60,48 +38,9 @@ export interface MatrixModel {
   scores: Record<string, number | null>; // benchmark_name → score
   // True when the model has no usable benchmark score in the snapshot — a
   // sized open-weights model that has not landed on the OpenHands Index yet
-  // (partial-model-data skill), or a closed model injected via
-  // CLOSED_MODEL_OVERRIDES before its OpenHands Index scores exist.
+  // (partial-model-data skill), or a closed model the pipeline pinned before
+  // its OpenHands Index scores exist.
   unranked: boolean;
-}
-
-/**
- * Find the best closed model per lab — TypeScript port of Python's
- * `find_best_models_per_lab`.
- */
-export function findBestModelsPerLab(
-  benchmarks: BenchmarkScore[],
-  overrides: Record<string, string> = CLOSED_MODEL_OVERRIDES,
-): Record<string, string> {
-  const best: Record<string, { hasOverall: boolean; score: number; modelName: string }> = {};
-
-  for (const entry of benchmarks) {
-    const modelName = entry.model_name;
-    const lab = getLabForModel(modelName);
-    if (lab === null) continue;
-    if (entry.openness !== "closed_api_available") continue;
-
-    const score = entry.score;
-    if (score == null) continue;
-
-    const isOverall = entry.benchmark_name === "overall";
-    const current = best[lab];
-
-    if (!current) {
-      best[lab] = { hasOverall: isOverall, score, modelName };
-    } else {
-      if ((!current.hasOverall && isOverall) || (current.hasOverall === isOverall && score > current.score)) {
-        best[lab] = { hasOverall: isOverall, score, modelName };
-      }
-    }
-  }
-
-  const result: Record<string, string> = {};
-  for (const [lab, { modelName }] of Object.entries(best)) {
-    result[lab] = modelName;
-  }
-  // Manual overrides win over the score-derived selection (mirror of the Python pipeline).
-  return { ...result, ...overrides };
 }
 
 /**
@@ -110,23 +49,25 @@ export function findBestModelsPerLab(
  * - All open-weights models that appear in the snapshot (ranked)
  * - Open-weights models from `models` (models.json) that have no snapshot
  *   benchmark entry yet (unranked — sized, no OpenHands Index result)
- * - Best closed model per lab (Anthropic, OpenAI, Google)
+ * - The closed model the pipeline selected for each lab, via `closedModelsPerLab`
  *
  * Sorted by overall score descending; models without a usable score (unranked)
  * go to the bottom. Each model carries an `unranked` flag so the caller can
  * group ranked vs unranked open-weights models separately.
+ *
+ * @param closedModelsPerLab lab → model_name, read straight from api_pricing.json.
+ *   The pipeline owns this decision; pass {} to render open-weights models only.
  */
 export function getMatrixModels(
   benchmarks: BenchmarkScore[],
   models: Model[] = [],
-  overrides: Record<string, string> = CLOSED_MODEL_OVERRIDES,
+  closedModelsPerLab: Record<string, string> = {},
 ): MatrixModel[] {
-  const bestPerLab = findBestModelsPerLab(benchmarks, overrides);
-  const selectedClosedModels = new Set(Object.values(bestPerLab));
+  const selectedClosedModels = new Set(Object.values(closedModelsPerLab));
 
-  // Invert bestPerLab for lookup: model → lab
+  // Invert for lookup: model → lab
   const modelToLab: Record<string, string> = {};
-  for (const [lab, model] of Object.entries(bestPerLab)) {
+  for (const [lab, model] of Object.entries(closedModelsPerLab)) {
     modelToLab[model] = lab;
   }
 
@@ -147,9 +88,9 @@ export function getMatrixModels(
     qualifiedModels.add(m.model_name);
   }
 
-  // Ensure every best-in-lab closed model appears, including one pinned/injected
-  // via CLOSED_MODEL_OVERRIDES that has no snapshot benchmark entry yet — it surfaces
-  // as an unranked closed row until its OpenHands Index scores land.
+  // Ensure every selected closed model appears, including one the pipeline pinned
+  // that has no snapshot benchmark entry yet — it surfaces as an unranked closed
+  // row until its OpenHands Index scores land.
   for (const name of selectedClosedModels) {
     qualifiedModels.add(name);
   }

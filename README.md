@@ -102,9 +102,16 @@ gpuhunt (13+ cloud providers)  ──►  pipeline  ──►  web/public/data/g
 HuggingFace API                ──►  pipeline  ──►  web/public/data/models.json
 OpenHands Index (submodule)    ──►  pipeline  ──►  web/public/data/snapshots/
                                                    web/public/data/gpu_source.json
+LiteLLM price file             ──►  pipeline  ──►  web/public/data/api_pricing.json
 ```
 
 The pipeline writes static JSON to `web/public/data/`. The Next.js app loads these files at runtime. A daily GitHub Actions workflow runs the pipeline in Docker, commits any changes, and triggers a GitHub Pages deploy.
+
+### Which closed model represents each lab
+
+One closed model per lab (Anthropic, OpenAI, Google) is shown across the app. **That choice is made in exactly one place** — the pipeline picks each lab's best-scoring closed model from the latest snapshot, then applies `CLOSED_MODEL_OVERRIDES` in `pipeline/pipeline/sources/litellm_source.py`, the single source of truth for pinning a specific model (typically a lab's newest release, which is not always its highest scorer, or one the OpenHands Index has not scored yet).
+
+The result is published in `api_pricing.json` and read by **both** the API-vs-self-hosting chart and the Snapshot Coverage Matrix, so the two can never disagree. The web app holds no copy of this list. To change a lab's model, edit `CLOSED_MODEL_OVERRIDES` — see [UPDATE-MODEL.md](UPDATE-MODEL.md#updating-the-closed-model-for-a-lab).
 
 ## Environment variables
 

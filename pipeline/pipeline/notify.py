@@ -115,7 +115,7 @@ def notify_missing_api_pricing(model_name: str) -> None:
             f"main/model_prices_and_context_window.json (look for direct-access, "
             f"non-cloud-routed entries).\n"
             f"2. Add/update LITELLM_ID_MAP in pipeline/sources/litellm_source.py.\n"
-            f"3. See UPDATE-MODEL.md → 'Updating API Pricing Mapping' for details."
+            f"3. See UPDATE-MODEL.md → 'Updating the closed model for a lab' for details."
         ),
     )
 
@@ -134,7 +134,7 @@ def notify_missing_required_api_pricing(missing: list[tuple[str, str]]) -> None:
             f"main/model_prices_and_context_window.json (look for direct-access, "
             f"non-cloud-routed entries).\n"
             f"2. Add/update LITELLM_ID_MAP in pipeline/sources/litellm_source.py.\n"
-            f"3. See UPDATE-MODEL.md → 'Updating API Pricing Mapping' for details."
+            f"3. See UPDATE-MODEL.md → 'Updating the closed model for a lab' for details."
         ),
     )
 
