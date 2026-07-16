@@ -1,5 +1,28 @@
 # Release Notes
 
+## 0.13.0 — 2026-07-16
+
+- **GPT-5.6 is now the OpenAI model in the API-vs-self-hosting chart.** It has
+  LiteLLM pricing but no OpenHands Index results yet, so the score-derived pass
+  could only reach GPT-5.5 and the chart stayed a release behind. It is pinned
+  explicitly and shows as an **unranked** row — real per-token pricing, no
+  scores — until the Index publishes results, at which point the pin comes out
+  and the normal selection takes over.
+- **One source of truth for each lab's closed model.** The pipeline decides
+  which closed model represents Anthropic, OpenAI and Google, and publishes that
+  decision in `api_pricing.json`. The API-vs-self-hosting chart and the Snapshot
+  Coverage Matrix now both render it, so they cannot drift apart. The web app's
+  hand-maintained mirror of the selection logic is gone — there is nothing left
+  to keep in sync.
+- **Pinning is how you show a lab's *latest* model.** A lab's newest release is
+  not always its highest scorer, and the automatic pick always prefers the
+  highest scorer. `CLOSED_MODEL_OVERRIDES` in
+  `pipeline/pipeline/sources/litellm_source.py` is the one place to override it.
+- **Docs corrected where they had drifted from the code.** `UPDATE-MODEL.md`
+  documented a `MODEL_LAB_MAP` that no longer exists, `pipeline/README.md` told
+  you to mirror the override into the web app, and the pipeline's alert emails
+  pointed at a section title that had been renamed away.
+
 ## 0.12.0 — 2026-07-06
 
 - **New "GPU Node Price" chart in the Trends persona.** Tracks the cheapest
