@@ -32,6 +32,7 @@
       "us": 1.1
     },
     "supports_output_config": true,
+    "prompt_cache_min_tokens": 512,
     "model_name": "claude-fable-5",
     "lab": "anthropic",
     "litellm_id": "claude-fable-5",
