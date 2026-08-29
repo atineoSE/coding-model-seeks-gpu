@@ -95,6 +95,7 @@
       "search_context_size_high": 0.014
     },
     "web_search_billing_unit": "per_query",
+    "google_maps_grounding_cost_per_query": 0.014,
     "input_cost_per_token_batches": 7.5e-07,
     "output_cost_per_token_batches": 4.5e-06,
     "input_cost_per_token_flex": 7.5e-07,
