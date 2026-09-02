@@ -56,7 +56,7 @@
     "mode": "chat",
     "output_cost_per_reasoning_token": 9e-06,
     "output_cost_per_token": 9e-06,
-    "source": "https://ai.google.dev/pricing/gemini-3",
+    "source": "https://ai.google.dev/gemini-api/docs/pricing",
     "supported_endpoints": [
       "/v1/chat/completions",
       "/v1/completions",
