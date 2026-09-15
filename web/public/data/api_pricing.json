@@ -37,7 +37,7 @@
     "supports_output_config": true,
     "prompt_cache_min_tokens": 512,
     "supports_native_structured_output": true,
-    "source": "https://docs.anthropic.com/en/docs/about-claude/models/overview",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing",
     "model_name": "claude-fable-5",
     "lab": "anthropic",
     "litellm_id": "claude-fable-5",
@@ -56,7 +56,7 @@
     "mode": "chat",
     "output_cost_per_reasoning_token": 9e-06,
     "output_cost_per_token": 9e-06,
-    "source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "source": "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing",
     "supported_endpoints": [
       "/v1/chat/completions",
       "/v1/completions",
