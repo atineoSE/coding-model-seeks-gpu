@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-15T04:02:10.064289+00:00",
+  "generated_at": "2026-09-17T04:02:15.258463+00:00",
   "unit": "usd_per_node_hour",
   "series": [
     {
@@ -1387,6 +1387,35 @@
         {
           "gpu_name": "A100",
           "usd_per_node_hour": 12.72
+        },
+        {
+          "gpu_name": "RTXPRO6000",
+          "usd_per_node_hour": 14.4
+        }
+      ]
+    },
+    {
+      "date": "2026-09-17",
+      "prices": [
+        {
+          "gpu_name": "B300",
+          "usd_per_node_hour": 61.82
+        },
+        {
+          "gpu_name": "B200",
+          "usd_per_node_hour": 50.86
+        },
+        {
+          "gpu_name": "H200",
+          "usd_per_node_hour": 34.27
+        },
+        {
+          "gpu_name": "H100",
+          "usd_per_node_hour": 26.26
+        },
+        {
+          "gpu_name": "A100",
+          "usd_per_node_hour": 13.74
         },
         {
           "gpu_name": "RTXPRO6000",
